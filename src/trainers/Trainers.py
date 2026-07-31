@@ -6,8 +6,8 @@ os.environ["MKL_NUM_THREADS"] = num_threads
 os.environ["VECLIB_MAXIMUM_THREADS"] = num_threads
 os.environ["NUMEXPR_NUM_THREADS"] = num_threads
 import argparse
-from utils import helper
-from utils.run_context import create_run_context
+from mmctr.utils import helper
+from mmctr.utils.run_context import create_run_context
 
 parser = argparse.ArgumentParser(description="MMCTR-Trainer")
 parser.add_argument("--dataset_name", type=str, help="specify dataset", default="antm2c")

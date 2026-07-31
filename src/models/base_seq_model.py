@@ -2,7 +2,7 @@ import torch, numpy as np
 from pathlib import Path
 from sklearn import metrics
 from abc import ABC, abstractmethod
-from utils import helper
+from mmctr.utils import helper
 from .layers.common import FeatureEmbedding
 
 

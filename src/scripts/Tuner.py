@@ -43,8 +43,8 @@ import argparse
 import torch
 torch.set_num_threads(_max_cpu)         # 限制 PyTorch 线程数
 torch.set_num_interop_threads(_max_cpu) # 限制跨算子并行线程数
-from utils import helper
-from utils.tuning_protocol import evaluate_for_selection, is_better
+from mmctr.utils import helper
+from mmctr.utils.tuning_protocol import evaluate_for_selection, is_better
 
 
 def dict_to_list_of_tuples(d):

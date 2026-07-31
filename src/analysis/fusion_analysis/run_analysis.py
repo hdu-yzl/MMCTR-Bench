@@ -37,7 +37,7 @@ from datetime import datetime
 
 import torch
 
-from utils import helper
+from mmctr.utils import helper
 
 # ── 需要适配融合方法的模型（有额外操作 + 原始硬编码融合） ──
 from analysis.fusion_analysis.Diff_MSIN import Diff_MSIN

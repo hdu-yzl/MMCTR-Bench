@@ -2,11 +2,7 @@ import torch
 import random
 import numpy as np
 import os
-from data.dataloaders import Antm2cLoader, MicrolensLoader, TiktokLoader
-from models.ctr_models import DNN, DNN_mm, DNN_mm_seq, DCN, DeepFM, DIN, AutoInt
-from models.mm_ctr_models import LMF, Diff_MSIN, MARN, MTFN, DMF, SimCEN, NAML, MAKE, EM3, GMMF, QARM, MCCA
-from models.mm_ctr_models import MB, PAMD, MMMLP, M3SRec
-from models.pre_models import RQ, PSRQ
+import importlib
 import time
 from contextlib import contextmanager
 from typing import List, Optional
@@ -15,6 +11,64 @@ import yaml
 import logging
 import sys
 from pathlib import Path
+
+
+_DATA_LOADER_SPECS = {
+    "antm2c": ("data.dataloaders", "Antm2cLoader"),
+    "microlens": ("data.dataloaders", "MicrolensLoader"),
+    "tiktok": ("data.dataloaders", "TiktokLoader"),
+}
+
+_MODEL_SPECS = {
+    "dnn": ("models.ctr_models", "DNN", True),
+    "dnn_mm": ("models.ctr_models", "DNN_mm", True),
+    "dnn_mm_seq": ("models.ctr_models", "DNN_mm_seq", True),
+    "dcn": ("models.ctr_models", "DCN", True),
+    "deepfm": ("models.ctr_models", "DeepFM", True),
+    "din": ("models.ctr_models", "DIN", True),
+    "autoint": ("models.ctr_models", "AutoInt", True),
+    "lmf": ("models.mm_ctr_models", "LMF", True),
+    "diff_msin": ("models.mm_ctr_models", "Diff_MSIN", True),
+    "marn": ("models.mm_ctr_models", "MARN", True),
+    "mtfn": ("models.mm_ctr_models", "MTFN", True),
+    "dmf": ("models.mm_ctr_models", "DMF", True),
+    "simcen": ("models.mm_ctr_models", "SimCEN", True),
+    "naml": ("models.mm_ctr_models", "NAML", True),
+    "make": ("models.mm_ctr_models", "MAKE", True),
+    "em3": ("models.mm_ctr_models", "EM3", True),
+    "gmmf": ("models.mm_ctr_models", "GMMF", True),
+    "qarm": ("models.mm_ctr_models", "QARM", True),
+    "mcca": ("models.mm_ctr_models", "MCCA", True),
+    "mb": ("models.mm_ctr_models", "MB", True),
+    "pamd": ("models.mm_ctr_models", "PAMD", True),
+    "mmmlp": ("models.mm_ctr_models", "MMMLP", True),
+    "m3srec": ("models.mm_ctr_models", "M3SRec", True),
+    "rq": ("models.pre_models", "RQ", False),
+    "psrq": ("models.pre_models", "PSRQ", False),
+}
+
+
+def _load_symbol(module_name, symbol_name):
+    module = importlib.import_module(module_name)
+    return getattr(module, symbol_name)
+
+
+def resolve_data_loader_class(dataset):
+    dataset = dataset.lower()
+    try:
+        module_name, class_name = _DATA_LOADER_SPECS[dataset]
+    except KeyError:
+        raise ValueError("Invalid dataset type:{}".format(dataset))
+    return _load_symbol(module_name, class_name)
+
+
+def resolve_model_class(model_name):
+    model_name = model_name.lower()
+    try:
+        module_name, class_name, _takes_logger = _MODEL_SPECS[model_name]
+    except KeyError:
+        raise ValueError("Invalid model type:{}".format(model_name))
+    return _load_symbol(module_name, class_name)
 
 
 def getOptim(network, optim, lr, l2):
@@ -57,71 +111,21 @@ def setup_env(cuda_id: int = 0,
 
 
 def getDataLoader(dataset, data_config, batch_size):
-    dataset = dataset.lower()
-    if dataset == "antm2c":
-        return Antm2cLoader(data_config, batch_size)
-    elif dataset == "microlens":
-        return MicrolensLoader(data_config, batch_size)
-    elif dataset == "tiktok":
-        return TiktokLoader(data_config, batch_size)
-    else:
-        raise ValueError("Invalid dataset type:{}".format(dataset))
+    loader_class = resolve_data_loader_class(dataset)
+    return loader_class(data_config, batch_size)
 
 
 def getModel(model_name, model_config, train_config, data_config, logger):
     model_name = model_name.lower()
-    if model_name == "dnn":
-        return DNN(model_config, train_config, data_config, logger)
-    elif model_name == "lmf":
-        return LMF(model_config, train_config, data_config, logger)
-    elif model_name == "diff_msin":
-        return Diff_MSIN(model_config, train_config, data_config, logger)
-    elif model_name == "marn":
-        return MARN(model_config, train_config, data_config, logger)
-    elif model_name == "mtfn":
-        return MTFN(model_config, train_config, data_config, logger)
-    elif model_name == "dmf":
-        return DMF(model_config, train_config, data_config, logger)
-    elif model_name == "simcen":
-        return SimCEN(model_config, train_config, data_config, logger)
-    elif model_name == "naml":
-        return NAML(model_config, train_config, data_config, logger)
-    elif model_name == "make":
-        return MAKE(model_config, train_config, data_config, logger)
-    elif model_name == "em3":
-        return EM3(model_config, train_config, data_config, logger)
-    elif model_name == "gmmf":
-        return GMMF(model_config, train_config, data_config, logger)
-    elif model_name == "rq":
-        return RQ(model_config, train_config, data_config)
-    elif model_name == "qarm":
-        return QARM(model_config, train_config, data_config, logger)
-    elif model_name == "psrq":
-        return PSRQ(model_config, train_config, data_config)
-    elif model_name == "mcca":
-        return MCCA(model_config, train_config, data_config, logger)
-    elif model_name == "mb":
-        return MB(model_config, train_config, data_config, logger)
-    elif model_name == "pamd":
-        return PAMD(model_config, train_config, data_config, logger)
-    elif model_name == "mmmlp":
-        return MMMLP(model_config, train_config, data_config, logger)
-    elif model_name == "m3srec":
-        return M3SRec(model_config, train_config, data_config, logger)
-    elif model_name == "dcn":
-        return DCN(model_config, train_config, data_config, logger)
-    elif model_name == "deepfm":
-        return DeepFM(model_config, train_config, data_config, logger)
-    elif model_name == "din":
-        return DIN(model_config, train_config, data_config, logger)
-    elif model_name == "autoint":
-        return AutoInt(model_config, train_config, data_config, logger)
-    elif model_name == "dnn_mm":
-        return DNN_mm(model_config, train_config, data_config, logger)
-    elif model_name == "dnn_mm_seq":
-        return DNN_mm_seq(model_config, train_config, data_config, logger)
-    else:
+    try:
+        _module_name, _class_name, takes_logger = _MODEL_SPECS[model_name]
+    except KeyError:
         raise ValueError("Invalid model type:{}".format(model_name))
+    model_class = resolve_model_class(model_name)
+    arguments = (model_config, train_config, data_config)
+    if takes_logger:
+        arguments += (logger,)
+    return model_class(*arguments)
 
 
 @contextmanager

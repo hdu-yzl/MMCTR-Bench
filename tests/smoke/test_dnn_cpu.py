@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 
 from tests.fixtures.synthetic import legacy_dnn_configs, make_legacy_dnn_batch
-from utils import helper
+from mmctr.utils import helper
 
 
 class LegacyDnnCpuSmokeTest(unittest.TestCase):

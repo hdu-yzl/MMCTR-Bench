@@ -1,6 +1,6 @@
 import unittest
 
-from utils.tuning_protocol import (
+from mmctr.utils.tuning_protocol import (
     SELECTION_SPLIT,
     SelectionMetrics,
     evaluate_for_selection,

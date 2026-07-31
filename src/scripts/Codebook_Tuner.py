@@ -53,8 +53,8 @@ from datetime import datetime
 import numpy as np
 import torch
 
-from utils import helper
-from utils.tuning_protocol import SelectionMetrics, evaluate_for_selection, is_better
+from mmctr.utils import helper
+from mmctr.utils.tuning_protocol import SelectionMetrics, evaluate_for_selection, is_better
 from models.pre_models.RQ import ResidualQuantizer
 from models.pre_models.PSRQ import PSRQ_Premodel
 

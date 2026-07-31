@@ -20,10 +20,11 @@ Current dataset adapters:
 Current registered model names include DNN, DCN, DeepFM, DIN, AutoInt, LMF, Diff-MSIN, MARN,
 MTFN, DMF, SimCEN, NAML, MAKE, EM3, GMMF, QARM, MCCA, MB, PAMD, MMMLP, M3SRec, RQ, and PSRQ.
 
-The long-term architecture uses a single `mmctr` import namespace, typed data/model contracts,
-isolated experiment directories, validation-only model selection, and shared analysis protocols.
-Those interfaces are introduced incrementally; current source packages still use legacy top-level
-names such as `models`, `data`, and `utils` until task `PKG-001` is completed.
+The public package namespace is `mmctr`; the current bridge exposes models, data factories, and
+utilities there while retaining legacy top-level packages for existing research scripts. Import
+migration details and current boundaries are documented in
+[docs/migration.md](docs/migration.md). Typed data/model contracts and shared analysis protocols
+are still introduced incrementally.
 
 ## Requirements
 
@@ -50,7 +51,7 @@ cd MMCTR-Bench
 <SERVER_ENV>/bin/python -m pip install --editable \
   '.[training,data,multimodal,analysis,tuning]'
 <SERVER_ENV>/bin/python -m pip check
-<SERVER_ENV>/bin/python -c "import data, models, utils; print('legacy imports OK')"
+<SERVER_ENV>/bin/python -c "import mmctr; print(mmctr.__version__)"
 ```
 
 Install the server-approved PyTorch/CUDA build from its official channel before the editable

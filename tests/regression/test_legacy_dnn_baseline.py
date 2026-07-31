@@ -7,7 +7,7 @@ from pathlib import Path
 
 import torch
 
-from utils import helper
+from mmctr.utils import helper
 
 
 BASELINE_PATH = Path(__file__).parents[1] / "baselines" / "legacy_dnn_cpu_v1.json"

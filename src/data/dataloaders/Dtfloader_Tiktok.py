@@ -4,7 +4,7 @@ import torch
 import os
 import numpy as np
 import pickle
-from utils import helper
+from mmctr.utils import helper
 # from modules import RQ
 
 repo_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

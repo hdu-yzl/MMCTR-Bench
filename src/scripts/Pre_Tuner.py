@@ -45,7 +45,7 @@ import argparse
 import torch
 torch.set_num_threads(_max_cpu)         # 限制 PyTorch 线程数
 torch.set_num_interop_threads(_max_cpu) # 限制跨算子并行线程数
-from utils import helper
+from mmctr.utils import helper
 from models.pre_models.RQ import ResidualQuantizer
 from models.pre_models.PSRQ import PSRQ_Premodel
 

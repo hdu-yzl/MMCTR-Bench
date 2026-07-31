@@ -3,7 +3,7 @@ from models.layers.common import MultiLayerPerceptron, FeatureEmbedding
 import torch.nn as nn
 import torch.nn.functional as F
 import random
-from utils import helper
+from mmctr.utils import helper
 import numpy as np
 from pathlib import Path
 

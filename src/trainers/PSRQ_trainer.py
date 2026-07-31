@@ -6,7 +6,7 @@ os.environ["MKL_NUM_THREADS"] = num_threads
 os.environ["VECLIB_MAXIMUM_THREADS"] = num_threads
 os.environ["NUMEXPR_NUM_THREADS"] = num_threads
 import argparse
-from utils import helper
+from mmctr.utils import helper
 
 from models.pre_models.PSRQ import PSRQ_Premodel
 import numpy as np

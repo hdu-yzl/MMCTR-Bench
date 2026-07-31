@@ -5,7 +5,7 @@ from ..layers.common import MultiLayerPerceptron
 from ..layers import modal_fusion, seq_pooling
 import torch.nn as nn
 import torch
-from utils import helper
+from mmctr.utils import helper
 
 
 class GMMF(BaseSeqModel):

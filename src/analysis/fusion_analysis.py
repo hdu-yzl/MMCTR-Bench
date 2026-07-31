@@ -35,7 +35,7 @@ from datetime import datetime
 import numpy as np
 import torch
 
-from utils import helper
+from mmctr.utils import helper
 from models.ctr_models.dnn import DNN_mm
 from models.layers.modal_fusion import _FUSION_MAP, FQFormer
 
