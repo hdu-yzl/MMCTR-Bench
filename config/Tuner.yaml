@@ -1,0 +1,77 @@
+# 调参配置
+train:
+  lr: [1e-3,5e-3,1e-4,5e-4,1e-5]
+  l2: [1e-5,5e-5,1e-6,5e-6,1e-7]
+
+model:
+  dcn:
+    cross_num: [3,4,5]
+
+  lmf:
+    rank: [3,5,7,10]
+    fusion_dim: [32,64,128]
+
+  diff_msin:
+    lambda1: [0.001,0.01,0.1,0.5]
+    lambda2: [0.001,0.01,0.1,0.5]
+
+    T: [3,5,7,10]
+    num_cross_layers: [3,4,5]
+    heads: [1,2,4]
+
+  marn:
+    lambda0: [0.001,0.01,0.05,0.1,0.5]
+
+  dmf:
+    tier_num: [10,20,30,50]
+    attention_dim: [32,64,128]
+    num_buckets: [30,50,70]
+    alpha: [0.05,0.1,0.3,0.5]
+
+  simcen:
+    hidden_unit: [[ 480,480,480 ],[ 512,512,512 ],[ 128,128,128 ]]
+
+    cl_temperature: [0.05,0.1,0.3,0.5]
+    alpha: [0.05,0.1,0.3,0.5]
+
+  make:
+    tier_num: [10,20,30,50]
+
+  em3:
+    query_num: [3,5,7,10]
+    cic_tau: [0.05,0.1,0.3,0.5]
+    cic_weight: [0.05,0.1,0.3,0.5]
+
+  gmmf:
+    lambdas: [{ 'image': 0.1, 'text': 0.1, 'audio': 0.1 }, { 'image': 0.3, 'text': 0.3, 'audio': 0.3 }]
+    N: [1,2,3]
+    lr_disc: [1e-4,1e-5,1e-6,1e-7]
+    lr_gen: [1e-4,1e-5,1e-6,1e-7]
+
+  qarm:
+    cross_num: [3,4,5]
+
+
+  rq:
+
+    n_levels: [2, 3, 4]
+
+    codebook_size: [256, 512, 1024]
+    
+    batch_size: [256, 512, 1024]  # 确保 batch_size >= codebook_size
+
+    n_init: [3,5,10]
+    
+    max_iter: [10,20,30]
+
+  psrq:
+    n_levels: [2, 3, 4, 5]
+
+    codebook_size: [256, 512, 1024, 2048]
+    
+
+    quant_loss_weight: [0.5, 1.0, 2.0]
+
+    mu: [0.25, 0.5, 0.99]
+
+    batch_size: [512, 1024, 2048]  # 确保 batch_size >= codebook_size

@@ -1,0 +1,967 @@
+dnn_mm:
+  antm2c:
+    lr: 1e-3
+    l2: 5e-5
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: false
+  microlens:
+    lr: 1e-3
+    l2: 5e-5
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: false
+  tiktok:
+    lr: 5e-3
+    l2: 1e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: false
+lmf:
+  antm2c:
+    lr: 1e-4
+    l2: 1e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    seq_modeling: false
+    rank: 7
+    fusion_dim: 64
+  microlens:
+    lr: 5e-4
+    l2: 5e-5
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    seq_modeling: false
+    rank: 7
+    fusion_dim: 64
+  tiktok:
+    lr: 1e-3
+    l2: 1e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    seq_modeling: false
+    rank: 7
+    fusion_dim: 64
+diff_msin:
+  antm2c:
+    lr: 1e-3
+    l2: 1e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: true
+    lambda1: 0.01
+    lambda2: 0.01
+    T: 5
+    num_cross_layers: 3
+    heads: 4
+  microlens:
+    lr: 1e-4
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: true
+    lambda1: 0.1
+    lambda2: 0.5
+    T: 10
+    num_cross_layers: 4
+    heads: 2
+  tiktok:
+    lr: 5e-4
+    l2: 5e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: true
+    lambda1: 0.5
+    lambda2: 0.001
+    T: 3
+    num_cross_layers: 0
+    heads: 4
+marn:
+  antm2c:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: true
+    lambda0: 0.001
+  microlens:
+    lr: 5e-4
+    l2: 5e-5
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: true
+    lambda0: 0.001
+  tiktok:
+    lr: 5e-3
+    l2: 1e-5
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: true
+    lambda0: 0.001
+mtfn:
+  antm2c:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: false
+    rank: 20
+  microlens:
+    lr: 1e-3
+    l2: 5e-5
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: false
+    rank: 20
+  tiktok:
+    lr: 1e-3
+    l2: 5e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    modal_fusion_method: cat
+    seq_modeling: false
+    rank: 20
+dmf:
+  antm2c:
+    lr: 1e-3
+    l2: 1e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_modeling: true
+    tier_num: 50
+    attention_dim: 128
+    num_buckets: 30
+    alpha: 0.3
+  microlens:
+    lr: 5e-4
+    l2: 5e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_modeling: true
+    tier_num: 50
+    attention_dim: 64
+    num_buckets: 30
+    alpha: 0.3
+  tiktok:
+    lr: 5e-4
+    l2: 1e-5
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_modeling: true
+    tier_num: 50
+    attention_dim: 64
+    num_buckets: 20
+    alpha: 0.1
+simcen:
+  antm2c:
+    lr: 1e-3
+    l2: 1e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    hidden_unit:
+    - 120
+    - 120
+    - 120
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_pooling_method: mean
+    seq_modeling: false
+    cl_temperature: 0.5
+    alpha: 0.1
+    ego_dropout: 0.0
+    v1_dropout: 0.0
+    v2_dropout: 0.0
+    ego_batch_norm: true
+    v1_batch_norm: true
+    v2_batch_norm: true
+  microlens:
+    lr: 5e-4
+    l2: 5e-5
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    hidden_unit:
+    - 120
+    - 120
+    - 120
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_pooling_method: mean
+    seq_modeling: false
+    cl_temperature: 0.5
+    alpha: 0.1
+    ego_dropout: 0.0
+    v1_dropout: 0.0
+    v2_dropout: 0.0
+    ego_batch_norm: true
+    v1_batch_norm: true
+    v2_batch_norm: true
+  tiktok:
+    lr: 5e-4
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    hidden_unit:
+    - 120
+    - 120
+    - 120
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_pooling_method: mean
+    seq_modeling: false
+    cl_temperature: 0.5
+    alpha: 0.05
+    ego_dropout: 0.0
+    v1_dropout: 0.0
+    v2_dropout: 0.0
+    ego_batch_norm: true
+    v1_batch_norm: true
+    v2_batch_norm: true
+naml:
+  antm2c:
+    lr: 5e-4
+    l2: 1e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: maf
+    seq_modeling: true
+  microlens:
+    lr: 5e-4
+    l2: 1e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: maf
+    seq_modeling: true
+  tiktok:
+    lr: 5e-4
+    l2: 1e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: maf
+    seq_modeling: true
+make:
+  antm2c:
+    lr: 5e-4
+    l2: 1e-5
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_modeling: true
+    tier_num: 50
+  microlens:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_modeling: true
+    tier_num: 10
+  tiktok:
+    lr: 5e-3
+    l2: 1e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_modeling: true
+    tier_num: 50
+em3:
+  antm2c:
+    lr: 5e-3
+    l2: 1e-5
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_modeling: true
+    query_num: 3
+    cic_tau: 0.3
+    cic_weight: 0.05
+  microlens:
+    lr: 5e-4
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_modeling: true
+    query_num: 3
+    cic_tau: 0.5
+    cic_weight: 0.1
+  tiktok:
+    lr: 1e-4
+    l2: 1e-5
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    modal_fusion_method: cat
+    seq_modeling: true
+    query_num: 7
+    cic_tau: 0.5
+    cic_weight: 0.5
+gmmf:
+  antm2c:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    lambdas:
+      image: 0.1
+      text: 0.1
+      audio: 0.1
+    N: 3
+    lr_main: 1e-4
+    lr_disc: 1e-7
+    lr_gen: 1e-6
+  microlens:
+    lr: 5e-4
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    lambdas:
+      image: 0.1
+      text: 0.1
+      audio: 0.1
+    N: 3
+    lr_main: 1e-4
+    lr_disc: 1e-7
+    lr_gen: 1e-6
+  tiktok:
+    lr: 5e-4
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    lambdas:
+      image: 0.3
+      text: 0.3
+      audio: 0.3
+    N: 1
+    lr_main: 1e-4
+    lr_disc: 1e-7
+    lr_gen: 1e-4
+qarm:
+  latent_dim: 128
+  projection_dim: 128
+  mlp_dims:
+  - 1024
+  - 512
+  - 256
+  dropout: 0.0
+  batch_norm: true
+  seq_modeling: true
+  cross_num: 3
+  n_levels: 3
+  codebook_size: 1024
+  antm2c:
+    lr: 5e-4
+    l2: 5e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    cross_num: 3
+    n_levels: 2
+    codebook_size: 1024
+  microlens:
+    lr: 5e-4
+    l2: 5e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    cross_num: 3
+    n_levels: 2
+    codebook_size: 256
+  tiktok:
+    lr: 5e-4
+    l2: 5e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    cross_num: 3
+    n_levels: 3
+    codebook_size: 256
+mb:
+  antm2c:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    seq_modeling: false
+    sensitive_modal: image
+    insensitive_modal: text
+    mb_balance_weight: 0.1
+    mb_sample_num: 30
+    mb_adv_eps: 1.0
+    mb_pgd_steps: 3
+    mb_fusion_hidden_dim: 128
+  microlens:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    seq_modeling: false
+    sensitive_modal: image
+    insensitive_modal: text
+    mb_balance_weight: 0.1
+    mb_sample_num: 30
+    mb_adv_eps: 1.0
+    mb_pgd_steps: 3
+    mb_fusion_hidden_dim: 128
+  tiktok:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    seq_modeling: false
+    sensitive_modal: image
+    insensitive_modal: text
+    mb_balance_weight: 0.1
+    mb_sample_num: 30
+    mb_adv_eps: 1.0
+    mb_pgd_steps: 3
+    mb_fusion_hidden_dim: 128
+pamd:
+  antm2c:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    seq_modeling: false
+    pamd_hidden_dim: 128
+    pamd_aux_weight: 0.1
+    pamd_layer_norm: true
+  microlens:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    seq_modeling: false
+    pamd_hidden_dim: 128
+    pamd_aux_weight: 0.1
+    pamd_layer_norm: true
+  tiktok:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_pooling_method: mean
+    seq_modeling: false
+    pamd_hidden_dim: 128
+    pamd_aux_weight: 0.1
+    pamd_layer_norm: true
+mmmlp:
+  antm2c:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    mixer_layers: 2
+    feature_mixer_layers: 2
+    fusion_mixer_layers: 2
+    token_hidden_dim: 10
+    channel_hidden_dim: 256
+  microlens:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    mixer_layers: 2
+    feature_mixer_layers: 2
+    fusion_mixer_layers: 2
+    token_hidden_dim: 10
+    channel_hidden_dim: 256
+  tiktok:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    mixer_layers: 2
+    feature_mixer_layers: 2
+    fusion_mixer_layers: 2
+    token_hidden_dim: 10
+    channel_hidden_dim: 256
+m3srec:
+  antm2c:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    num_heads: 4
+    num_experts: 4
+    moe_hidden_dim: 512
+    attn_ffn_dim: 512
+    num_specific_layers: 1
+    num_cross_layers: 1
+    fusion_hidden_dim: 128
+  microlens:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    num_heads: 4
+    num_experts: 4
+    moe_hidden_dim: 512
+    attn_ffn_dim: 512
+    num_specific_layers: 1
+    num_cross_layers: 1
+    fusion_hidden_dim: 128
+  tiktok:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    num_heads: 4
+    num_experts: 4
+    moe_hidden_dim: 512
+    attn_ffn_dim: 512
+    num_specific_layers: 1
+    num_cross_layers: 1
+    fusion_hidden_dim: 128
+mcca:
+  antm2c:
+    lr: 5e-4
+    l2: 5e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    psrq_dims:
+    - 256
+    - 128
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    codebook_size: 1024
+    n_levels: 3
+  microlens:
+    lr: 5e-4
+    l2: 5e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    psrq_dims:
+    - 256
+    - 128
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    codebook_size: 512
+    n_levels: 3
+  tiktok:
+    lr: 5e-4
+    l2: 5e-6
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    psrq_dims:
+    - 256
+    - 128
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    codebook_size: 1024
+    n_levels: 3
+psrq:
+  antm2c:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    psrq_dims:
+    - 256
+    - 128
+    codebook_size: 256
+    n_levels: 3
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    mu: 0.25
+    quant_loss_weight: 1
+  microlens:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    psrq_dims:
+    - 256
+    - 128
+    codebook_size: 256
+    n_levels: 3
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    mu: 0.25
+    quant_loss_weight: 1
+  tiktok:
+    lr: 1e-3
+    l2: 1e-7
+    latent_dim: 128
+    projection_dim: 128
+    psrq_dims:
+    - 256
+    - 128
+    codebook_size: 256
+    n_levels: 3
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    mu: 0.25
+    quant_loss_weight: 1
+rq:
+  antm2c:
+    n_levels: 3
+    codebook_size: 1024
+    dimension: 128
+    random_state: 42
+    n_init: 5
+    max_iter: 20
+    tol: 1e-4
+    seq_modeling: true
+  microlens:
+    n_levels: 3
+    codebook_size: 1024
+    dimension: 128
+    random_state: 42
+    n_init: 5
+    max_iter: 20
+    tol: 1e-4
+    seq_modeling: true
+  tiktok:
+    n_levels: 3
+    codebook_size: 1024
+    dimension: 128
+    random_state: 42
+    n_init: 5
+    max_iter: 20
+    tol: 1e-4
+    seq_modeling: true

@@ -1,0 +1,74 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Packaging and build output
+*.egg-info/
+*.egg
+build/
+dist/
+wheels/
+
+# Test, lint, type-check, and coverage caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local Python environments
+.venv/
+venv/
+env/
+
+# Editors and operating-system metadata
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Local configuration, environment files, and secrets
+.env
+.env.*
+!.env.example
+configs/local/**
+!configs/local/
+!configs/local/paths.example.yaml
+config/local_data.yaml
+config/local_seq_data.yaml
+
+# Private and generated datasets; keep documentation and manifests
+data/raw/**
+!data/raw/**/
+!data/raw/**/README.md
+!data/raw/**/manifest.*
+data/processed/**
+!data/processed/**/
+!data/processed/**/README.md
+!data/processed/**/manifest.*
+
+# Experiment, tuning, log, and checkpoint output
+outputs/**
+!outputs/.gitkeep
+checkpoints/
+runs/
+wandb/
+mlruns/
+ray_results/
+*.log
+*.pt
+*.pth
+*.ckpt
+
+# Temporary files
+*.tmp
+*.temp
+~$*

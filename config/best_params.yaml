@@ -1,0 +1,422 @@
+model: make
+dataset: antm2c
+best_trial: 6
+test_auc: 0.8955369529937267
+test_loss: 0.39726733180536405
+params:
+  train.lr: 5e-4
+  train.l2: 1e-5
+  model.tier_num: 50
+model: dmf
+dataset: antm2c
+best_trial: 18
+test_auc: 0.8839445925945282
+test_loss: 0.4112410127178971
+params:
+  train.lr: 1e-3
+  train.l2: 1e-6
+  model.tier_num: 50
+  model.attention_dim: 128
+  model.num_buckets: 30
+  model.alpha: 0.3
+model: lmf
+dataset: antm2c
+best_trial: 14
+test_auc: 0.8930261334139157
+test_loss: 0.40199410543704056
+params:
+  train.lr: 1e-4
+  train.l2: 1e-6
+  model.rank: 7
+  model.fusion_dim: 64
+model: dnn_mm
+dataset: antm2c
+best_trial: 20
+test_auc: 0.8952714682258559
+test_loss: 0.3936494361047653
+params:
+  train.lr: 1e-3
+  train.l2: 5e-5
+model: dnn_mm
+dataset: microlens
+best_trial: 6
+test_auc: 0.9728129233866281
+test_loss: 0.16852203828685614
+params:
+  train.lr: 5e-3
+  train.l2: 5e-6
+model: dnn_mm
+dataset: tiktok
+best_trial: 4
+test_auc: 0.8517807438980699
+test_loss: 0.4637443845386613
+params:
+  train.lr: 5e-3
+  train.l2: 1e-6
+model: naml
+dataset: antm2c
+best_trial: 4
+test_auc: 0.8844964617712036
+test_loss: 0.4126420586974343
+params:
+  train.lr: 5e-4
+  train.l2: 1e-6
+model: dnn
+dataset: antm2c
+best_trial: 6
+test_auc: 0.8781704793462634
+test_loss: 0.426870935657031
+params:
+  train.lr: 1e-4
+  train.l2: 1e-7
+model: naml
+dataset: microlens
+best_trial: 3
+test_auc: 0.9725834007516188
+test_loss: 0.16908839136824705
+params:
+  train.lr: 5e-4
+  train.l2: 1e-6
+model: naml
+dataset: tiktok
+best_trial: 10
+test_auc: 0.8428063279476575
+test_loss: 0.33127968418479314
+params:
+  train.lr: 5e-4
+  train.l2: 1e-6
+model: lmf
+dataset: tiktok
+best_trial: 16
+test_auc: 0.8330867129634344
+test_loss: 0.5427815865316551
+params:
+  train.lr: 1e-3
+  train.l2: 1e-6
+  model.rank: 7
+  model.fusion_dim: 64
+model: make
+dataset: tiktok
+best_trial: 8
+test_auc: 0.8485416170632828
+test_loss: 0.46724672017836877
+params:
+  train.lr: 5e-3
+  train.l2: 1e-6
+  model.tier_num: 50
+model: simcen
+dataset: tiktok
+best_trial: 5
+test_auc: 0.8387491332080204
+test_loss: 0.5568174400075508
+params:
+  train.lr: 5e-4
+  train.l2: 1e-7
+  model.hidden_unit:
+  - 120
+  - 120
+  - 120
+  model.cl_temperature: 0.5
+  model.alpha: 0.05
+model: gmmf
+dataset: tiktok
+best_trial: 8
+test_auc: 0.8541540097865252
+test_loss: 0.5704199127077679
+params:
+  train.lr: 5e-4
+  train.l2: 1e-7
+  model.lambdas:
+    image: 0.3
+    text: 0.3
+    audio: 0.3
+  model.N: 1
+  model.lr_disc: 1e-7
+  model.lr_gen: 1e-4
+model: dmf
+dataset: tiktok
+best_trial: 9
+test_auc: 0.6806032003213679
+test_loss: 0.5640311114722842
+params:
+  train.lr: 5e-3
+  train.l2: 1e-6
+  model.tier_num: 50
+  model.attention_dim: 32
+  model.num_buckets: 30
+  model.alpha: 0.3
+model: dmf
+dataset: tiktok
+best_trial: 6
+test_auc: 0.7361253076444287
+test_loss: 0.7409140801514064
+params:
+  train.lr: 5e-4
+  train.l2: 1e-5
+  model.tier_num: 50
+  model.attention_dim: 64
+  model.num_buckets: 20
+  model.alpha: 0.1
+model: lmf
+dataset: microlens
+best_trial: 17
+test_auc: 0.971750587462618
+test_loss: 0.17747369544407052
+params:
+  train.lr: 5e-4
+  train.l2: 5e-5
+  model.rank: 7
+  model.fusion_dim: 64
+model: marn
+dataset: tiktok
+best_trial: 20
+test_auc: 0.8375282382392497
+test_loss: 0.4733568797549343
+params:
+  train.lr: 5e-3
+  train.l2: 1e-5
+  model.lambda0: 0.001
+model: mtfn
+dataset: tiktok
+best_trial: 5
+test_auc: 0.8418230326708266
+test_loss: 0.5475921166297492
+params:
+  train.lr: 1e-3
+  train.l2: 5e-6
+model: make
+dataset: microlens
+best_trial: 9
+test_auc: 0.9740230798054743
+test_loss: 0.1659889468780558
+params:
+  train.lr: 1e-3
+  train.l2: 1e-7
+  model.tier_num: 10
+model: em3
+dataset: antm2c
+best_trial: 12
+test_auc: 0.8826894399204727
+test_loss: 0.4180542966699572
+params:
+  train.lr: 5e-3
+  train.l2: 1e-5
+  model.query_num: 3
+  model.cic_tau: 0.3
+  model.cic_weight: 0.05
+model: simcen
+dataset: microlens
+best_trial: 3
+test_auc: 0.9644337694598446
+test_loss: 0.19098724647586016
+params:
+  train.lr: 5e-4
+  train.l2: 5e-5
+  model.hidden_unit:
+  - 120
+  - 120
+  - 120
+  model.cl_temperature: 0.5
+  model.alpha: 0.1
+model: dmf
+dataset: microlens
+best_trial: 14
+test_auc: 0.9144975797459041
+test_loss: 0.29127885489417543
+params:
+  train.lr: 5e-4
+  train.l2: 5e-6
+  model.tier_num: 50
+  model.attention_dim: 64
+  model.num_buckets: 30
+  model.alpha: 0.3
+model: dcn
+dataset: antm2c
+best_trial: 1
+test_auc: 0.880583480668641
+test_loss: 0.42075464522216177
+params:
+  train.lr: 1e-4
+  train.l2: 1e-7
+  model.cross_num: 3
+model: mtfn
+dataset: microlens
+best_trial: 6
+test_auc: 0.9706363663414399
+test_loss: 0.17530524982921453
+params:
+  train.lr: 1e-3
+  train.l2: 5e-5
+model: deepfm
+dataset: antm2c
+best_trial: 6
+test_auc: 0.8783764713322588
+test_loss: 0.42983011704749385
+params:
+  train.lr: 1e-3
+  train.l2: 5e-5
+model: gmmf
+dataset: microlens
+best_trial: 19
+test_auc: 0.9605200062898289
+test_loss: 0.2076865068075511
+params:
+  train.lr: 5e-4
+  train.l2: 1e-5
+  model.lambdas:
+    image: 0.1
+    text: 0.1
+    audio: 0.1
+  model.N: 3
+  model.lr_disc: 1e-7
+  model.lr_gen: 1e-6
+model: marn
+dataset: microlens
+best_trial: 10
+test_auc: 0.9731687384601171
+test_loss: 0.1724203302097502
+params:
+  train.lr: 5e-4
+  train.l2: 5e-5
+  model.lambda0: 0.001
+model: dnn
+dataset: microlens
+best_trial: 2
+test_auc: 0.9576102288284953
+test_loss: 0.20567882421796865
+params:
+  train.lr: 5e-4
+  train.l2: 5e-6
+model: dcn
+dataset: microlens
+best_trial: 16
+test_auc: 0.9577922918585786
+test_loss: 0.2046979349775686
+params:
+  train.lr: 5e-4
+  train.l2: 1e-6
+  model.cross_num: 5
+model: dnn
+dataset: tiktok
+best_trial: 6
+test_auc: 0.8519823436366855
+test_loss: 0.501231103202355
+params:
+  train.lr: 1e-3
+  train.l2: 1e-6
+model: deepfm
+dataset: microlens
+best_trial: 4
+test_auc: 0.9587194803393612
+test_loss: 0.20068194694387906
+params:
+  train.lr: 1e-3
+  train.l2: 5e-6
+model: em3
+dataset: microlens
+best_trial: 10
+test_auc: 0.9717681868282007
+test_loss: 0.17722977129737727
+params:
+  train.lr: 5e-4
+  train.l2: 1e-7
+  model.query_num: 3
+  model.cic_tau: 0.5
+  model.cic_weight: 0.1
+model: em3
+dataset: tiktok
+best_trial: 9
+test_auc: 0.8255256055254219
+test_loss: 0.5936549815412041
+params:
+  train.lr: 1e-4
+  train.l2: 1e-5
+  model.query_num: 7
+  model.cic_tau: 0.5
+  model.cic_weight: 0.5
+model: diff_msin
+dataset: tiktok
+best_trial: 15
+test_auc: 0.538796280733098
+test_loss: 0.5819066262040669
+params:
+  train.lr: 5e-3
+  train.l2: 1e-5
+  model.lambda1: 0.001
+  model.lambda2: 0.001
+  model.T: 10
+  model.num_cross_layers: 3
+  model.heads: 1
+model: psrq
+dataset: antm2c
+modality: text
+best_trial: 10
+total_loss: 0.16777941957116127
+recon_loss: 0.13191854394972324
+mean_collapse_rate: 0.0
+params:
+  train.lr: 5e-4
+  train.l2: 1e-6
+  model.n_levels: 2
+  model.codebook_size: 256
+  model.quant_loss_weight: 1.0
+  model.mu: 0.99
+  model.batch_size: 512
+model: psrq
+dataset: microlens
+modality: text
+best_trial: 16
+total_loss: 0.09945418243296444
+recon_loss: 0.08877618494443595
+mean_collapse_rate: 0.0
+params:
+  train.lr: 5e-3
+  train.l2: 5e-6
+  model.n_levels: 4
+  model.codebook_size: 512
+  model.quant_loss_weight: 0.5
+  model.mu: 0.99
+  model.batch_size: 1024
+model: psrq
+dataset: tiktok
+modality: text
+best_trial: 13
+total_loss: 2.1189676374197006
+recon_loss: 1.9531123861670494
+mean_collapse_rate: 0.0
+params:
+  train.lr: 5e-3
+  train.l2: 1e-5
+  model.n_levels: 3
+  model.codebook_size: 512
+  model.quant_loss_weight: 2.0
+  model.mu: 0.99
+  model.batch_size: 2048
+model: diff_msin
+dataset: tiktok
+best_trial: 9
+test_auc: 0.8353409307303795
+test_loss: 1.1620856655179261
+params:
+  train.lr: 5e-4
+  train.l2: 5e-6
+  model.lambda1: 0.5
+  model.lambda2: 0.001
+  model.T: 3
+  model.num_cross_layers: 0
+  model.heads: 4
+model: psrq
+dataset: tiktok
+modality: text
+best_trial: 48
+total_loss: 2.066128483663003
+recon_loss: 1.9534050102035205
+mean_collapse_rate: 0.0
+params:
+  train.lr: 5e-3
+  train.l2: 5e-6
+  model.n_levels: 2
+  model.codebook_size: 512
+  model.quant_loss_weight: 2.0
+  model.mu: 0.99
+  model.batch_size: 2048

@@ -1,0 +1,59 @@
+# data.yaml - 数据集配置
+tiktok:
+  name: "tiktok"
+  data_dir: "data/processed/tiktok"
+  id_feature_num: 16030
+  mm_dims : {"id":0,"text":768, "audio":128, "image":128} # 非序列的模态输入维度
+  multimodel_num: 3
+  id_fields_num: 2
+  seq_len: 5
+  min_item_id: 9320
+  min_user_id: 0
+  # 可更改参数
+  use_mm_features: ["id","image", "text","audio"]
+  use_seq:  true
+  use_mm_rq:  false
+  user_features: [ "id" ]  # 序列建模时区分用户特征
+  user_features_dim: { "id": 0 }
+
+  using_local_data: false
+
+antm2c:
+  name: "antm2c"
+  data_dir: "data/processed/antm2c"
+  id_feature_num: 152491
+  multimodel_num: 2
+  mm_dims : {"id":0,"text":768, "image":512} # 模态输入维度
+  id_fields_num: 2
+  seq_len: 5
+  min_item_id: 67625
+  min_user_id: 0
+  # 可更改参数
+  use_mm_features: ["id","image","text"]
+  use_seq:  true
+  use_mm_rq:  false
+  user_features: ["id","text"]  # 序列建模时区分用户特征
+  user_features_dim: {"id":0,"text":3840}
+  using_local_data: false
+
+microlens:
+  name: "microlens"
+  data_dir: "data/processed/microlens"
+  id_feature_num: 1091718
+  multimodel_num: 2
+  mm_dims : {"id":0,"text":768, "image":1024} # 非序列的模态输入维度
+  id_fields_num: 2
+  seq_len: 5
+  min_item_id: 1000001
+  min_user_id: 1
+  user_features: [ "id" ]  # 序列建模时区分用户特征
+  user_features_dim: { "id": 0 }
+  # 可更改参数
+  use_mm_features: ["id","image", "text"]
+  use_seq:  true
+  use_mm_rq:  false  # todo
+
+  using_local_data: false
+
+
+

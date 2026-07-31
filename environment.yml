@@ -1,0 +1,11 @@
+# Portable bootstrap environment derived from the Linux server snapshot in bm_env.yml.
+# Application and framework dependencies will move to pyproject.toml in ENV-002.
+# bm_env.yml remains the experiment snapshot until this file passes Linux validation.
+name: mmctr
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8.5
+  - pip=24.0
+  - setuptools=70.1.1
+  - wheel=0.43.0
