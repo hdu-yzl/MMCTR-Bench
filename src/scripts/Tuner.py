@@ -271,7 +271,8 @@ def main():
     # 保存结果
     best_result = None
     if best_params is not None and best_metrics is not None:
-        output_file = "config/best_params.yaml"
+        output_file = Path("outputs/tuning/legacy_best_params.yaml")
+        output_file.parent.mkdir(parents=True, exist_ok=True)
         best_result = {
             'model': model_name,
             'dataset': dataset_name,
@@ -281,7 +282,7 @@ def main():
             'val_loss': best_metrics.loss,
             'params': best_params
         }
-        with open(output_file, 'a', encoding='utf-8') as f:
+        with output_file.open('a', encoding='utf-8') as f:
             yaml.dump(best_result, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
 
         logger.info(f"最优参数已保存到: {output_file}")

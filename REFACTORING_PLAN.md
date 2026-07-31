@@ -1,7 +1,7 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.23`
+> 当前版本：`v0.25`
 > 最近更新：`2026-07-31`  
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
@@ -84,7 +84,7 @@
 | P1 | 训练入口在模块导入阶段解析 CLI 并修改全局线程环境 | `src/trainers/Trainers.py` | 不可安全导入，测试和复用困难 |
 | P1 | 模型和数据集注册是长 `if/elif` | `src/utils/helper.py` | 扩展点分散，名称与配置易不一致 |
 | P1 | `dnn_seq` 配置与 `dnn_mm_seq` 注册名称不一致 | `config/model.yaml`、`helper.py` | 配置无法按名称稳定实例化 |
-| P1 | `best_param.yaml` 与 `best_params.yaml` 并存且结构不同 | `config/` 与多个 tuner | 参数来源不唯一，追加写入难以可靠解析 |
+| P1 | `best_param.yaml` 与 `best_params.yaml` 并存且结构不同（`CFG-001` 已修复） | `config/` 与多个 tuner | 历史文件已迁出可执行配置目录，新 legacy tuner 输出进入 ignored `outputs/tuning/` |
 | P1 | 生产模型与融合分析目录存在 17 个同名实现 | 两个模型目录 | 修复无法自动同步，实验实现可能偏离主实现 |
 | P1 | forward 会原地修改输入字典，部分模型使用无维度约束的 `squeeze()` | 基类派生模型 | 输入复用和 batch size=1 时存在形状风险 |
 | P1 | AntM2C 将六组文本语义拼成 4608 维字段，loader 再按固定位置切出 item 文本 | `6.to_tf.py`、`Dtfloader_Antm2c.py` | 数据语义靠切片位置维持，item 特征被重复存储且难以扩展 |
@@ -855,7 +855,7 @@ Follow-up tasks:
 
 | Milestone | 状态 | 当前进度说明 | 退出证据 |
 |---|---|---|---|
-| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、`mmctr` 公共命名空间、主要公开文档、合成 CPU smoke、首个数值回归基线、tuner 科研红线修复和主训练运行目录隔离已完成；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
+| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、`mmctr` 公共命名空间、严格 training 配置层、主要公开文档、合成 CPU smoke、首个数值回归基线、tuner 科研红线修复和主训练运行目录隔离已完成；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
 | S2 数据处理与模型主干 | `TODO` | 已完成 AntM2C 只读问题定位，尚未实施 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
 | S3 模型公共组件 | `TODO` | 未开始 | pooling/fusion 可按模态配置且默认 preset 回归通过 |
 | S4 实验分析体系 | `TODO` | 未开始 | 无模型复制、统一 runner/result schema、五类分析可配置运行 |
@@ -879,7 +879,7 @@ Follow-up tasks:
 | TEST-001 | P0 | 建立 pytest、合成 batch 和首个 CPU smoke | ENV-002 | `DONE` | Codex (`/root`) | `tests/`、`pyproject.toml`、`README.md`、`REFACTORING_PLAN.md` | 建立 pytest 可收集的 unittest 结构、确定性 ID batch、pooling unit 与 legacy registry DNN CPU smoke；Windows 3.12.11 未安装 pytest，未修改环境；`unittest discover` 4 tests/5.392s 全通过，覆盖 forward/loss/backward/optimizer；首次直接导入暴露 `BaseModel ↔ utils.helper` 循环，改按现有 registry 入口验证并登记给 `PKG-001`；12 个测试缓存目录已清理；Linux pytest 按 ADR-010 延期；2026-07-31 |
 | BASE-001 | P0 | 保存重构前可获得的行为/指标基线 | TEST-001 | `DONE` | Codex (`/root`) | `tests/baselines/`、`tests/regression/`、`REFACTORING_PLAN.md` | `legacy_dnn_id_cpu_v1` 保存 schema、registry 入口、完整配置/seed/输入、Windows/Python/Torch/NumPy/sklearn 版本、4 logits、loss 与 205 参数量；容差 `1e-6`；Windows `unittest discover` 5 tests/5.263s 全通过；13 个缓存目录已清理；明确为合成行为而非论文指标，Linux 正式基线按 ADR-010 延期；2026-07-31 |
 | PKG-001 | P1 | 创建 `src/mmctr` 包并迁移导入 | ENV-002, TEST-001 | `DONE` | Codex (`/root`) | `src/mmctr/`、legacy import bridge、`src/utils/helper.py`、core imports、docs、`tests/`、`REFACTORING_PLAN.md` | 新增 `mmctr.models`/`mmctr.data`/`mmctr.utils` 公共入口；helper 改为 model/data 调用时加载，直接 model-first 与 helper-first 导入顺序均通过且 DNN 类身份一致；15 个核心 helper 调用方迁至 `mmctr.utils`，legacy 直接 helper import 为 0；Windows 指定解释器完成 `src`/`tests` compileall，`unittest discover` 16 tests/21.870s 全通过；仓库外 cwd 临时安装 wheel 成功，`mmctr` 路径来自目标目录，wheel 260175 bytes、SHA-256 `5410f853c3fcb52076b3210615741e6c3c6dc895ed082b11ef9d6f67de46c524`；临时目录、2 个构建目录和 29 个缓存目录已清理；legacy 顶层包作为显式兼容桥保留，物理迁移随模型/数据任务推进；Linux 验证按 ADR-010 延期；2026-07-31 |
-| CFG-001 | P1 | 配置分层、typed schema 和校验 | PKG-001 | `TODO` | - | config module/configs | valid/invalid config tests |
+| CFG-001 | P1 | 配置分层、typed schema 和校验 | PKG-001 | `DONE` | Codex (`/root`) | `src/mmctr/config/`、`src/trainers/Trainers.py`、`config/`、`docs/configuration.md`、`docs/legacy_tuning_history.yaml`、`tests/`、`REFACTORING_PLAN.md` | 新增 frozen `TrainingConfig`、唯一键/顶层 mapping YAML loader、项目根发现、无副作用递归 layer merge；严格覆盖必填、未知、类型、范围、optimizer 和 patience 跨字段约束，主训练通过显式 `to_dict()` 兼容边界消费且配置文件路径不依赖 cwd；`best_params.yaml` 历史 test 记录迁出 `config/`，新 legacy 输出写入 ignored `outputs/tuning/`，`best_param.yaml` 成为唯一 tracked 参数快照；6 个可执行 YAML 唯一键检查通过；Windows 指定解释器完成 `src`/`tests` compileall，最终 `unittest discover` 21 tests/20.310s 全通过，30 个缓存目录已清理；算法专属 model/data typed schema 随对应重构任务推进，tuning provenance 随 `TUNE-001` 完成；Linux 验证按 ADR-010 延期；2026-07-31 |
 | CFG-002 | P0 | 消除缺失 local config 和服务器个人绝对路径 | CFG-001 | `TODO` | - | dataset configs | Linux local-path example smoke |
 | CLI-001 | P1 | 建立统一 CLI，移除 import-time argparse | PKG-001, CFG-001 | `TODO` | - | cli/entry points | `--help` 与 import tests |
 | QA-001 | P1 | Ruff/pytest/mypy/coverage 分阶段门禁 | ENV-002, PKG-001 | `TODO` | - | pyproject/tests | Linux 门禁报告，Windows 静态报告 |
@@ -908,7 +908,7 @@ Follow-up tasks:
 | PIPE-001 | P1 | 实现按分支/模态配置的 pipeline 与三种 topology | POOL-001, FUSE-001 | `TODO` | - | modal pipeline/config | compatible/incompatible config tests |
 | PIPE-002 | P1 | 为全部模型建立默认兼容 preset | PIPE-001 | `TODO` | - | model configs | 默认 preset 回归与旧实现一致 |
 | EXP-001 | P1 | 统一 Linux experiment runner、GPU 调度和结果 schema | TRAIN-001, RUN-001, PIPE-002 | `TODO` | - | experiments | task matrix/resume/failure tests |
-| TUNE-001 | P0 | 建立只按 validation 选择的正式 tuner | EXP-001, SCI-001 | `TODO` | - | experiments/tuning | trial 历史与冻结后 test 测试 |
+| TUNE-001 | P0 | 建立只按 validation 选择的正式 tuner | EXP-001, SCI-001 | `TODO` | - | experiments/tuning | trial 历史与冻结后 test 测试；被提升的参数必须记录 experiment ID、validation 指标、seeds 和数据版本，不直接写 tracked config |
 | ANL-FUS-001 | P1 | fusion analysis 删除 17 个平行模型实现 | EXP-001 | `TODO` | - | analysis/fusion | pipeline 配置复用正式模型 |
 | ANL-ALI-001 | P1 | alignment 改为 hook/aux-loss protocol | EXP-001 | `TODO` | - | analysis/alignment | 无特殊模型/Trainer 复制 |
 | ANL-ROB-001 | P1 | 合并 modal robustness 新旧实现 | EXP-001 | `TODO` | - | analysis/robustness | batch transform + seed tests |
@@ -949,6 +949,7 @@ Follow-up tasks:
 | ADR-009 | 2026-07-31 | pooling/fusion 按分支与模态配置，并做 capability 校验 | `ACCEPTED` | 支持可组合实验且避免无效组合 |
 | ADR-010 | 2026-07-31 | `ENV-001` 保持 `REVIEW`，Linux 实测延期为发布门禁；允许继续本地静态可验证任务 | `ACCEPTED` | 维护者明确要求服务器环境暂不验证并继续改造；不得据此宣称 Linux/CUDA 已通过 |
 | ADR-011 | 2026-07-31 | 分发名使用 `mmctr-bench`，目标导入命名空间仍为 `mmctr`；迁移前暂时发现 legacy `src` 包 | `ACCEPTED` | 区分 PyPI 分发名与 Python 包名，并使 `ENV-002` 可在 `PKG-001` 前建立可构建元数据 |
+| ADR-012 | 2026-07-31 | 配置相对路径统一相对包含 `pyproject.toml` 的项目根解析；training 配置先以 frozen dataclass 严格校验，模型/数据算法字段在对应任务中逐步 typed 化 | `ACCEPTED` | 消除 cwd 差异并立即保护运行关键字段，同时避免在未建立模型回归前一次性重写全部论文专属参数 |
 
 ---
 
@@ -956,6 +957,8 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.25 | 2026-07-31 | Codex | 完成 `CFG-001`：建立 frozen training schema、严格唯一键 YAML/分层合并/项目根路径规则，接入主训练并消除双 best-params tracked 配置 |
+| v0.24 | 2026-07-31 | Codex | 领取 `CFG-001`；接受 ADR-012，登记 frozen training schema、唯一键 YAML、严格校验、项目根路径规则、分层合并与双 best-params 配置治理 |
 | v0.23 | 2026-07-31 | Codex | 完成 `PKG-001`：建立 `mmctr` 公共命名空间和 legacy 兼容桥，以 lazy helper 解开循环导入，迁移核心 imports，并通过仓库外 wheel 导入验证 |
 | v0.22 | 2026-07-31 | Codex | 领取 `PKG-001`；接受 ADR-001，登记 lazy import 解环、`mmctr` 公共命名空间、legacy 兼容桥、核心导入迁移和仓库外 wheel 导入验证 |
 | v0.21 | 2026-07-31 | Codex | 完成 `RUN-001`：新增唯一 run context、原子产物/生命周期元数据、主训练入口隔离、文档及 32 路并发防冲突回归测试 |

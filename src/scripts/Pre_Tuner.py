@@ -514,8 +514,9 @@ class RQPSRQTuner:
     
     def _save_results(self):
         """保存调优结果（与 Tuner.py 格式统一）"""
-        # 保存到 config/best_params.yaml（追加模式）
-        output_file = "config/best_params.yaml"
+        # 历史 tuner 输出不是可执行配置；保存到 ignored outputs 供人工审查。
+        output_file = Path("outputs/tuning/legacy_best_params.yaml")
+        output_file.parent.mkdir(parents=True, exist_ok=True)
         
         if self.best_combined_result:
             result = self.best_combined_result[0]
@@ -530,7 +531,7 @@ class RQPSRQTuner:
                 'params': result['params']
             }
             
-            with open(output_file, 'a', encoding='utf-8') as f:
+            with output_file.open('a', encoding='utf-8') as f:
                 yaml.dump(best_params_entry, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
             
             self.logger.info(f"最优参数已保存到: {output_file}")

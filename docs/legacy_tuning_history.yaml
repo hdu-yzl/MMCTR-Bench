@@ -1,3 +1,5 @@
+# Historical output from the pre-refactor tuners. This file is not executable configuration.
+# It contains test-selected legacy records and must not be used for benchmark model selection.
 model: make
 dataset: antm2c
 best_trial: 6

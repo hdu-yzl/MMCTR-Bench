@@ -6,8 +6,14 @@ os.environ["MKL_NUM_THREADS"] = num_threads
 os.environ["VECLIB_MAXIMUM_THREADS"] = num_threads
 os.environ["NUMEXPR_NUM_THREADS"] = num_threads
 import argparse
+from pathlib import Path
+
 from mmctr.utils import helper
 from mmctr.utils.run_context import create_run_context
+from mmctr.config import load_training_config
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 parser = argparse.ArgumentParser(description="MMCTR-Trainer")
 parser.add_argument("--dataset_name", type=str, help="specify dataset", default="antm2c")
@@ -23,19 +29,19 @@ class Trainer(object):
         self.model_name = str(args.model_name).lower()
         self.dataset_name = str(args.dataset_name).lower()
 
-        self.model_config = helper.load_yaml(f'config/model.yaml')[self.model_name]
+        self.model_config = helper.load_yaml(PROJECT_ROOT / 'config/model.yaml')[self.model_name]
         self.model_config['model_name'] = self.model_name
         if self.model_config["seq_modeling"]:
             if args.use_local_data:
-                self.data_config = helper.load_yaml('config/local_seq_data.yaml')
+                self.data_config = helper.load_yaml(PROJECT_ROOT / 'config/local_seq_data.yaml')
             else:
-                self.data_config = helper.load_yaml('config/seq_data.yaml')
+                self.data_config = helper.load_yaml(PROJECT_ROOT / 'config/seq_data.yaml')
         else:
             if args.use_local_data:
-                self.data_config = helper.load_yaml('config/local_data.yaml')
+                self.data_config = helper.load_yaml(PROJECT_ROOT / 'config/local_data.yaml')
             else:
-                self.data_config = helper.load_yaml('config/data.yaml')
-        self.train_config = helper.load_yaml('config/train.yaml')
+                self.data_config = helper.load_yaml(PROJECT_ROOT / 'config/data.yaml')
+        self.train_config = load_training_config(PROJECT_ROOT / 'config/train.yaml').to_dict()
         if args.cuda is not None:
             self.train_config['cuda'] = args.cuda
         output_root = args.output_root or self.train_config.get('output_root', 'outputs')
@@ -50,7 +56,7 @@ class Trainer(object):
             dataset=self.dataset_name,
             model=self.model_name,
             resolved_config=experiment_config,
-            repository_root='.',
+            repository_root=PROJECT_ROOT,
             metadata={
                 'seed': self.train_config.get('seed'),
                 'requested_cuda': self.train_config.get('cuda'),

@@ -28,6 +28,8 @@ class TrainerRunIsolationGuardTest(unittest.TestCase):
         self.assertEqual(len(context_lines), 1)
         self.assertTrue(runtime_lines)
         self.assertLess(context_lines[0], min(runtime_lines))
+        self.assertIn("load_training_config", source)
+        self.assertIn("PROJECT_ROOT = Path(__file__).resolve().parents[2]", source)
         self.assertIn("self.run_context.checkpoints_dir", source)
         self.assertIn("filename='run.log'", source)
         self.assertIn("self.run_context.finalize('completed'", source)

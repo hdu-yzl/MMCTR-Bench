@@ -26,6 +26,9 @@ migration details and current boundaries are documented in
 [docs/migration.md](docs/migration.md). Typed data/model contracts and shared analysis protocols
 are still introduced incrementally.
 
+Strict training configuration validation and layer precedence are documented in
+[docs/configuration.md](docs/configuration.md).
+
 ## Requirements
 
 - Linux is the authority for dependency resolution, CUDA, training, performance, and formal
