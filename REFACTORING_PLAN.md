@@ -1,7 +1,7 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.19`
+> 当前版本：`v0.21`
 > 最近更新：`2026-07-31`  
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
@@ -855,7 +855,7 @@ Follow-up tasks:
 
 | Milestone | 状态 | 当前进度说明 | 退出证据 |
 |---|---|---|---|
-| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、主要公开文档、合成 CPU smoke、首个数值回归基线和 legacy tuner 科研红线修复已完成；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
+| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、主要公开文档、合成 CPU smoke、首个数值回归基线、tuner 科研红线修复和主训练运行目录隔离已完成；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
 | S2 数据处理与模型主干 | `TODO` | 已完成 AntM2C 只读问题定位，尚未实施 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
 | S3 模型公共组件 | `TODO` | 未开始 | pooling/fusion 可按模态配置且默认 preset 回归通过 |
 | S4 实验分析体系 | `TODO` | 未开始 | 无模型复制、统一 runner/result schema、五类分析可配置运行 |
@@ -875,7 +875,7 @@ Follow-up tasks:
 | OSS-001 | P0 | README/Quick Start、LICENSE、CITATION、CONTRIBUTING | ENV-002 | `BLOCKED` | Codex (`/root`) | `README.md`、`CONTRIBUTING.md`、`CITATION.cff`、`LICENSE`、`REFACTORING_PLAN.md` | README、贡献指南和实体引用已完成；CFF YAML、2 个文档的本地相对链接、diff/path 扫描通过；未创建 `LICENSE`。阻塞条件：维护者需明确选择许可证类型；外部 Linux 合成 smoke 证据由 `TEST-001` 建立后回填 |
 | OSS-002 | P0 | 数据来源、许可、下载、目录与模型引用清单 | OSS-001 | `TODO` | - | `data/README.md`, docs | 无私有数据/路径，第三方许可可追踪 |
 | SCI-001 | P0 | 隔离并修复现有 tuner 的 test-set 泄漏 | TEST-001 | `DONE` | Codex (`/root`) | `src/scripts/Tuner.py`、`src/scripts/Codebook_Tuner.py`、`src/utils/tuning_protocol.py`、`tests/`、`REFACTORING_PLAN.md` | 两处搜索流程均改用共享 validation-only evaluator，结果字段改为 `val_auc`/`val_loss`，保留严格更高 AUC 胜出的旧比较规则；三个 tuner 的 test 指标泄漏扫描为 0；Windows 指定解释器完成 `src`/`tests` compileall，最终 `unittest discover` 8 tests/4.563s 全通过；测试后 13 个缓存目录已清理；Linux 验证按 ADR-010 延期；2026-07-31 |
-| RUN-001 | P0 | 设计唯一 run ID 和隔离输出/checkpoint | GOV-001 | `TODO` | - | training/experiments | 并行任务无路径冲突测试 |
+| RUN-001 | P0 | 设计唯一 run ID 和隔离输出/checkpoint | GOV-001 | `DONE` | Codex (`/root`) | `src/utils/run_context.py`、`src/trainers/Trainers.py`、`src/utils/helper.py`、`config/train.yaml`、`docs/run-layout.md`、`tests/`、`REFACTORING_PLAN.md` | run ID 含 UTC 微秒时间戳、10 位配置哈希和 8 位随机熵；原子创建独立 resolved config/metadata/metrics/checkpoint/log/summary 路径，主训练初始化或运行失败均落 `failed`；32 路相同配置同微秒并发目录全部唯一，精确碰撞和路径穿越均拒绝；Windows 指定解释器完成 `src`/`tests` compileall，最终 `unittest discover` 14 tests/10.194s 全通过；25 个缓存目录已清理；tuning/analysis 全面接入留给 `TUNE-001`/`EXP-001`，Linux 验证按 ADR-010 延期；2026-07-31 |
 | TEST-001 | P0 | 建立 pytest、合成 batch 和首个 CPU smoke | ENV-002 | `DONE` | Codex (`/root`) | `tests/`、`pyproject.toml`、`README.md`、`REFACTORING_PLAN.md` | 建立 pytest 可收集的 unittest 结构、确定性 ID batch、pooling unit 与 legacy registry DNN CPU smoke；Windows 3.12.11 未安装 pytest，未修改环境；`unittest discover` 4 tests/5.392s 全通过，覆盖 forward/loss/backward/optimizer；首次直接导入暴露 `BaseModel ↔ utils.helper` 循环，改按现有 registry 入口验证并登记给 `PKG-001`；12 个测试缓存目录已清理；Linux pytest 按 ADR-010 延期；2026-07-31 |
 | BASE-001 | P0 | 保存重构前可获得的行为/指标基线 | TEST-001 | `DONE` | Codex (`/root`) | `tests/baselines/`、`tests/regression/`、`REFACTORING_PLAN.md` | `legacy_dnn_id_cpu_v1` 保存 schema、registry 入口、完整配置/seed/输入、Windows/Python/Torch/NumPy/sklearn 版本、4 logits、loss 与 205 参数量；容差 `1e-6`；Windows `unittest discover` 5 tests/5.263s 全通过；13 个缓存目录已清理；明确为合成行为而非论文指标，Linux 正式基线按 ADR-010 延期；2026-07-31 |
 | PKG-001 | P1 | 创建 `src/mmctr` 包并迁移导入 | ENV-002, TEST-001 | `TODO` | - | `src/`, `pyproject.toml` | Linux 任意 cwd import test；`TEST-001` 已确认直接导入 `models.ctr_models.dnn` 存在 `BaseModel ↔ utils.helper` 循环，迁移时必须建立防回归测试 |
@@ -893,7 +893,7 @@ Follow-up tasks:
 | ANT-005 | P0 | 重写 split 序列化和 loader，删除 4608 拼接/固定切片 | ANT-002, ANT-003, ANT-004 | `TODO` | - | antm2c serializer/loader | 无 `text_full[4]`；三 split 抽样审计 |
 | ANT-006 | P1 | Linux 基准比较 TFRecord 与候选分层格式 | ANT-005 | `TODO` | - | benchmark/docs | 空间、吞吐、CPU/GPU wait 报告 |
 | DATA-002 | P1 | 将 MicroLens/TikTok 对齐统一数据契约 | DATA-001, ANT-005 | `TODO` | - | data/datasets | contract + smoke tests |
-| TRAIN-001 | P0 | 统一 training engine、evaluate、early stop、optimizer | CORE-001, RUN-001 | `TODO` | - | training/evaluation | 单步训练、save/load、resume |
+| TRAIN-001 | P0 | 统一 training engine、evaluate、early stop、optimizer | CORE-001, RUN-001 | `TODO` | - | training/evaluation | 单步训练、save/load、resume；复用 `RUN-001` run context，并把 legacy 模型 checkpoint basename 收敛为 `best.pt`/`last.pt` |
 | MODEL-BASE-001 | P0 | 建立单一 BaseSeqModel 与 pooled/token 两种历史能力 | CORE-001, TRAIN-001 | `TODO` | - | model base | pooled_history/sequence_tokens tests |
 | MODEL-BASE-002 | P0 | 迁移并弃用 BaseModel 子类，先 pool 后复用原主体 | MODEL-BASE-001, DATA-001 | `TODO` | - | baselines/multimodal | 每模型迁移前后 fixture 回归 |
 | REG-001 | P1 | 模型/数据集 registry（fusion registry 留到 S3） | PKG-001, CFG-001 | `TODO` | - | registries | 唯一名称与全构造测试 |
@@ -942,7 +942,7 @@ Follow-up tasks:
 | ADR-002 | 2026-07-31 | 分析通过配置/adapter 复用生产模型，不复制模型文件 | `ACCEPTED` | 防止 17 组平行实现漂移 |
 | ADR-003 | 2026-07-31 | 模型与训练 engine 解耦 | `ACCEPTED` | 支持纯 forward 测试、统一训练和实验协议 |
 | ADR-004 | 2026-07-31 | 正式调参只使用 validation，test 仅冻结后评估 | `ACCEPTED` | benchmark 科研诚信底线 |
-| ADR-005 | 2026-07-31 | 每次运行使用唯一目录和解析配置哈希 | `PROPOSED` | 消除并行覆盖和结果来源不明 |
+| ADR-005 | 2026-07-31 | 每次运行使用 UTC 微秒时间戳、解析配置短哈希和随机熵组成的 run ID，并以原子目录创建隔离产物 | `ACCEPTED` | 时间与配置可读可追踪，随机熵与 `exist_ok=False` 防止同配置并发覆盖 |
 | ADR-006 | 2026-07-31 | Linux 服务器是依赖、训练和性能验收的权威环境 | `ACCEPTED` | Windows 本地仅用于编辑和静态验证 |
 | ADR-007 | 2026-07-31 | 多模态模型主干只保留 BaseSeqModel | `ACCEPTED` | 原 BaseModel 模型通过序列 pooling 接入统一契约 |
 | ADR-008 | 2026-07-31 | AntM2C item 特征独立存储并按 item index gather | `ACCEPTED` | 删除 4608 打包和 item 固定切片协议 |
@@ -956,6 +956,8 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.21 | 2026-07-31 | Codex | 完成 `RUN-001`：新增唯一 run context、原子产物/生命周期元数据、主训练入口隔离、文档及 32 路并发防冲突回归测试 |
+| v0.20 | 2026-07-31 | Codex | 领取 `RUN-001`；接受 ADR-005，登记唯一 run ID、原子目录/元数据写入、主训练入口接入和并发隔离测试范围 |
 | v0.19 | 2026-07-31 | Codex | 完成 `SCI-001`：legacy 普通/码本 tuner 改为 validation-only 选优，新增共享选择协议和运行时/AST 防回归测试 |
 | v0.18 | 2026-07-31 | Codex | 领取 `SCI-001`；记录两处 legacy tuner 的 test-set 泄漏、validation-only 修复范围与自动化守卫，执行既有 ADR-004 |
 | v0.17 | 2026-07-31 | Codex | 完成 `BASE-001`：冻结 legacy DNN 的完整合成 CPU 数值/环境基线并新增 logits、loss 与参数量回归测试 |

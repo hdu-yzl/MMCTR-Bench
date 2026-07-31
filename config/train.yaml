@@ -11,6 +11,8 @@ early_stop_patience: 1
 
 # 检查点配置
 checkpoint_dir: "experiments/checkpoints/"
+# 主训练入口的新运行根目录；每次运行会在其下创建独立目录
+output_root: "outputs"
 cuda: 1
 # 日志配置
 log_dir: "experiments/logs/"

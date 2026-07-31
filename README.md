@@ -57,8 +57,10 @@ Install the server-approved PyTorch/CUDA build from its official channel before 
 installation. The dependency groups do not select a GPU build automatically.
 
 There is not yet a supported public full-training command: the legacy trainer parses arguments
-and changes process-wide thread settings during import. A dependency-light test baseline now
-covers pooling behavior and an ID-only DNN CPU forward/loss/backward step with synthetic tensors:
+and changes process-wide thread settings during import. Its output is now isolated by run ID, but
+that does not remove the remaining CLI/environment limitations. The current directory contract is
+documented in [docs/run-layout.md](docs/run-layout.md). A dependency-light test baseline now covers
+pooling behavior and an ID-only DNN CPU forward/loss/backward step with synthetic tensors:
 
 ```bash
 <SERVER_ENV>/bin/python -m pytest tests/unit tests/smoke
