@@ -10,7 +10,12 @@ from pathlib import Path
 
 from mmctr.utils import helper
 from mmctr.utils.run_context import create_run_context
-from mmctr.config import load_training_config
+from mmctr.config import (
+    ConfigValidationError,
+    load_local_paths,
+    load_training_config,
+    resolve_dataset_config,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -31,20 +36,27 @@ class Trainer(object):
 
         self.model_config = helper.load_yaml(PROJECT_ROOT / 'config/model.yaml')[self.model_name]
         self.model_config['model_name'] = self.model_name
-        if self.model_config["seq_modeling"]:
-            if args.use_local_data:
-                self.data_config = helper.load_yaml(PROJECT_ROOT / 'config/local_seq_data.yaml')
-            else:
-                self.data_config = helper.load_yaml(PROJECT_ROOT / 'config/seq_data.yaml')
-        else:
-            if args.use_local_data:
-                self.data_config = helper.load_yaml(PROJECT_ROOT / 'config/local_data.yaml')
-            else:
-                self.data_config = helper.load_yaml(PROJECT_ROOT / 'config/data.yaml')
+        data_config_name = 'seq_data.yaml' if self.model_config["seq_modeling"] else 'data.yaml'
+        all_data_config = helper.load_yaml(PROJECT_ROOT / 'config' / data_config_name)
+        local_paths = None
+        if args.use_local_data:
+            local_paths = load_local_paths(PROJECT_ROOT / 'configs/local/paths.yaml')
+            if self.dataset_name not in local_paths.datasets:
+                raise ConfigValidationError([
+                    "local path for dataset {!r} is missing".format(self.dataset_name)
+                ])
+        dataset_config = resolve_dataset_config(
+            self.dataset_name,
+            all_data_config[self.dataset_name],
+            project_root=PROJECT_ROOT,
+            local_paths=local_paths,
+        )
+        self.data_config = {self.dataset_name: dataset_config}
         self.train_config = load_training_config(PROJECT_ROOT / 'config/train.yaml').to_dict()
         if args.cuda is not None:
             self.train_config['cuda'] = args.cuda
-        output_root = args.output_root or self.train_config.get('output_root', 'outputs')
+        local_output_root = local_paths.output_root if local_paths else None
+        output_root = args.output_root or local_output_root or self.train_config['output_root']
         experiment_config = {
             'model': self.model_config,
             'data': self.data_config[self.dataset_name],

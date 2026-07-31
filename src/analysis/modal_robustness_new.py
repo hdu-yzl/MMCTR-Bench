@@ -31,6 +31,7 @@ import logging
 import argparse
 import inspect
 import traceback
+from pathlib import Path
 import numpy as np
 import torch
 import torch.multiprocessing as mp
@@ -42,7 +43,11 @@ _SRC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
-from utils import helper  # noqa: E402
+from mmctr.config import load_dataset_catalog  # noqa: E402
+from mmctr.utils import helper  # noqa: E402
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -363,7 +368,9 @@ def run_single_experiment(model_name: str, dataset_name: str,
 
     # ── 配置加载 ──────────────────────────────────────────────
     try:
-        model_config = helper.load_yaml("config/best_param.yaml")[model_name][dataset_name]
+        model_config = helper.load_yaml(
+            PROJECT_ROOT / "config/best_param.yaml"
+        )[model_name][dataset_name]
     except KeyError:
         raise KeyError(
             f"best_param.yaml 中未找到 [{model_name}][{dataset_name}] 配置，"
@@ -373,13 +380,14 @@ def run_single_experiment(model_name: str, dataset_name: str,
     model_config["model_name"] = f"{model_name}_rob_{dataset_name}_d{drop_ratio:.1f}_s{seed}"
     is_seq = model_config.get("seq_modeling", False)
 
-    if is_seq:
-        data_cfg_file = "config/local_seq_data.yaml" if use_local_data else "config/seq_data.yaml"
-    else:
-        data_cfg_file = "config/local_data.yaml" if use_local_data else "config/data.yaml"
-
-    data_config  = helper.load_yaml(data_cfg_file)
-    train_config = helper.load_yaml("config/train.yaml")
+    data_config_name = "seq_data.yaml" if is_seq else "data.yaml"
+    data_config = load_dataset_catalog(
+        PROJECT_ROOT / "config" / data_config_name,
+        dataset_name,
+        project_root=PROJECT_ROOT,
+        use_local_data=use_local_data,
+    )
+    train_config = helper.load_yaml(PROJECT_ROOT / "config/train.yaml")
     train_config["lr"] = model_config.get("lr", train_config.get("lr", 1e-3))
     train_config["l2"] = model_config.get("l2", train_config.get("l2", 1e-6))
     train_config["cuda"] = gpu_id

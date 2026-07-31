@@ -1,0 +1,8 @@
+# Copy this file to paths.yaml (ignored by Git) and replace only the paths you use.
+# Environment variables MMCTR_ANTM2C_DATA_DIR, MMCTR_MICROLENS_DATA_DIR,
+# MMCTR_TIKTOK_DATA_DIR, and MMCTR_OUTPUT_ROOT override values from paths.yaml.
+datasets:
+  antm2c: null
+  microlens: null
+  tiktok: null
+output_root: null

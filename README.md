@@ -28,6 +28,8 @@ are still introduced incrementally.
 
 Strict training configuration validation and layer precedence are documented in
 [docs/configuration.md](docs/configuration.md).
+Machine-specific dataset and output paths are configured as described in
+[docs/local-paths.md](docs/local-paths.md); real server paths remain untracked.
 
 ## Requirements
 

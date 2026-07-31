@@ -42,8 +42,6 @@ Desktop.ini
 configs/local/**
 !configs/local/
 !configs/local/paths.example.yaml
-config/local_data.yaml
-config/local_seq_data.yaml
 
 # Private and generated datasets; keep documentation and manifests
 data/raw/**

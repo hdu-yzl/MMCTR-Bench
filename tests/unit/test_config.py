@@ -76,6 +76,10 @@ class TrainingConfigTest(unittest.TestCase):
         for path in sorted(config_directory.glob("*.yaml")):
             with self.subTest(path=path.name):
                 self.assertIsInstance(load_yaml_mapping(path), dict)
+        self.assertIsInstance(
+            load_yaml_mapping(REPOSITORY_ROOT / "configs/local/paths.example.yaml"),
+            dict,
+        )
 
     def test_layers_merge_recursively_without_mutating_inputs(self):
         training = {"lr": 0.001, "nested": {"keep": 1, "replace": 1}}

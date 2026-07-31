@@ -45,6 +45,10 @@ torch.set_num_threads(_max_cpu)         # 限制 PyTorch 线程数
 torch.set_num_interop_threads(_max_cpu) # 限制跨算子并行线程数
 from mmctr.utils import helper
 from mmctr.utils.tuning_protocol import evaluate_for_selection, is_better
+from mmctr.config import load_dataset_catalog
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def dict_to_list_of_tuples(d):
@@ -140,18 +144,22 @@ def main():
     dataset_name = args.dataset_name.lower()
 
     # 加载原始配置
-    base_model_config = helper.load_yaml('config/model.yaml')[model_name]
+    base_model_config = helper.load_yaml(PROJECT_ROOT / 'config/model.yaml')[model_name]
     base_model_config['model_name'] = model_name
 
-    if base_model_config.get("seq_modeling", False):
-        data_config_path = 'config/local_seq_data.yaml' if args.use_local_data else 'config/seq_data.yaml'
-    else:
-        data_config_path = 'config/local_data.yaml' if args.use_local_data else 'config/data.yaml'
-    data_config = helper.load_yaml(data_config_path)
-    train_config = helper.load_yaml('config/train.yaml')
+    data_config_name = (
+        'seq_data.yaml' if base_model_config.get("seq_modeling", False) else 'data.yaml'
+    )
+    data_config = load_dataset_catalog(
+        PROJECT_ROOT / 'config' / data_config_name,
+        dataset_name,
+        project_root=PROJECT_ROOT,
+        use_local_data=bool(args.use_local_data),
+    )
+    train_config = helper.load_yaml(PROJECT_ROOT / 'config/train.yaml')
     train_config['cuda'] = args.cuda
 
-    tuner_config = helper.load_yaml('config/Tuner.yaml')
+    tuner_config = helper.load_yaml(PROJECT_ROOT / 'config/Tuner.yaml')
     train_tune = tuner_config.get('train', {})
     model_tune = tuner_config.get('model', {}).get(model_name, {})
 
@@ -271,7 +279,7 @@ def main():
     # 保存结果
     best_result = None
     if best_params is not None and best_metrics is not None:
-        output_file = Path("outputs/tuning/legacy_best_params.yaml")
+        output_file = PROJECT_ROOT / "outputs/tuning/legacy_best_params.yaml"
         output_file.parent.mkdir(parents=True, exist_ok=True)
         best_result = {
             'model': model_name,

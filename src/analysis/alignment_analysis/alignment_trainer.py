@@ -21,6 +21,7 @@ SRC_DIR = os.path.join(ROOT_DIR, 'src')
 if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
+from mmctr.config import load_dataset_catalog
 from mmctr.utils import helper
 from models.layers import alignment
 
@@ -152,7 +153,9 @@ class Trainer:
         self.lambda_weight = float(args.lambda_weight)
         
         # 加载配置
-        self.model_config = helper.load_yaml('config/best_param.yaml')[self.model_name][self.dataset_name]
+        self.model_config = helper.load_yaml(
+            os.path.join(ROOT_DIR, 'config', 'best_param.yaml')
+        )[self.model_name][self.dataset_name]
         
         # 修改模型名称以区分不同的对齐实验
         self.model_config['model_name'] = (
@@ -161,19 +164,22 @@ class Trainer:
         )
         
         # 加载数据配置
-        if self.model_config.get("seq_modeling", False):
-            if args.use_local_data:
-                self.data_config = helper.load_yaml('config/local_seq_data.yaml')
-            else:
-                self.data_config = helper.load_yaml('config/seq_data.yaml')
-        else:
-            if args.use_local_data:
-                self.data_config = helper.load_yaml('config/local_data.yaml')
-            else:
-                self.data_config = helper.load_yaml('config/data.yaml')
+        data_config_name = (
+            'seq_data.yaml'
+            if self.model_config.get("seq_modeling", False)
+            else 'data.yaml'
+        )
+        self.data_config = load_dataset_catalog(
+            os.path.join(ROOT_DIR, 'config', data_config_name),
+            self.dataset_name,
+            project_root=ROOT_DIR,
+            use_local_data=bool(args.use_local_data),
+        )
         
         # 加载训练配置
-        self.train_config = helper.load_yaml('config/train.yaml')
+        self.train_config = helper.load_yaml(
+            os.path.join(ROOT_DIR, 'config', 'train.yaml')
+        )
         self.train_config['lr'] = self.model_config.get('lr', self.train_config.get('lr', 1e-3))
         self.train_config['l2'] = self.model_config.get('l2', self.train_config.get('l2', 1e-6))
         
@@ -205,7 +211,9 @@ class Trainer:
     
     def run(self):
         # 创建对齐包装器
-        mm_features = self.data_config[self.dataset_name].get('use_mm_features', ['id', 'text', 'image'])
+        mm_features = self.data_config[self.dataset_name].get(
+            'use_mm_features', ['id', 'text', 'image']
+        )
         projection_dim = self.model_config.get('projection_dim', 128)
         
         wrapper = AlignmentModelWrapper(
