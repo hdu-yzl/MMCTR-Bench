@@ -1,7 +1,7 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.13`
+> 当前版本：`v0.15`
 > 最近更新：`2026-07-31`  
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
@@ -855,7 +855,7 @@ Follow-up tasks:
 
 | Milestone | 状态 | 当前进度说明 | 退出证据 |
 |---|---|---|---|
-| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据和 README/贡献/引用文档已完成；`OSS-001` 等待许可证选择；下一项为 `TEST-001` | Linux 安装、公开文档、P0 修复、smoke baseline |
+| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、主要公开文档和首个合成 CPU 测试基线已建立；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
 | S2 数据处理与模型主干 | `TODO` | 已完成 AntM2C 只读问题定位，尚未实施 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
 | S3 模型公共组件 | `TODO` | 未开始 | pooling/fusion 可按模态配置且默认 preset 回归通过 |
 | S4 实验分析体系 | `TODO` | 未开始 | 无模型复制、统一 runner/result schema、五类分析可配置运行 |
@@ -876,9 +876,9 @@ Follow-up tasks:
 | OSS-002 | P0 | 数据来源、许可、下载、目录与模型引用清单 | OSS-001 | `TODO` | - | `data/README.md`, docs | 无私有数据/路径，第三方许可可追踪 |
 | SCI-001 | P0 | 隔离并修复现有 tuner 的 test-set 泄漏 | TEST-001 | `TODO` | - | tuning scripts/core | objective 无 test 依赖的防回归测试 |
 | RUN-001 | P0 | 设计唯一 run ID 和隔离输出/checkpoint | GOV-001 | `TODO` | - | training/experiments | 并行任务无路径冲突测试 |
-| TEST-001 | P0 | 建立 pytest、合成 batch 和首个 CPU smoke | ENV-002 | `TODO` | - | `tests/` | Linux 服务器固定解释器运行通过 |
+| TEST-001 | P0 | 建立 pytest、合成 batch 和首个 CPU smoke | ENV-002 | `DONE` | Codex (`/root`) | `tests/`、`pyproject.toml`、`README.md`、`REFACTORING_PLAN.md` | 建立 pytest 可收集的 unittest 结构、确定性 ID batch、pooling unit 与 legacy registry DNN CPU smoke；Windows 3.12.11 未安装 pytest，未修改环境；`unittest discover` 4 tests/5.392s 全通过，覆盖 forward/loss/backward/optimizer；首次直接导入暴露 `BaseModel ↔ utils.helper` 循环，改按现有 registry 入口验证并登记给 `PKG-001`；12 个测试缓存目录已清理；Linux pytest 按 ADR-010 延期；2026-07-31 |
 | BASE-001 | P0 | 保存重构前可获得的行为/指标基线 | TEST-001 | `TODO` | - | tests/baselines | 配置、seed、数据条件完整 |
-| PKG-001 | P1 | 创建 `src/mmctr` 包并迁移导入 | ENV-002, TEST-001 | `TODO` | - | `src/`, `pyproject.toml` | Linux 任意 cwd import test |
+| PKG-001 | P1 | 创建 `src/mmctr` 包并迁移导入 | ENV-002, TEST-001 | `TODO` | - | `src/`, `pyproject.toml` | Linux 任意 cwd import test；`TEST-001` 已确认直接导入 `models.ctr_models.dnn` 存在 `BaseModel ↔ utils.helper` 循环，迁移时必须建立防回归测试 |
 | CFG-001 | P1 | 配置分层、typed schema 和校验 | PKG-001 | `TODO` | - | config module/configs | valid/invalid config tests |
 | CFG-002 | P0 | 消除缺失 local config 和服务器个人绝对路径 | CFG-001 | `TODO` | - | dataset configs | Linux local-path example smoke |
 | CLI-001 | P1 | 建立统一 CLI，移除 import-time argparse | PKG-001, CFG-001 | `TODO` | - | cli/entry points | `--help` 与 import tests |
@@ -956,6 +956,8 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.15 | 2026-07-31 | Codex | 完成 `TEST-001`：新增合成 batch、pooling unit 和 legacy DNN CPU smoke；记录并隔离现有直接导入循环，未安装缺失的 pytest |
+| v0.14 | 2026-07-31 | Codex | 领取 `TEST-001`；登记无真实数据/网络/GPU的合成 batch、pooling unit、DNN CPU smoke 与 pytest 缺失时的 unittest 本地验证方式 |
 | v0.13 | 2026-07-31 | Codex | 完成 `OSS-001` 中 README、CONTRIBUTING 与 CITATION；因许可证类型尚未经维护者决定，将任务标记为 `BLOCKED` 并记录解除条件 |
 | v0.12 | 2026-07-31 | Codex | 领取 `OSS-001`；登记 README/贡献/引用文档范围，并将许可证类型列为必须由维护者决定的边界 |
 | v0.11 | 2026-07-31 | Codex | 完成 `ENV-002`：建立 `pyproject.toml` 权威元数据与依赖分组、收敛 legacy setup shim、删除空的错误拼写依赖文件并通过本地 wheel 检查 |

@@ -56,10 +56,23 @@ cd MMCTR-Bench
 Install the server-approved PyTorch/CUDA build from its official channel before the editable
 installation. The dependency groups do not select a GPU build automatically.
 
-There is not yet a supported public training command: the legacy trainer parses arguments and
-changes process-wide thread settings during import, and the synthetic smoke fixture is scheduled
-under `TEST-001`. Until those tasks are complete, successful installation and legacy imports are
-metadata checks rather than evidence that full training is reproducible.
+There is not yet a supported public full-training command: the legacy trainer parses arguments
+and changes process-wide thread settings during import. A dependency-light test baseline now
+covers pooling behavior and an ID-only DNN CPU forward/loss/backward step with synthetic tensors:
+
+```bash
+<SERVER_ENV>/bin/python -m pytest tests/unit tests/smoke
+```
+
+When pytest is unavailable in the configured Windows static-check environment, the same
+`unittest.TestCase` suite can be run without installing packages:
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path -LiteralPath 'src').Path
+& 'd:\anaconda\envs\py312\python.exe' -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+These checks do not use real data or prove that full Linux/CUDA training is reproducible.
 
 ## Data layout
 
