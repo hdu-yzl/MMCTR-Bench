@@ -1,7 +1,7 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.11`
+> 当前版本：`v0.13`
 > 最近更新：`2026-07-31`  
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
@@ -855,7 +855,7 @@ Follow-up tasks:
 
 | Milestone | 状态 | 当前进度说明 | 退出证据 |
 |---|---|---|---|
-| S1 开源发布与工程基线 | `IN_PROGRESS` | Git/生成物治理、公开远程和包元数据已完成；Linux 验证延期为发布门禁；下一项为 `OSS-001` | Linux 安装、公开文档、P0 修复、smoke baseline |
+| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据和 README/贡献/引用文档已完成；`OSS-001` 等待许可证选择；下一项为 `TEST-001` | Linux 安装、公开文档、P0 修复、smoke baseline |
 | S2 数据处理与模型主干 | `TODO` | 已完成 AntM2C 只读问题定位，尚未实施 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
 | S3 模型公共组件 | `TODO` | 未开始 | pooling/fusion 可按模态配置且默认 preset 回归通过 |
 | S4 实验分析体系 | `TODO` | 未开始 | 无模型复制、统一 runner/result schema、五类分析可配置运行 |
@@ -872,7 +872,7 @@ Follow-up tasks:
 | PUB-001 | P0 | 公开推送前净化个人路径与历史生成物，并接入目标远程 | GOV-002 | `DONE` | Codex (`/root`) | hard-coded path files、Git refs/history、`REFACTORING_PLAN.md` | 远程 `origin/main` 非强制前进至 `222591b`；当前树个人路径/常见密钥扫描均为 0；公开历史 pyc/egg-info/IDE 对象为 0；6 个改动脚本 AST 与 4 个 YAML 静态检查通过；原本地历史保留于 `local/refactor-bootstrap`；2026-07-31 |
 | ENV-001 | P0 | 审计并保留 Linux server snapshot，生成可移植环境说明 | GOV-001 | `REVIEW` | Codex (`/root`) | `bm_env.yml`、`environment.yml`、`docs/environment.md`、`REFACTORING_PLAN.md` | 服务器包清单保留，机器专属 prefix 在 `PUB-001` 中移除；Windows `d:\anaconda\envs\py312\python.exe` 3.12.11 完成 UTF-8/YAML/无 prefix/无镜像 URL 静态检查；发现 TF/Keras/NumPy 与 CUDA 组合风险；维护者于 2026-07-31 明确同意暂缓 Linux 验证并继续改造，Linux 环境创建、框架版本和 smoke 保留为发布门禁 |
 | ENV-002 | P0 | 建立 `pyproject.toml`、依赖分组和 Python 兼容范围 | ENV-001 | `DONE` | Codex (`/root`) | `pyproject.toml`、`setup.py`、`requrements.txt`、`docs/environment.md`、`REFACTORING_PLAN.md` | 新增 PEP 517/621 元数据与 6 个 optional groups，声明 Python `>=3.8,<3.9`，删除空的错误拼写依赖文件；Windows 3.12.11：TOML、118 AST、20 legacy packages、`setup.py --name` 通过；常规 wheel 正确拒绝 3.12，`--ignore-requires-python --no-deps --no-build-isolation` 构建成功，wheel 120 文件且无缓存；临时产物已清理；Linux 门禁按 ADR-010 延期；2026-07-31 |
-| OSS-001 | P0 | README/Quick Start、LICENSE、CITATION、CONTRIBUTING | ENV-002 | `TODO` | - | root/docs | 外部 Linux 用户可完成合成 smoke |
+| OSS-001 | P0 | README/Quick Start、LICENSE、CITATION、CONTRIBUTING | ENV-002 | `BLOCKED` | Codex (`/root`) | `README.md`、`CONTRIBUTING.md`、`CITATION.cff`、`LICENSE`、`REFACTORING_PLAN.md` | README、贡献指南和实体引用已完成；CFF YAML、2 个文档的本地相对链接、diff/path 扫描通过；未创建 `LICENSE`。阻塞条件：维护者需明确选择许可证类型；外部 Linux 合成 smoke 证据由 `TEST-001` 建立后回填 |
 | OSS-002 | P0 | 数据来源、许可、下载、目录与模型引用清单 | OSS-001 | `TODO` | - | `data/README.md`, docs | 无私有数据/路径，第三方许可可追踪 |
 | SCI-001 | P0 | 隔离并修复现有 tuner 的 test-set 泄漏 | TEST-001 | `TODO` | - | tuning scripts/core | objective 无 test 依赖的防回归测试 |
 | RUN-001 | P0 | 设计唯一 run ID 和隔离输出/checkpoint | GOV-001 | `TODO` | - | training/experiments | 并行任务无路径冲突测试 |
@@ -956,6 +956,8 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.13 | 2026-07-31 | Codex | 完成 `OSS-001` 中 README、CONTRIBUTING 与 CITATION；因许可证类型尚未经维护者决定，将任务标记为 `BLOCKED` 并记录解除条件 |
+| v0.12 | 2026-07-31 | Codex | 领取 `OSS-001`；登记 README/贡献/引用文档范围，并将许可证类型列为必须由维护者决定的边界 |
 | v0.11 | 2026-07-31 | Codex | 完成 `ENV-002`：建立 `pyproject.toml` 权威元数据与依赖分组、收敛 legacy setup shim、删除空的错误拼写依赖文件并通过本地 wheel 检查 |
 | v0.10 | 2026-07-31 | Codex | 记录维护者延期 Linux 验证的决定；新增 ADR-010/011；领取 `ENV-002` 并登记依赖分组、兼容范围和本地验收方式 |
 | v0.9 | 2026-07-31 | Codex | 完成 `PUB-001`：净化个人路径与服务器 prefix，基于远程初始提交发布无生成物历史的干净快照 |
