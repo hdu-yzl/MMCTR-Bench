@@ -9,8 +9,8 @@
 - 关键耦合: 码本参数同时决定「量化预模型」和「推荐模型」的结构，二者必须一致。
   因此每个组合都需要:
     1) 用该组合重新训练对应的量化预模型 (QARM->RQ, MCCA->PSRQ) 并保存;
-    2) 创建并训练推荐模型（会加载上一步的预模型），在测试集上评估 AUC。
-- 对每个数据集选出测试集 AUC 最优的 (codebook_size, n_levels)，写回 config/best_param.yaml。
+    2) 创建并训练推荐模型（会加载上一步的预模型），在验证集上评估 AUC。
+- 对每个数据集选出验证集 AUC 最优的 (codebook_size, n_levels)，写回 config/best_param.yaml。
 - 最后用最优组合在标准 checkpoint 目录重训一次，固化预模型与推荐模型权重。
 
 多 GPU 并行:
@@ -54,6 +54,7 @@ import numpy as np
 import torch
 
 from utils import helper
+from utils.tuning_protocol import SelectionMetrics, evaluate_for_selection, is_better
 from models.pre_models.RQ import ResidualQuantizer
 from models.pre_models.PSRQ import PSRQ_Premodel
 
@@ -203,7 +204,7 @@ def _load_base_cfg(model_name, dataset_name, model_cfg_yaml, best_param, logger)
 
 
 def run_single_trial(model_name, dataset_name, codebook_size, n_levels, ckpt_dir, gpu, logger):
-    """在指定 GPU、指定隔离目录下训练预模型与推荐模型，返回 (test_auc, test_loss)。"""
+    """在指定 GPU、指定隔离目录下训练模型，并返回 validation 选优指标。"""
     model_cfg_yaml = helper.load_yaml("config/model.yaml")
     best_param = helper.load_yaml(BEST_PARAM_PATH)
     train_config = helper.load_yaml("config/train.yaml")
@@ -234,12 +235,12 @@ def run_single_trial(model_name, dataset_name, codebook_size, n_levels, ckpt_dir
 
     model = helper.getModel(model_name, rec_model_config, train_config, data_config_ds, logger)
     model.fit(dataloader)
-    test_auc, test_loss = model.evalate(dataloader, "test")
+    val_metrics = evaluate_for_selection(model, dataloader)
 
     del model
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-    return float(test_auc), float(test_loss)
+    return val_metrics
 
 
 # ----------------------------- worker -----------------------------
@@ -253,10 +254,19 @@ def worker(job):
               "C": job["C"], "L": job["L"], "mode": job["mode"], "ok": False}
     try:
         logger.info(f"START {tag}")
-        auc, loss = run_single_trial(job["model"], job["dataset"], job["C"], job["L"],
-                                     job["ckpt_dir"], gpu, logger)
-        result.update({"ok": True, "auc": auc, "loss": loss})
-        logger.info(f"DONE  {tag} -> AUC={auc:.6f}, Loss={loss:.6f}")
+        val_metrics = run_single_trial(
+            job["model"], job["dataset"], job["C"], job["L"],
+            job["ckpt_dir"], gpu, logger,
+        )
+        result.update({
+            "ok": True,
+            "val_auc": val_metrics.auc,
+            "val_loss": val_metrics.loss,
+        })
+        logger.info(
+            f"DONE  {tag} -> Validation AUC={val_metrics.auc:.6f}, "
+            f"Validation Loss={val_metrics.loss:.6f}"
+        )
     except Exception as e:
         logger.error(f"FAIL  {tag}: {repr(e)}")
     finally:
@@ -361,10 +371,18 @@ def main():
         done += 1
         if res.get("ok"):
             g = (res["model"], res["dataset"])
-            if g not in best or res["auc"] > best[g]["auc"]:
+            incumbent = None
+            if g in best:
+                incumbent = SelectionMetrics(
+                    auc=best[g]["val_auc"],
+                    loss=best[g]["val_loss"],
+                )
+            candidate = SelectionMetrics(auc=res["val_auc"], loss=res["val_loss"])
+            if is_better(candidate, incumbent):
                 best[g] = res
                 main_logger.info(f"[{done}/{len(search_jobs)}] 新最优 {g[0]}/{g[1]}: "
-                                 f"codebook_size={res['C']}, n_levels={res['L']}, AUC={res['auc']:.6f}")
+                                 f"codebook_size={res['C']}, n_levels={res['L']}, "
+                                 f"Validation AUC={res['val_auc']:.6f}")
         else:
             main_logger.info(f"[{done}/{len(search_jobs)}] 试验失败已跳过")
 
@@ -372,7 +390,8 @@ def main():
     for (m, d), b in best.items():
         update_best_param(m, d, {"codebook_size": int(b["C"]), "n_levels": int(b["L"])})
         main_logger.info(f"已写入 best_param.yaml: [{m}][{d}] "
-                         f"codebook_size={b['C']}, n_levels={b['L']} (AUC={b['auc']:.6f})")
+                         f"codebook_size={b['C']}, n_levels={b['L']} "
+                         f"(Validation AUC={b['val_auc']:.6f})")
 
     # 固化阶段：用最优组合在标准目录重训（不同 (model,dataset) 路径不冲突，可并行）
     persist_jobs = [{"model": m, "dataset": d, "C": b["C"], "L": b["L"],
@@ -394,7 +413,10 @@ def main():
     # 汇总
     main_logger.info("===== 调参完成，各 (模型,数据集) 最优码本参数 =====")
     for (m, d), b in sorted(best.items()):
-        main_logger.info(f"  {m}/{d}: codebook_size={b['C']}, n_levels={b['L']}, AUC={b['auc']:.6f}")
+        main_logger.info(
+            f"  {m}/{d}: codebook_size={b['C']}, n_levels={b['L']}, "
+            f"Validation AUC={b['val_auc']:.6f}"
+        )
     main_logger.info(f"统一日志: {single_log}")
 
     listener.stop()

@@ -1,7 +1,7 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.17`
+> 当前版本：`v0.19`
 > 最近更新：`2026-07-31`  
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
@@ -855,12 +855,12 @@ Follow-up tasks:
 
 | Milestone | 状态 | 当前进度说明 | 退出证据 |
 |---|---|---|---|
-| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、主要公开文档、合成 CPU smoke 和首个数值回归基线已建立；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
+| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、主要公开文档、合成 CPU smoke、首个数值回归基线和 legacy tuner 科研红线修复已完成；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
 | S2 数据处理与模型主干 | `TODO` | 已完成 AntM2C 只读问题定位，尚未实施 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
 | S3 模型公共组件 | `TODO` | 未开始 | pooling/fusion 可按模态配置且默认 preset 回归通过 |
 | S4 实验分析体系 | `TODO` | 未开始 | 无模型复制、统一 runner/result schema、五类分析可配置运行 |
 
-> 当前结论：治理调研已完成，实际代码改造尚未开始。不得把“已写方案”计作模型或训练链路完成度。
+> 当前结论：治理、包元数据、公开文档主体、合成 smoke 与首个行为基线已落地；模型和数据主干改造尚未开始。不得把“已写方案”计作模型或训练链路完成度。
 
 ### 13.2 可领取任务
 
@@ -874,7 +874,7 @@ Follow-up tasks:
 | ENV-002 | P0 | 建立 `pyproject.toml`、依赖分组和 Python 兼容范围 | ENV-001 | `DONE` | Codex (`/root`) | `pyproject.toml`、`setup.py`、`requrements.txt`、`docs/environment.md`、`REFACTORING_PLAN.md` | 新增 PEP 517/621 元数据与 6 个 optional groups，声明 Python `>=3.8,<3.9`，删除空的错误拼写依赖文件；Windows 3.12.11：TOML、118 AST、20 legacy packages、`setup.py --name` 通过；常规 wheel 正确拒绝 3.12，`--ignore-requires-python --no-deps --no-build-isolation` 构建成功，wheel 120 文件且无缓存；临时产物已清理；Linux 门禁按 ADR-010 延期；2026-07-31 |
 | OSS-001 | P0 | README/Quick Start、LICENSE、CITATION、CONTRIBUTING | ENV-002 | `BLOCKED` | Codex (`/root`) | `README.md`、`CONTRIBUTING.md`、`CITATION.cff`、`LICENSE`、`REFACTORING_PLAN.md` | README、贡献指南和实体引用已完成；CFF YAML、2 个文档的本地相对链接、diff/path 扫描通过；未创建 `LICENSE`。阻塞条件：维护者需明确选择许可证类型；外部 Linux 合成 smoke 证据由 `TEST-001` 建立后回填 |
 | OSS-002 | P0 | 数据来源、许可、下载、目录与模型引用清单 | OSS-001 | `TODO` | - | `data/README.md`, docs | 无私有数据/路径，第三方许可可追踪 |
-| SCI-001 | P0 | 隔离并修复现有 tuner 的 test-set 泄漏 | TEST-001 | `TODO` | - | tuning scripts/core | objective 无 test 依赖的防回归测试 |
+| SCI-001 | P0 | 隔离并修复现有 tuner 的 test-set 泄漏 | TEST-001 | `DONE` | Codex (`/root`) | `src/scripts/Tuner.py`、`src/scripts/Codebook_Tuner.py`、`src/utils/tuning_protocol.py`、`tests/`、`REFACTORING_PLAN.md` | 两处搜索流程均改用共享 validation-only evaluator，结果字段改为 `val_auc`/`val_loss`，保留严格更高 AUC 胜出的旧比较规则；三个 tuner 的 test 指标泄漏扫描为 0；Windows 指定解释器完成 `src`/`tests` compileall，最终 `unittest discover` 8 tests/4.563s 全通过；测试后 13 个缓存目录已清理；Linux 验证按 ADR-010 延期；2026-07-31 |
 | RUN-001 | P0 | 设计唯一 run ID 和隔离输出/checkpoint | GOV-001 | `TODO` | - | training/experiments | 并行任务无路径冲突测试 |
 | TEST-001 | P0 | 建立 pytest、合成 batch 和首个 CPU smoke | ENV-002 | `DONE` | Codex (`/root`) | `tests/`、`pyproject.toml`、`README.md`、`REFACTORING_PLAN.md` | 建立 pytest 可收集的 unittest 结构、确定性 ID batch、pooling unit 与 legacy registry DNN CPU smoke；Windows 3.12.11 未安装 pytest，未修改环境；`unittest discover` 4 tests/5.392s 全通过，覆盖 forward/loss/backward/optimizer；首次直接导入暴露 `BaseModel ↔ utils.helper` 循环，改按现有 registry 入口验证并登记给 `PKG-001`；12 个测试缓存目录已清理；Linux pytest 按 ADR-010 延期；2026-07-31 |
 | BASE-001 | P0 | 保存重构前可获得的行为/指标基线 | TEST-001 | `DONE` | Codex (`/root`) | `tests/baselines/`、`tests/regression/`、`REFACTORING_PLAN.md` | `legacy_dnn_id_cpu_v1` 保存 schema、registry 入口、完整配置/seed/输入、Windows/Python/Torch/NumPy/sklearn 版本、4 logits、loss 与 205 参数量；容差 `1e-6`；Windows `unittest discover` 5 tests/5.263s 全通过；13 个缓存目录已清理；明确为合成行为而非论文指标，Linux 正式基线按 ADR-010 延期；2026-07-31 |
@@ -956,6 +956,8 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.19 | 2026-07-31 | Codex | 完成 `SCI-001`：legacy 普通/码本 tuner 改为 validation-only 选优，新增共享选择协议和运行时/AST 防回归测试 |
+| v0.18 | 2026-07-31 | Codex | 领取 `SCI-001`；记录两处 legacy tuner 的 test-set 泄漏、validation-only 修复范围与自动化守卫，执行既有 ADR-004 |
 | v0.17 | 2026-07-31 | Codex | 完成 `BASE-001`：冻结 legacy DNN 的完整合成 CPU 数值/环境基线并新增 logits、loss 与参数量回归测试 |
 | v0.16 | 2026-07-31 | Codex | 领取 `BASE-001`；登记 legacy DNN 合成 CPU 行为基线的配置、输入、版本、数值证据和跨环境边界 |
 | v0.15 | 2026-07-31 | Codex | 完成 `TEST-001`：新增合成 batch、pooling unit 和 legacy DNN CPU smoke；记录并隔离现有直接导入循环，未安装缺失的 pytest |

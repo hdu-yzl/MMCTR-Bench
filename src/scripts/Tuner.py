@@ -44,6 +44,7 @@ import torch
 torch.set_num_threads(_max_cpu)         # 限制 PyTorch 线程数
 torch.set_num_interop_threads(_max_cpu) # 限制跨算子并行线程数
 from utils import helper
+from utils.tuning_protocol import evaluate_for_selection, is_better
 
 
 def dict_to_list_of_tuples(d):
@@ -116,9 +117,9 @@ def print_summary(results: List[Dict], best_result: Dict):
     print(f"总试验数: {len(results)}")
 
     if best_result:
-        print(f"\n🏆 最优结果 (试验 {best_result['trial']}):")
-        print(f"   AUC:    {best_result['test_auc']:.6f}")
-        print(f"   Loss:   {best_result['test_loss']:.6f}")
+        print(f"\n🏆 最优结果 (试验 {best_result['best_trial']}):")
+        print(f"   Validation AUC:  {best_result['val_auc']:.6f}")
+        print(f"   Validation Loss: {best_result['val_loss']:.6f}")
         print(f"   参数:   {best_result['params']}")
     else:
         print("\n⚠️ 无有效的调优结果")
@@ -179,8 +180,7 @@ def main():
     random.shuffle(combinations)
     max_trials = min(args.max_trials, len(combinations))
 
-    best_auc = -1.0
-    best_loss = 0.0
+    best_metrics = None
     best_params = None
     best_trial = -1
     results = []
@@ -228,33 +228,40 @@ def main():
 
         try:
             model.fit(dataloader)
-            test_auc, test_loss = model.evalate(dataloader, 'test')
+            val_metrics = evaluate_for_selection(model, dataloader)
 
             # 记录结果
             result = {
                 'trial': trial_idx + 1,
                 'params': combo,
-                'test_auc': float(test_auc),
-                'test_loss': float(test_loss),
+                'val_auc': val_metrics.auc,
+                'val_loss': val_metrics.loss,
                 'timestamp': datetime.now().isoformat()
             }
             results.append(result)
 
             # 打印结果
             print(f"\n✓ 试验 {trial_idx + 1} 完成:")
-            print(f"  AUC:  {test_auc:.6f}")
-            print(f"  Loss: {test_loss:.6f}")
+            print(f"  Validation AUC:  {val_metrics.auc:.6f}")
+            print(f"  Validation Loss: {val_metrics.loss:.6f}")
 
-            logger.info(f"试验 {trial_idx + 1} 完成 - "
-                        f"AUC: {test_auc:.6f}, Loss: {test_loss:.6f}")
+            logger.info(
+                f"试验 {trial_idx + 1} 完成 - Validation AUC: {val_metrics.auc:.6f}, "
+                f"Validation Loss: {val_metrics.loss:.6f}"
+            )
 
-            if test_auc > best_auc:
-                best_auc = test_auc
-                best_loss = test_loss
+            if is_better(val_metrics, best_metrics):
+                best_metrics = val_metrics
                 best_params = combo
                 best_trial = trial_idx + 1
-                print(f"  🎉 新最优 AUC: {best_auc:.6f} (试验 {best_trial})")
-                logger.info(f"新最优 AUC: {best_auc:.6f} (试验 {best_trial})")
+                print(
+                    f"  🎉 新最优 Validation AUC: "
+                    f"{best_metrics.auc:.6f} (试验 {best_trial})"
+                )
+                logger.info(
+                    f"新最优 Validation AUC: "
+                    f"{best_metrics.auc:.6f} (试验 {best_trial})"
+                )
 
         except Exception as e:
             logger.error(f"试验 {trial_idx + 1} 失败: {e}")
@@ -263,14 +270,15 @@ def main():
 
     # 保存结果
     best_result = None
-    if best_params is not None:
+    if best_params is not None and best_metrics is not None:
         output_file = "config/best_params.yaml"
         best_result = {
             'model': model_name,
             'dataset': dataset_name,
             'best_trial': best_trial,
-            'test_auc': float(best_auc),
-            'test_loss': float(best_loss),
+            'selection_split': 'val',
+            'val_auc': best_metrics.auc,
+            'val_loss': best_metrics.loss,
             'params': best_params
         }
         with open(output_file, 'a', encoding='utf-8') as f:
