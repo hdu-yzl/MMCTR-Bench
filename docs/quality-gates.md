@@ -59,8 +59,9 @@ All caches and temporary files are rooted below the GitHub workspace.
 TensorFlow remains in the separate `data` extra, so the optional TFRecord smoke is skipped on the
 clean CPU CI job and is covered by the authoritative Linux `bm` environment instead. A repository
 contract test parses the workflow as YAML and locks its runner, actions, Python version, cache
-boundary, and commands. Local implementation evidence is complete; `CI-001` remains `REVIEW`
-until the workflow has run successfully on a clean remote runner after a push.
+boundary, and commands. The first clean remote run for commit `66db7d7` completed successfully as
+[GitHub Actions run 30642128515](https://github.com/hdu-yzl/MMCTR-Bench/actions/runs/30642128515),
+so `CI-001` is `DONE`.
 
 ## Linux baseline: 2026-07-31
 

@@ -1,7 +1,7 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.41`
+> 当前版本：`v0.42`
 > 最近更新：`2026-07-31`  
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
@@ -854,7 +854,7 @@ Follow-up tasks:
 
 | Milestone | 状态 | 当前进度说明 | 退出证据 |
 |---|---|---|---|
-| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、Linux `bm` 依赖/CUDA 基线、`mmctr` 公共命名空间、统一 CLI、严格 training/本地路径配置层、主要公开文档、合成 CPU/TFRecord smoke、首个数值回归基线、tuner 科研红线修复、主训练运行目录隔离和分阶段 Linux QA 门禁已完成；Linux CPU CI 已实现并等待首次远程 clean-runner 运行，`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
+| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、Linux `bm` 依赖/CUDA 基线、`mmctr` 公共命名空间、统一 CLI、严格 training/本地路径配置层、主要公开文档、合成 CPU/TFRecord smoke、首个数值回归基线、tuner 科研红线修复、主训练运行目录隔离、分阶段 Linux QA 门禁及首次 GitHub clean-runner CI 已完成；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
 | S2 数据处理与模型主干 | `TODO` | 已完成 AntM2C 只读问题定位，尚未实施 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
 | S3 模型公共组件 | `TODO` | 未开始 | pooling/fusion 可按模态配置且默认 preset 回归通过 |
 | S4 实验分析体系 | `TODO` | 未开始 | 无模型复制、统一 runner/result schema、五类分析可配置运行 |
@@ -882,7 +882,7 @@ Follow-up tasks:
 | CFG-002 | P0 | 消除缺失 local config 和服务器个人绝对路径 | CFG-001 | `DONE` | Codex (`/root`) | `src/mmctr/config/paths.py`、training/tuning/analysis callers、`configs/local/paths.example.yaml`、`.gitignore`、`docs/local-paths.md`、`tests/`、`REFACTORING_PLAN.md` | 新增 frozen `LocalPaths`、selected dataset catalog resolver、绝对路径/存在性/未知数据集校验；ignored `paths.yaml` < 环境变量 < 显式 legacy CLI override，canonical 路径按项目根解析且不修改输入；主训练、普通 tuner、alignment、两版 modal robustness 和 analysis trainer 全部移除缺失 local YAML；`src/` 中 `local_data.yaml`/`local_seq_data.yaml` 引用为 0，公开 config/example 个人路径扫描为 0；真实 `paths.yaml` 命中 ignore，example 不被忽略；Windows 指定解释器完成 `src`/`tests` compileall，最终 `unittest discover` 28 tests/19.096s 全通过，30 个缓存目录已清理；Linux local-path smoke 按 ADR-010 延期；2026-07-31 |
 | CLI-001 | P1 | 建立统一 CLI，移除 import-time argparse | PKG-001, CFG-001 | `DONE` | Codex (`/root`) | `src/mmctr/cli/`、`src/trainers/Trainers.py`、`src/mmctr/models/`、`src/mmctr/data/`、`pyproject.toml`、`docs/cli.md`、README、`tests/`、`REFACTORING_PLAN.md` | 新增 console/module CLI 与 train/validate-config/list-models/list-datasets 子命令；CLI/catalog import 不加载 torch/TensorFlow，train 设置 5 组线程环境后才 lazy import runtime；主 Trainer 改为显式参数构造，import 不解析宿主 argv 且移除硬编码 24 线程副作用；Windows 指定解释器完成 `src`/`tests` compileall，`unittest discover` 33 tests/26.696s 全通过；仓库外临时 wheel 的 module help、dependency-light import 和 `mmctr = mmctr.cli:main` entry point 均通过，wheel 268941 bytes、SHA-256 `f03e6bf71e6bab2ebda0ff735deccad8b4ed39eba36b5a9a11a5710faf2342a8`；临时目录、2 个构建目录和 32 个缓存目录已清理；真实 train Linux/CUDA gate 按 ADR-010 延期；2026-07-31 |
 | QA-001 | P1 | Ruff/pytest/mypy/coverage 分阶段门禁 | ENV-002, PKG-001 | `DONE` | Codex (`/root`) | `pyproject.toml`、`src/mmctr/`、`tests/`、`docs/quality-gates.md`、README、`REFACTORING_PLAN.md` | 已建立明确阶段边界：Ruff 约束 `src/mmctr + tests`，mypy 检查 14 个公共源文件但不递归 legacy bridge，coverage 下限 80%。最终 Linux `/home/star/Disk3/hkl/envs/bm/bin/python`：Ruff format 34 files 与 lint 通过，mypy 1.10.1 的 14 files 通过，unit+smoke 25 passed/7.48s，全量 pytest 35 passed/17.84s、coverage 83.80%，隔离 sdist+wheel build 通过；wheel 137 files/268965 bytes/SHA-256 `c279ede0278cdd3871aefdaf08b3040fac4ddd90b4b849e913ce7e18388d3413`。全仓 legacy 基线仍为 160 lint 问题/116 待格式化文件并已文档化；依据 ADR-016 仅以 Linux 验收；2026-07-31 |
-| CI-001 | P1 | 建立 Linux CPU CI | QA-001 | `REVIEW` | Codex (`/root`) | `.github/workflows/linux-ci.yml`、`tests/unit/test_ci_workflow.py`、`docs/quality-gates.md`、`REFACTORING_PLAN.md` | 以当前受支持且固定的 Ubuntu 22.04/Python 3.8 + PyTorch 1.13.1 CPU 执行 pip check、Ruff、mypy、unit/smoke、全量 coverage 和隔离 build，缓存/临时目录全部位于 workspace；TDD 合约测试先因 workflow 缺失为 RED，随后发现并阻止无效 YAML 单行命令，最终 YAML 解析和 runner/action/Python/命令/缓存约束通过。Linux `bm` 复核 Ruff 34 files、mypy 14 files、unit+smoke 25 passed、全量 35 passed/83.80% 及隔离 build；clean GitHub runner 结果待首次远程运行，故不标 `DONE`；2026-07-31 |
+| CI-001 | P1 | 建立 Linux CPU CI | QA-001 | `DONE` | Codex (`/root`) | `.github/workflows/linux-ci.yml`、`tests/unit/test_ci_workflow.py`、`docs/quality-gates.md`、`REFACTORING_PLAN.md` | 以固定 Ubuntu 22.04/Python 3.8 + PyTorch 1.13.1 CPU 执行 pip check、Ruff、mypy、unit/smoke、全量 coverage 和隔离 build，缓存/临时目录全部位于 workspace；TDD 合约测试先因 workflow 缺失为 RED，随后发现并阻止无效 YAML 单行命令，最终 YAML 解析和 runner/action/Python/命令/缓存约束通过。Linux `bm` 复核 Ruff 34 files、mypy 14 files、unit+smoke 25 passed、全量 35 passed/83.80% 及隔离 build；提交 `66db7d7` 的首次 clean GitHub Actions run `30642128515` 全部成功；2026-07-31 |
 | CORE-001 | P0 | 定义统一 Batch/ModelOutput/RunResult | PKG-001, CFG-001 | `TODO` | - | core schemas | shape/dtype/mask/type unit tests |
 | DATA-001 | P0 | 统一三个数据集 loader contract 与 manifest | CORE-001 | `TODO` | - | data/datasets | 三 adapter contract tests |
 | ANT-001 | P0 | 审计 AntM2C 六类文本字段语义与 feature ownership | DATA-001 | `TODO` | - | antm2c schema/docs | 字段归属、shape、split 协议经确认 |
@@ -961,6 +961,7 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.42 | 2026-07-31 | Codex | 完成 `CI-001`：将 origin 切换为已认证 SSH 并快进推送 `66db7d7`；首次 GitHub Actions Linux CPU quality run `30642128515` 在 clean Ubuntu runner 上成功，远端提交 SHA 与本地一致 |
 | v0.41 | 2026-07-31 | Codex | `CI-001` 实现转 `REVIEW`：新增固定 Ubuntu 22.04/Python 3.8 CPU workflow 和 YAML 合约测试，采用当前 actions v6，项目本地化全部缓存/临时目录；本地 Ruff/mypy、25 unit+smoke、35 tests/83.80% 与 137-file wheel 隔离构建通过，首次远程 clean-runner 运行仍待推送后取得 |
 | v0.40 | 2026-07-31 | Codex | 领取 `CI-001`：登记 Linux-only Ubuntu/Python 3.8 CPU workflow、项目本地缓存、CPU PyTorch 安装、阶段质量门禁与 workflow 合约测试；远程 runner 通过前不标 `DONE` |
 | v0.39 | 2026-07-31 | Codex | 完成 `ENV-001`：在保留原始 snapshot、NumPy/PyTorch/CUDA 主栈的前提下对齐 TensorFlow/TFRecord、h5py、typing 与传递依赖；`pip check`、JAX/loader/TFRecord、PyTorch/TensorFlow 8×V100、34 tests/83.80% 和隔离构建全部通过；同步更新 Linux-only 文档和最终包哈希 |
