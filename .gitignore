@@ -67,6 +67,9 @@ ray_results/
 *.ckpt
 
 # Temporary files
+.cache/
+.tmp/
+downloads/
 *.tmp
 *.temp
 ~$*

@@ -82,6 +82,43 @@ The expected full installation shape is:
 These commands are a protocol, not completed evidence. Record the actual interpreter path, OS,
 GPU, driver, CUDA, PyTorch, TensorFlow, and command exit codes when they are run.
 
+## Maintainer server handoff
+
+The next refactoring stage will continue in VS Code on the Linux experiment server. The
+maintainer supplied the following operational facts on 2026-07-31; they are handoff inputs, not
+completed validation evidence:
+
+- Activate the existing environment with `conda activate bm`. Do not create a replacement
+  environment automatically. After activation, record the absolute path reported by
+  `command -v python` and use that interpreter for Python-related commands.
+- Keep every new package download, package cache, model/data download, build dependency, and
+  temporary artifact on the same filesystem as the current project clone. Repository-local
+  `.cache/`, `.tmp/`, and `downloads/` directories are ignored by Git for this purpose.
+- `/home/star/Disk3/hkl/Benchmark` is the original pre-refactoring project. Use it as a read-only
+  reference when locating data or reconstructing historical path/configuration conventions.
+  Never modify that directory or copy its private data and machine-specific configuration into
+  tracked files.
+
+Before downloading anything on the server, run the equivalent of the following from the new
+clone's root (do not assume that the clone itself has a fixed absolute path):
+
+```bash
+conda activate bm
+MMCTR_PROJECT_ROOT="$(pwd -P)"
+export PIP_CACHE_DIR="$MMCTR_PROJECT_ROOT/.cache/pip"
+export CONDA_PKGS_DIRS="$MMCTR_PROJECT_ROOT/.cache/conda-pkgs"
+export HF_HOME="$MMCTR_PROJECT_ROOT/.cache/huggingface"
+export TORCH_HOME="$MMCTR_PROJECT_ROOT/.cache/torch"
+export TMPDIR="$MMCTR_PROJECT_ROOT/.tmp"
+mkdir -p "$PIP_CACHE_DIR" "$CONDA_PKGS_DIRS" "$HF_HOME" "$TORCH_HOME" "$TMPDIR"
+MMCTR_PYTHON="$(command -v python)"
+"$MMCTR_PYTHON" --version
+```
+
+Once `command -v python` has resolved the `bm` interpreter, use `"$MMCTR_PYTHON"` in
+recorded validation commands. Actual data paths belong in ignored `configs/local/paths.yaml`,
+environment variables, or explicit CLI overrides—not in published configuration.
+
 ## Windows validation boundary
 
 Local Python commands must use the configured interpreter explicitly:

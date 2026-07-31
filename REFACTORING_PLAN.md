@@ -1,7 +1,7 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.29`
+> 当前版本：`v0.30`
 > 最近更新：`2026-07-31`  
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
@@ -205,6 +205,13 @@ Linux 文档中的 Python 命令必须指向服务器环境的实际绝对解释
 ```
 
 `<SERVER_ENV>` 是文档占位符；执行记录中必须替换为服务器上的真实绝对路径。
+
+#### 4.2.1 VS Code/Codex 服务器接续备注
+
+- 维护者指定服务器继续使用既有环境 `conda activate bm`；不得自动新建替代环境。激活后先记录 `command -v python` 返回的绝对解释器路径。
+- 任何新增包、模型、数据、下载缓存、构建依赖和临时产物必须写入当前项目所在的同一磁盘/文件系统。优先使用项目根下 ignored `.cache/`、`.tmp/`、`downloads/`，并按需设置 `PIP_CACHE_DIR`、`CONDA_PKGS_DIRS`、`HF_HOME`、`TORCH_HOME`、`TMPDIR`。
+- `/home/star/Disk3/hkl/Benchmark` 是改造开始前的最原始版本，仅作为数据位置、历史配置和旧运行约定的**只读参考**；不得在该目录执行修改、删除或迁移，也不得将其中真实数据和机器专属配置提交到 Git。
+- 接续改造的 Codex 必须先读根 `AGENTS.md` 和本文档。以上内容是维护者提供的交接事实，不代表 Linux/CUDA 门禁已经通过；实际服务器验证证据仍需回填 `ENV-001`。
 
 ### 4.3 Windows 本地验证规范
 
@@ -870,7 +877,7 @@ Follow-up tasks:
 | GOV-001 | P0 | 建立/确认 Git 基线，保护现有用户改动 | GOV-000 | `DONE` | Codex (`/root`) | repo metadata、`REFACTORING_PLAN.md` | 改造前 267 个文件已纳入本地可恢复快照；公开分支从远程初始提交生成干净历史；2026-07-31 |
 | GOV-002 | P0 | 添加 `.gitignore`，治理 pyc/egg-info/outputs | GOV-001 | `DONE` | Codex (`/root`) | `.gitignore`、generated files、`REFACTORING_PLAN.md` | 移除 105 个 `.pyc`、9 个 `__pycache__` 和 1 个 `egg-info`；本地 `.vscode/settings.json` 保留但取消跟踪；19 个论文图表保留；`git ls-files -ci --exclude-standard` 为 0；2026-07-31 |
 | PUB-001 | P0 | 公开推送前净化个人路径与历史生成物，并接入目标远程 | GOV-002 | `DONE` | Codex (`/root`) | hard-coded path files、Git refs/history、`REFACTORING_PLAN.md` | 远程 `origin/main` 非强制前进至 `222591b`；当前树个人路径/常见密钥扫描均为 0；公开历史 pyc/egg-info/IDE 对象为 0；6 个改动脚本 AST 与 4 个 YAML 静态检查通过；原本地历史保留于 `local/refactor-bootstrap`；2026-07-31 |
-| ENV-001 | P0 | 审计并保留 Linux server snapshot，生成可移植环境说明 | GOV-001 | `REVIEW` | Codex (`/root`) | `bm_env.yml`、`environment.yml`、`docs/environment.md`、`REFACTORING_PLAN.md` | 服务器包清单保留，机器专属 prefix 在 `PUB-001` 中移除；Windows `d:\anaconda\envs\py312\python.exe` 3.12.11 完成 UTF-8/YAML/无 prefix/无镜像 URL 静态检查；发现 TF/Keras/NumPy 与 CUDA 组合风险；维护者于 2026-07-31 明确同意暂缓 Linux 验证并继续改造，Linux 环境创建、框架版本和 smoke 保留为发布门禁 |
+| ENV-001 | P0 | 审计并保留 Linux server snapshot，生成可移植环境说明 | GOV-001 | `REVIEW` | Codex (`/root`) | `bm_env.yml`、`environment.yml`、`docs/environment.md`、`AGENTS.md`、`REFACTORING_PLAN.md` | 服务器包清单保留，机器专属 prefix 在 `PUB-001` 中移除；Windows `d:\anaconda\envs\py312\python.exe` 3.12.11 完成 UTF-8/YAML/无 prefix/无镜像 URL 静态检查；发现 TF/Keras/NumPy 与 CUDA 组合风险；维护者于 2026-07-31 提供服务器交接：使用既有 `bm` 环境、下载/缓存/临时产物与项目同盘、原始 `/home/star/Disk3/hkl/Benchmark` 仅作只读数据/历史路径参考；实际解释器、框架版本和 CPU/GPU smoke 仍待服务器回填，状态保持 `REVIEW` |
 | ENV-002 | P0 | 建立 `pyproject.toml`、依赖分组和 Python 兼容范围 | ENV-001 | `DONE` | Codex (`/root`) | `pyproject.toml`、`setup.py`、`requrements.txt`、`docs/environment.md`、`REFACTORING_PLAN.md` | 新增 PEP 517/621 元数据与 6 个 optional groups，声明 Python `>=3.8,<3.9`，删除空的错误拼写依赖文件；Windows 3.12.11：TOML、118 AST、20 legacy packages、`setup.py --name` 通过；常规 wheel 正确拒绝 3.12，`--ignore-requires-python --no-deps --no-build-isolation` 构建成功，wheel 120 文件且无缓存；临时产物已清理；Linux 门禁按 ADR-010 延期；2026-07-31 |
 | OSS-001 | P0 | README/Quick Start、LICENSE、CITATION、CONTRIBUTING | ENV-002 | `BLOCKED` | Codex (`/root`) | `README.md`、`CONTRIBUTING.md`、`CITATION.cff`、`LICENSE`、`REFACTORING_PLAN.md` | README、贡献指南和实体引用已完成；CFF YAML、2 个文档的本地相对链接、diff/path 扫描通过；未创建 `LICENSE`。阻塞条件：维护者需明确选择许可证类型；外部 Linux 合成 smoke 证据由 `TEST-001` 建立后回填 |
 | OSS-002 | P0 | 数据来源、许可、下载、目录与模型引用清单 | OSS-001 | `TODO` | - | `data/README.md`, docs | 无私有数据/路径，第三方许可可追踪 |
@@ -952,6 +959,7 @@ Follow-up tasks:
 | ADR-012 | 2026-07-31 | 配置相对路径统一相对包含 `pyproject.toml` 的项目根解析；training 配置先以 frozen dataclass 严格校验，模型/数据算法字段在对应任务中逐步 typed 化 | `ACCEPTED` | 消除 cwd 差异并立即保护运行关键字段，同时避免在未建立模型回归前一次性重写全部论文专属参数 |
 | ADR-013 | 2026-07-31 | 机器专属数据路径只允许来自 ignored `configs/local/paths.yaml`、`MMCTR_*_DATA_DIR` 环境变量或显式 CLI override；优先级为本地文件 < 环境变量 < CLI，tracked 配置只保留相对路径和空 example | `ACCEPTED` | 同一公开配置可跨机器复用，真实服务器路径不进入 Git，缺失 override 时给出明确错误而非引用不存在文件 |
 | ADR-014 | 2026-07-31 | 公共命令统一为 `mmctr` / `python -m mmctr.cli` 子命令；CLI 模块保持 dependency-light，train 命令完成参数/线程设置后才导入训练 runtime | `ACCEPTED` | `--help`、配置检查和列表命令可安全导入运行，避免 argparse/torch/TensorFlow 在模块导入阶段产生副作用 |
+| ADR-015 | 2026-07-31 | 服务器接续使用既有 Conda `bm` 环境；下载、缓存和临时产物与当前项目同盘；原始 `/home/star/Disk3/hkl/Benchmark` 只读参考 | `ACCEPTED` | 遵循维护者提供的服务器资源边界，避免占用其他磁盘或误改原始版本，同时为数据位置和历史约定保留可核对证据 |
 
 ---
 
@@ -959,6 +967,7 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.30 | 2026-07-31 | Codex | 固化服务器 VS Code/Codex 交接：新增根 `AGENTS.md`，记录 `bm` 环境、项目同盘下载/缓存、原始版本只读参考规则；接受 ADR-015，`ENV-001` 保持 `REVIEW` |
 | v0.29 | 2026-07-31 | Codex | 完成 `CLI-001`：新增 import-safe console/module CLI 与四个子命令，显式参数化主 Trainer，移除 import-time argparse/硬编码线程，并通过仓库外 wheel 入口验证 |
 | v0.28 | 2026-07-31 | Codex | 领取 `CLI-001`；接受 ADR-014，登记统一 console/module CLI、lazy train runtime、显式 Trainer 参数化及 help/import/list/config tests |
 | v0.27 | 2026-07-31 | Codex | 完成 `CFG-002`：新增 ignored local-path/environment/CLI 注入与严格解析，迁移全部缺失 local YAML 调用方，提交无真实路径 example 和回归测试 |
