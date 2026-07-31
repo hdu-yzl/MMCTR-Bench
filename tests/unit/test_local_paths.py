@@ -83,9 +83,7 @@ class LocalPathsTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             local_directory = Path(temporary_directory).resolve()
-            local_paths = LocalPaths.from_mapping({
-                "datasets": {"antm2c": str(local_directory)}
-            })
+            local_paths = LocalPaths.from_mapping({"datasets": {"antm2c": str(local_directory)}})
             local = resolve_dataset_config(
                 "antm2c", original, REPOSITORY_ROOT, local_paths=local_paths
             )

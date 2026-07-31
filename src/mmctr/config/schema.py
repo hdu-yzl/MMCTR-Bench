@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Union
+from typing import Any, Dict, List, Mapping, Union, cast
 
 
 PathLike = Union[str, Path]
@@ -85,21 +85,28 @@ class TrainingConfig:
 
         def integer(key: str, minimum: int) -> int:
             value = values.get(key)
-            if not _is_int(value) or value < minimum:
+            if not _is_int(value):
                 issues.append("{} must be an integer >= {}".format(key, minimum))
                 return minimum
-            return value
+            integer_value = cast(int, value)
+            if integer_value < minimum:
+                issues.append("{} must be an integer >= {}".format(key, minimum))
+                return minimum
+            return integer_value
 
         def number(key: str, minimum: float, strict: bool = False) -> float:
             value = values.get(key)
-            invalid = not _is_number(value) or value < minimum
-            if strict and _is_number(value):
-                invalid = value <= minimum
+            if not _is_number(value):
+                operator = ">" if strict else ">="
+                issues.append("{} must be a number {} {}".format(key, operator, minimum))
+                return minimum
+            number_value = float(cast(Union[int, float], value))
+            invalid = number_value <= minimum if strict else number_value < minimum
             if invalid:
                 operator = ">" if strict else ">="
                 issues.append("{} must be a number {} {}".format(key, operator, minimum))
                 return minimum
-            return float(value)
+            return number_value
 
         max_epochs = integer("max_epochs", 1)
         early_stop_patience = integer("early_stop_patience", 1)
@@ -111,9 +118,7 @@ class TrainingConfig:
         l2 = number("l2", 0.0)
 
         optim_value = values.get("optim")
-        if not isinstance(optim_value, str) or optim_value.lower() not in {
-            "sgd", "adam", "adamw"
-        }:
+        if not isinstance(optim_value, str) or optim_value.lower() not in {"sgd", "adam", "adamw"}:
             issues.append("optim must be one of: sgd, adam, adamw")
             optim = "adamw"
         else:

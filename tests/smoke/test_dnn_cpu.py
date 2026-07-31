@@ -33,7 +33,9 @@ class LegacyDnnCpuSmokeTest(unittest.TestCase):
 
             model.optim.zero_grad()
             loss.backward()
-            gradients = [parameter.grad for parameter in model.parameters() if parameter.grad is not None]
+            gradients = [
+                parameter.grad for parameter in model.parameters() if parameter.grad is not None
+            ]
             self.assertTrue(gradients)
             self.assertTrue(all(torch.isfinite(gradient).all() for gradient in gradients))
             model.optim.step()

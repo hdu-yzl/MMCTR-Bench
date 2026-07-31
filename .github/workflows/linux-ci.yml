@@ -1,0 +1,74 @@
+name: Linux CPU quality
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-cpu-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_CACHE_DIR: ${{ github.workspace }}/.cache/pip
+  RUFF_CACHE_DIR: ${{ github.workspace }}/.cache/ruff
+  MYPY_CACHE_DIR: ${{ github.workspace }}/.cache/mypy
+  COVERAGE_FILE: ${{ github.workspace }}/.cache/coverage/.coverage
+  PYTHONPYCACHEPREFIX: ${{ github.workspace }}/.tmp/pycache
+  TMPDIR: ${{ github.workspace }}/.tmp
+
+jobs:
+  quality:
+    name: Python 3.8 staged gates
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.8"
+
+      - name: Prepare project-local runtime directories
+        run: |
+          mkdir -p \
+            "$PIP_CACHE_DIR" \
+            "$RUFF_CACHE_DIR" \
+            "$MYPY_CACHE_DIR" \
+            "$(dirname "$COVERAGE_FILE")" \
+            "$PYTHONPYCACHEPREFIX" \
+            "$TMPDIR"
+          echo "MMCTR_PYTHON=$(command -v python)" >> "$GITHUB_ENV"
+
+      - name: Install CPU test and development dependencies
+        run: |
+          "$MMCTR_PYTHON" -m pip install --upgrade "pip<25"
+          "$MMCTR_PYTHON" -m pip install \
+            --index-url https://download.pytorch.org/whl/cpu \
+            "torch==1.13.1+cpu"
+          "$MMCTR_PYTHON" -m pip install --editable ".[training,dev]"
+          "$MMCTR_PYTHON" -m pip check
+
+      - name: Check formatting and lint
+        run: |
+          "$MMCTR_PYTHON" -m ruff format --check .
+          "$MMCTR_PYTHON" -m ruff check .
+
+      - name: Check public package types
+        run: '"$MMCTR_PYTHON" -m mypy src/mmctr'
+
+      - name: Run fast unit and smoke tests
+        run: '"$MMCTR_PYTHON" -m pytest tests/unit tests/smoke'
+
+      - name: Run complete tests with coverage
+        run: '"$MMCTR_PYTHON" -m pytest --cov=mmctr --cov-report=term-missing'
+
+      - name: Build source and wheel distributions
+        run: '"$MMCTR_PYTHON" -m build --outdir "$TMPDIR/ci-dist" .'

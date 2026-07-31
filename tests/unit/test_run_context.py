@@ -3,7 +3,6 @@ import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from pathlib import Path
 
 import yaml
 
@@ -40,9 +39,7 @@ class RunContextTest(unittest.TestCase):
                 metadata={"seed": 2025, "device": "cpu"},
             )
 
-            expected_prefix = "20260731T063045123456Z-{}-".format(
-                config_fingerprint(CONFIG)
-            )
+            expected_prefix = "20260731T063045123456Z-{}-".format(config_fingerprint(CONFIG))
             self.assertTrue(context.run_id.startswith(expected_prefix))
             self.assertTrue(context.checkpoints_dir.is_dir())
             self.assertTrue(context.metrics_path.is_file())
@@ -65,6 +62,7 @@ class RunContextTest(unittest.TestCase):
 
     def test_parallel_identical_configs_get_distinct_directories(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
+
             def create_one(_index):
                 return create_run_context(
                     output_root=temporary_directory,

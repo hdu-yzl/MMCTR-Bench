@@ -35,9 +35,7 @@ class LegacyDnnRegressionTest(unittest.TestCase):
             )
             model.eval()
 
-            features = {
-                "id": torch.tensor(baseline["inputs"]["features"]["id"], dtype=torch.long)
-            }
+            features = {"id": torch.tensor(baseline["inputs"]["features"]["id"], dtype=torch.long)}
             history_features = {
                 "id": torch.tensor(
                     baseline["inputs"]["history_features"]["id"],

@@ -4,20 +4,20 @@
 
 ## 运行环境
 
-先确认当前操作系统和主机，再选择对应环境；不要把 Windows 本地验证结果当作 Linux 服务器验收结果。
+后续修改与验证统一在当前 Linux 实验服务器完成；Windows 只保留为历史证据，不再作为工作或验收环境。
 
 ### Linux 实验服务器
 
 - 使用维护者已经准备好的 Conda 环境：`conda activate bm`。
 - 不要自动创建新的 Conda/venv 环境，也不要擅自升级或重解整个环境。
 - 激活后先用 `command -v python` 取得并记录解释器绝对路径；后续 Python、pip、pytest 等命令必须通过该绝对解释器执行。
-- 安装新依赖会改变实验环境，先说明原因、版本和影响，并取得维护者授权。
+- 维护者已授权在既有 `bm` 中按需安装新依赖和调整冲突依赖；每次仍须记录原因、精确版本、resolver 影响和验证结果。
 
-### Windows 本地工作区
+### 单一服务器工作区
 
-- Python 解释器固定为 `d:\anaconda\envs\py312\python.exe`。
-- 所有 Python 相关命令都必须使用上述绝对路径，禁止直接使用未限定环境的 `python`、`py`、`pip` 或 `pytest`。
-- 不要自动创建新的 venv/Conda 环境。检查失败时，先确认解释器路径是否正确。
+- Python、pip、pytest、Ruff、mypy 和 build 等命令全部使用 `bm` 激活后解析出的绝对解释器。
+- 不在 Windows 上继续修改或补验，不使用历史 Windows 结果替代 Linux 门禁。
+- 不要自动创建新的 venv/Conda 环境；依赖冲突在现有 `bm` 中按登记范围处理。
 
 ## 下载、缓存和临时文件
 

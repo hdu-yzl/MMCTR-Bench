@@ -1,7 +1,7 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.30`
+> 当前版本：`v0.41`
 > 最近更新：`2026-07-31`  
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
@@ -175,16 +175,18 @@
 
 ---
 
-## 4. 双环境定位与执行规范
+## 4. Linux 服务器定位与执行规范
 
 ### 4.1 环境权威边界
 
-本项目存在两个用途不同的环境，不能混为一谈：
+自 2026-07-31 起，本项目后续修改与验证统一在 Linux GPU 服务器完成：
 
 | 环境 | 定位 | 可以作为验收依据 | 不可以据此下结论 |
 |---|---|---|---|
 | Linux GPU 服务器 | **实验运行与依赖兼容的权威环境** | 安装、真实数据训练、CUDA、性能、正式回归和论文结果 | 不把服务器个人路径直接发布给用户 |
-| Windows 本地工作区 | 编辑、只读检查和轻量静态验证 | UTF-8、AST/语法、Markdown、无需重依赖的纯单元检查 | 不能因本地缺少 TensorFlow/CUDA 就修改服务器依赖或判定实验不可运行 |
+
+Windows 只保留为早期改造记录中的历史环境，不再承担后续编辑、静态检查或任务验收；
+已有 Windows 证据无需重跑，也不能替代新的 Linux 验证。
 
 `bm_env.yml` 是现有 Linux 服务器环境的有价值快照，不再标记为“错误环境”或仅因本地 Python 3.12 不同而废弃。开源整改需要在保留其复现实验价值的同时，去掉绝对 `prefix` 等机器专属信息，并补充更适合外部安装的环境文件和说明。
 
@@ -213,21 +215,13 @@ Linux 文档中的 Python 命令必须指向服务器环境的实际绝对解释
 - `/home/star/Disk3/hkl/Benchmark` 是改造开始前的最原始版本，仅作为数据位置、历史配置和旧运行约定的**只读参考**；不得在该目录执行修改、删除或迁移，也不得将其中真实数据和机器专属配置提交到 Git。
 - 接续改造的 Codex 必须先读根 `AGENTS.md` 和本文档。以上内容是维护者提供的交接事实，不代表 Linux/CUDA 门禁已经通过；实际服务器验证证据仍需回填 `ENV-001`。
 
-### 4.3 Windows 本地验证规范
+### 4.3 服务器唯一验证规范
 
-当前共享工作区的本地解释器固定为：
-
-- Python：`d:\anaconda\envs\py312\python.exe`
-- 环境目录：`d:\anaconda\envs\py312`
-
-在本地执行任何 Python 相关命令时必须使用上述绝对路径。禁止直接使用 `python`、`py`、`pip`、`pytest` 等未限定环境的命令，也不得自动创建新环境。
-
-```powershell
-& 'd:\anaconda\envs\py312\python.exe' --version
-& 'd:\anaconda\envs\py312\python.exe' -c "import ast; print('syntax-only validation')"
-```
-
-本地检查失败时先确认解释器路径。依赖安装或升级会改变共享环境，必须由维护者明确授权；agent 不得为了让本地检查通过而擅自改变 Linux 实验依赖。
+- 后续代码修改、静态检查、单元/集成测试、构建、CUDA、真实数据和性能验证全部在本服务器执行。
+- Python、pip、pytest、Ruff、mypy 和 build 命令统一使用 `bm` 的绝对解释器
+  `/home/star/Disk3/hkl/envs/bm/bin/python`；不得用 Windows 结果补齐门禁。
+- 维护者已授权在既有 `bm` 中按需安装依赖和解决依赖冲突；每次变更仍须记录原因、版本、
+  resolver 影响和 smoke 结果，且不得创建替代 Conda/venv 环境。
 
 ---
 
@@ -518,7 +512,7 @@ outputs/{experiment_name}/{dataset}/{model}/{run_id}/
 ### 7.1 Python 基线
 
 - 首个开源版本以 Linux 服务器快照中的 Python 3.8.5 为实验兼容基线；最终 `requires-python` 范围由 Linux 安装与 CI 实测决定。
-- Windows Python 3.12 只作为补充静态解析环境，不得反向迫使服务器代码使用 3.9+ / 3.10+ / 3.12 专属语法。
+- Python 语法与依赖范围以 Linux `bm` 的 Python 3.8 实测为准，不使用 3.9+ 专属语法。
 - 源码编码：UTF-8。
 - 新文件换行：LF；避免无意义地改写历史文件换行。
 - 行宽：100。
@@ -636,7 +630,7 @@ cli -> experiments/analysis -> training/evaluation -> models + data -> config/ut
 
 - 使用 `pyproject.toml` 作为包与工具配置的权威入口。
 - 核心、数据处理、分析、开发依赖应拆分为明确 optional groups。
-- 以 Linux 服务器为兼容性验证环境；Windows/Python 3.12 只做不依赖完整实验栈的补充检查。
+- Linux 服务器是唯一兼容性验证环境；后续不再维护 Windows 验证门禁。
 - 保留 `bm_env.yml` 作为现有成功运行环境快照；发布时去掉机器 `prefix`，并区分“可移植安装文件”和“精确服务器快照”。
 - 不同时维护空 `requrements.txt` 和另一套隐式依赖。
 - 深度学习框架/CUDA 版本调整必须单独任务处理，并记录兼容矩阵和 smoke 结果。
@@ -694,8 +688,6 @@ Linux 服务器是完整门禁执行环境，以下占位符必须替换为实�
 <SERVER_ENV>/bin/python -m pytest --cov=mmctr --cov-report=term-missing
 <SERVER_ENV>/bin/python -m build
 ```
-
-Windows 本地最低要求是 UTF-8、Markdown 和 Python AST/语法检查；只有本地已具备相同依赖时才追加 unit test，不能替代 Linux 验收。
 
 工具尚未安装时，不得伪造通过状态；应将任务标为 `BLOCKED` 或记录“未执行及原因”。安装依赖需遵循环境授权规则。
 
@@ -862,7 +854,7 @@ Follow-up tasks:
 
 | Milestone | 状态 | 当前进度说明 | 退出证据 |
 |---|---|---|---|
-| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、`mmctr` 公共命名空间、统一 CLI、严格 training/本地路径配置层、主要公开文档、合成 CPU smoke、首个数值回归基线、tuner 科研红线修复和主训练运行目录隔离已完成；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
+| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、Linux `bm` 依赖/CUDA 基线、`mmctr` 公共命名空间、统一 CLI、严格 training/本地路径配置层、主要公开文档、合成 CPU/TFRecord smoke、首个数值回归基线、tuner 科研红线修复、主训练运行目录隔离和分阶段 Linux QA 门禁已完成；Linux CPU CI 已实现并等待首次远程 clean-runner 运行，`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
 | S2 数据处理与模型主干 | `TODO` | 已完成 AntM2C 只读问题定位，尚未实施 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
 | S3 模型公共组件 | `TODO` | 未开始 | pooling/fusion 可按模态配置且默认 preset 回归通过 |
 | S4 实验分析体系 | `TODO` | 未开始 | 无模型复制、统一 runner/result schema、五类分析可配置运行 |
@@ -877,7 +869,7 @@ Follow-up tasks:
 | GOV-001 | P0 | 建立/确认 Git 基线，保护现有用户改动 | GOV-000 | `DONE` | Codex (`/root`) | repo metadata、`REFACTORING_PLAN.md` | 改造前 267 个文件已纳入本地可恢复快照；公开分支从远程初始提交生成干净历史；2026-07-31 |
 | GOV-002 | P0 | 添加 `.gitignore`，治理 pyc/egg-info/outputs | GOV-001 | `DONE` | Codex (`/root`) | `.gitignore`、generated files、`REFACTORING_PLAN.md` | 移除 105 个 `.pyc`、9 个 `__pycache__` 和 1 个 `egg-info`；本地 `.vscode/settings.json` 保留但取消跟踪；19 个论文图表保留；`git ls-files -ci --exclude-standard` 为 0；2026-07-31 |
 | PUB-001 | P0 | 公开推送前净化个人路径与历史生成物，并接入目标远程 | GOV-002 | `DONE` | Codex (`/root`) | hard-coded path files、Git refs/history、`REFACTORING_PLAN.md` | 远程 `origin/main` 非强制前进至 `222591b`；当前树个人路径/常见密钥扫描均为 0；公开历史 pyc/egg-info/IDE 对象为 0；6 个改动脚本 AST 与 4 个 YAML 静态检查通过；原本地历史保留于 `local/refactor-bootstrap`；2026-07-31 |
-| ENV-001 | P0 | 审计并保留 Linux server snapshot，生成可移植环境说明 | GOV-001 | `REVIEW` | Codex (`/root`) | `bm_env.yml`、`environment.yml`、`docs/environment.md`、`AGENTS.md`、`REFACTORING_PLAN.md` | 服务器包清单保留，机器专属 prefix 在 `PUB-001` 中移除；Windows `d:\anaconda\envs\py312\python.exe` 3.12.11 完成 UTF-8/YAML/无 prefix/无镜像 URL 静态检查；发现 TF/Keras/NumPy 与 CUDA 组合风险；维护者于 2026-07-31 提供服务器交接：使用既有 `bm` 环境、下载/缓存/临时产物与项目同盘、原始 `/home/star/Disk3/hkl/Benchmark` 仅作只读数据/历史路径参考；实际解释器、框架版本和 CPU/GPU smoke 仍待服务器回填，状态保持 `REVIEW` |
+| ENV-001 | P0 | 审计并保留 Linux server snapshot，生成可移植环境说明 | GOV-001 | `DONE` | Codex (`/root`) | `bm_env.yml`、`environment.yml`、`pyproject.toml`、`docs/environment.md`、`AGENTS.md`、`tests/smoke/test_tensorflow_tfrecord.py`、`REFACTORING_PLAN.md` | 原始 snapshot 保留，现有 `bm` 未新建环境；解释器 `/home/star/Disk3/hkl/envs/bm/bin/python`（3.8.20）。依赖对齐为 TensorFlow/Keras 2.12.1/2.12.0、h5py 3.10.0、typing-extensions 4.5.0、JAX/JAXlib 0.4.13 等，保留 NumPy 1.23.5 与 PyTorch 1.13.1+cu117；`pip check` 无冲突，JAX CPU 与三 loader import/TFRecord round-trip 通过。非沙箱实测驱动 535.183.01、CUDA 12.2、8×V100-32GB，PyTorch 前反向/同步及 TensorFlow GPU matmul 均通过。追加 CI 合约测试后的最终 Ruff 34 files、mypy 14 files、strict unit+smoke 25 passed、全量 35 passed/83.80%；隔离 wheel 137 files/268965 bytes/SHA-256 `c279ede0278cdd3871aefdaf08b3040fac4ddd90b4b849e913ce7e18388d3413`；2026-07-31 |
 | ENV-002 | P0 | 建立 `pyproject.toml`、依赖分组和 Python 兼容范围 | ENV-001 | `DONE` | Codex (`/root`) | `pyproject.toml`、`setup.py`、`requrements.txt`、`docs/environment.md`、`REFACTORING_PLAN.md` | 新增 PEP 517/621 元数据与 6 个 optional groups，声明 Python `>=3.8,<3.9`，删除空的错误拼写依赖文件；Windows 3.12.11：TOML、118 AST、20 legacy packages、`setup.py --name` 通过；常规 wheel 正确拒绝 3.12，`--ignore-requires-python --no-deps --no-build-isolation` 构建成功，wheel 120 文件且无缓存；临时产物已清理；Linux 门禁按 ADR-010 延期；2026-07-31 |
 | OSS-001 | P0 | README/Quick Start、LICENSE、CITATION、CONTRIBUTING | ENV-002 | `BLOCKED` | Codex (`/root`) | `README.md`、`CONTRIBUTING.md`、`CITATION.cff`、`LICENSE`、`REFACTORING_PLAN.md` | README、贡献指南和实体引用已完成；CFF YAML、2 个文档的本地相对链接、diff/path 扫描通过；未创建 `LICENSE`。阻塞条件：维护者需明确选择许可证类型；外部 Linux 合成 smoke 证据由 `TEST-001` 建立后回填 |
 | OSS-002 | P0 | 数据来源、许可、下载、目录与模型引用清单 | OSS-001 | `TODO` | - | `data/README.md`, docs | 无私有数据/路径，第三方许可可追踪 |
@@ -889,8 +881,8 @@ Follow-up tasks:
 | CFG-001 | P1 | 配置分层、typed schema 和校验 | PKG-001 | `DONE` | Codex (`/root`) | `src/mmctr/config/`、`src/trainers/Trainers.py`、`config/`、`docs/configuration.md`、`docs/legacy_tuning_history.yaml`、`tests/`、`REFACTORING_PLAN.md` | 新增 frozen `TrainingConfig`、唯一键/顶层 mapping YAML loader、项目根发现、无副作用递归 layer merge；严格覆盖必填、未知、类型、范围、optimizer 和 patience 跨字段约束，主训练通过显式 `to_dict()` 兼容边界消费且配置文件路径不依赖 cwd；`best_params.yaml` 历史 test 记录迁出 `config/`，新 legacy 输出写入 ignored `outputs/tuning/`，`best_param.yaml` 成为唯一 tracked 参数快照；6 个可执行 YAML 唯一键检查通过；Windows 指定解释器完成 `src`/`tests` compileall，最终 `unittest discover` 21 tests/20.310s 全通过，30 个缓存目录已清理；算法专属 model/data typed schema 随对应重构任务推进，tuning provenance 随 `TUNE-001` 完成；Linux 验证按 ADR-010 延期；2026-07-31 |
 | CFG-002 | P0 | 消除缺失 local config 和服务器个人绝对路径 | CFG-001 | `DONE` | Codex (`/root`) | `src/mmctr/config/paths.py`、training/tuning/analysis callers、`configs/local/paths.example.yaml`、`.gitignore`、`docs/local-paths.md`、`tests/`、`REFACTORING_PLAN.md` | 新增 frozen `LocalPaths`、selected dataset catalog resolver、绝对路径/存在性/未知数据集校验；ignored `paths.yaml` < 环境变量 < 显式 legacy CLI override，canonical 路径按项目根解析且不修改输入；主训练、普通 tuner、alignment、两版 modal robustness 和 analysis trainer 全部移除缺失 local YAML；`src/` 中 `local_data.yaml`/`local_seq_data.yaml` 引用为 0，公开 config/example 个人路径扫描为 0；真实 `paths.yaml` 命中 ignore，example 不被忽略；Windows 指定解释器完成 `src`/`tests` compileall，最终 `unittest discover` 28 tests/19.096s 全通过，30 个缓存目录已清理；Linux local-path smoke 按 ADR-010 延期；2026-07-31 |
 | CLI-001 | P1 | 建立统一 CLI，移除 import-time argparse | PKG-001, CFG-001 | `DONE` | Codex (`/root`) | `src/mmctr/cli/`、`src/trainers/Trainers.py`、`src/mmctr/models/`、`src/mmctr/data/`、`pyproject.toml`、`docs/cli.md`、README、`tests/`、`REFACTORING_PLAN.md` | 新增 console/module CLI 与 train/validate-config/list-models/list-datasets 子命令；CLI/catalog import 不加载 torch/TensorFlow，train 设置 5 组线程环境后才 lazy import runtime；主 Trainer 改为显式参数构造，import 不解析宿主 argv 且移除硬编码 24 线程副作用；Windows 指定解释器完成 `src`/`tests` compileall，`unittest discover` 33 tests/26.696s 全通过；仓库外临时 wheel 的 module help、dependency-light import 和 `mmctr = mmctr.cli:main` entry point 均通过，wheel 268941 bytes、SHA-256 `f03e6bf71e6bab2ebda0ff735deccad8b4ed39eba36b5a9a11a5710faf2342a8`；临时目录、2 个构建目录和 32 个缓存目录已清理；真实 train Linux/CUDA gate 按 ADR-010 延期；2026-07-31 |
-| QA-001 | P1 | Ruff/pytest/mypy/coverage 分阶段门禁 | ENV-002, PKG-001 | `TODO` | - | pyproject/tests | Linux 门禁报告，Windows 静态报告 |
-| CI-001 | P1 | Linux CPU CI；Windows 仅可选静态检查 | QA-001 | `TODO` | - | CI config | clean Linux runner 通过 |
+| QA-001 | P1 | Ruff/pytest/mypy/coverage 分阶段门禁 | ENV-002, PKG-001 | `DONE` | Codex (`/root`) | `pyproject.toml`、`src/mmctr/`、`tests/`、`docs/quality-gates.md`、README、`REFACTORING_PLAN.md` | 已建立明确阶段边界：Ruff 约束 `src/mmctr + tests`，mypy 检查 14 个公共源文件但不递归 legacy bridge，coverage 下限 80%。最终 Linux `/home/star/Disk3/hkl/envs/bm/bin/python`：Ruff format 34 files 与 lint 通过，mypy 1.10.1 的 14 files 通过，unit+smoke 25 passed/7.48s，全量 pytest 35 passed/17.84s、coverage 83.80%，隔离 sdist+wheel build 通过；wheel 137 files/268965 bytes/SHA-256 `c279ede0278cdd3871aefdaf08b3040fac4ddd90b4b849e913ce7e18388d3413`。全仓 legacy 基线仍为 160 lint 问题/116 待格式化文件并已文档化；依据 ADR-016 仅以 Linux 验收；2026-07-31 |
+| CI-001 | P1 | 建立 Linux CPU CI | QA-001 | `REVIEW` | Codex (`/root`) | `.github/workflows/linux-ci.yml`、`tests/unit/test_ci_workflow.py`、`docs/quality-gates.md`、`REFACTORING_PLAN.md` | 以当前受支持且固定的 Ubuntu 22.04/Python 3.8 + PyTorch 1.13.1 CPU 执行 pip check、Ruff、mypy、unit/smoke、全量 coverage 和隔离 build，缓存/临时目录全部位于 workspace；TDD 合约测试先因 workflow 缺失为 RED，随后发现并阻止无效 YAML 单行命令，最终 YAML 解析和 runner/action/Python/命令/缓存约束通过。Linux `bm` 复核 Ruff 34 files、mypy 14 files、unit+smoke 25 passed、全量 35 passed/83.80% 及隔离 build；clean GitHub runner 结果待首次远程运行，故不标 `DONE`；2026-07-31 |
 | CORE-001 | P0 | 定义统一 Batch/ModelOutput/RunResult | PKG-001, CFG-001 | `TODO` | - | core schemas | shape/dtype/mask/type unit tests |
 | DATA-001 | P0 | 统一三个数据集 loader contract 与 manifest | CORE-001 | `TODO` | - | data/datasets | 三 adapter contract tests |
 | ANT-001 | P0 | 审计 AntM2C 六类文本字段语义与 feature ownership | DATA-001 | `TODO` | - | antm2c schema/docs | 字段归属、shape、split 协议经确认 |
@@ -950,16 +942,18 @@ Follow-up tasks:
 | ADR-003 | 2026-07-31 | 模型与训练 engine 解耦 | `ACCEPTED` | 支持纯 forward 测试、统一训练和实验协议 |
 | ADR-004 | 2026-07-31 | 正式调参只使用 validation，test 仅冻结后评估 | `ACCEPTED` | benchmark 科研诚信底线 |
 | ADR-005 | 2026-07-31 | 每次运行使用 UTC 微秒时间戳、解析配置短哈希和随机熵组成的 run ID，并以原子目录创建隔离产物 | `ACCEPTED` | 时间与配置可读可追踪，随机熵与 `exist_ok=False` 防止同配置并发覆盖 |
-| ADR-006 | 2026-07-31 | Linux 服务器是依赖、训练和性能验收的权威环境 | `ACCEPTED` | Windows 本地仅用于编辑和静态验证 |
+| ADR-006 | 2026-07-31 | Linux 服务器是依赖、训练和性能验收的权威环境 | `ACCEPTED` | 后续由 ADR-016 进一步收敛为唯一修改与验证环境 |
 | ADR-007 | 2026-07-31 | 多模态模型主干只保留 BaseSeqModel | `ACCEPTED` | 原 BaseModel 模型通过序列 pooling 接入统一契约 |
 | ADR-008 | 2026-07-31 | AntM2C item 特征独立存储并按 item index gather | `ACCEPTED` | 删除 4608 打包和 item 固定切片协议 |
 | ADR-009 | 2026-07-31 | pooling/fusion 按分支与模态配置，并做 capability 校验 | `ACCEPTED` | 支持可组合实验且避免无效组合 |
-| ADR-010 | 2026-07-31 | `ENV-001` 保持 `REVIEW`，Linux 实测延期为发布门禁；允许继续本地静态可验证任务 | `ACCEPTED` | 维护者明确要求服务器环境暂不验证并继续改造；不得据此宣称 Linux/CUDA 已通过 |
+| ADR-010 | 2026-07-31 | `ENV-001` 保持 `REVIEW`，Linux 实测延期为发布门禁；允许继续本地静态可验证任务 | `SUPERSEDED` | 历史延期决定；ADR-016 已恢复服务器唯一验证，Linux/CUDA 与依赖门禁现已实际通过 |
 | ADR-011 | 2026-07-31 | 分发名使用 `mmctr-bench`，目标导入命名空间仍为 `mmctr`；迁移前暂时发现 legacy `src` 包 | `ACCEPTED` | 区分 PyPI 分发名与 Python 包名，并使 `ENV-002` 可在 `PKG-001` 前建立可构建元数据 |
 | ADR-012 | 2026-07-31 | 配置相对路径统一相对包含 `pyproject.toml` 的项目根解析；training 配置先以 frozen dataclass 严格校验，模型/数据算法字段在对应任务中逐步 typed 化 | `ACCEPTED` | 消除 cwd 差异并立即保护运行关键字段，同时避免在未建立模型回归前一次性重写全部论文专属参数 |
 | ADR-013 | 2026-07-31 | 机器专属数据路径只允许来自 ignored `configs/local/paths.yaml`、`MMCTR_*_DATA_DIR` 环境变量或显式 CLI override；优先级为本地文件 < 环境变量 < CLI，tracked 配置只保留相对路径和空 example | `ACCEPTED` | 同一公开配置可跨机器复用，真实服务器路径不进入 Git，缺失 override 时给出明确错误而非引用不存在文件 |
 | ADR-014 | 2026-07-31 | 公共命令统一为 `mmctr` / `python -m mmctr.cli` 子命令；CLI 模块保持 dependency-light，train 命令完成参数/线程设置后才导入训练 runtime | `ACCEPTED` | `--help`、配置检查和列表命令可安全导入运行，避免 argparse/torch/TensorFlow 在模块导入阶段产生副作用 |
 | ADR-015 | 2026-07-31 | 服务器接续使用既有 Conda `bm` 环境；下载、缓存和临时产物与当前项目同盘；原始 `/home/star/Disk3/hkl/Benchmark` 只读参考 | `ACCEPTED` | 遵循维护者提供的服务器资源边界，避免占用其他磁盘或误改原始版本，同时为数据位置和历史约定保留可核对证据 |
+| ADR-016 | 2026-07-31 | 后续修改、静态检查、依赖/CUDA 和任务验收全部在当前 Linux 服务器完成，不再使用 Windows；允许在既有 `bm` 中按需安装并调整冲突依赖 | `ACCEPTED` | 维护者明确指定服务器为唯一工作面并授权环境修复，消除双环境复核造成的任务悬置，同时仍要求记录精确版本、影响与真实运行证据 |
+| ADR-017 | 2026-07-31 | `bm` 的 TFRecord 适配栈对齐 TensorFlow `>=2.12.1,<2.13`、h5py `>=3.8,<3.11`、JAX/JAXlib `0.4.13` 与 typing-extensions `>=4.4,<4.6`；保留 NumPy 1.23.5、PyTorch 1.13.1+cu117 和 CUDA 主栈，并让 dev/tuning 的传递依赖选择兼容版本 | `ACCEPTED` | TensorFlow 2.4 与当前 NumPy/typing/Keras 明确冲突，旧 h5py 2.10 另有可复现 NumPy C-ABI warning；2.12.1 支持 Python 3.8、NumPy 1.22–1.24.3 且包含已知安全修复，但官方要求 typing-extensions `<4.6` 且其 Python 3.8 JAX 传递解析未自动安装 jaxlib，因此显式配对 JAX/JAXlib，只联动更新 TF/h5py 并回退冲突的工具/ORM/backport，不降级数值或训练框架 |
 
 ---
 
@@ -967,6 +961,17 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.41 | 2026-07-31 | Codex | `CI-001` 实现转 `REVIEW`：新增固定 Ubuntu 22.04/Python 3.8 CPU workflow 和 YAML 合约测试，采用当前 actions v6，项目本地化全部缓存/临时目录；本地 Ruff/mypy、25 unit+smoke、35 tests/83.80% 与 137-file wheel 隔离构建通过，首次远程 clean-runner 运行仍待推送后取得 |
+| v0.40 | 2026-07-31 | Codex | 领取 `CI-001`：登记 Linux-only Ubuntu/Python 3.8 CPU workflow、项目本地缓存、CPU PyTorch 安装、阶段质量门禁与 workflow 合约测试；远程 runner 通过前不标 `DONE` |
+| v0.39 | 2026-07-31 | Codex | 完成 `ENV-001`：在保留原始 snapshot、NumPy/PyTorch/CUDA 主栈的前提下对齐 TensorFlow/TFRecord、h5py、typing 与传递依赖；`pip check`、JAX/loader/TFRecord、PyTorch/TensorFlow 8×V100、34 tests/83.80% 和隔离构建全部通过；同步更新 Linux-only 文档和最终包哈希 |
+| v0.38 | 2026-07-31 | Codex | 接受 ADR-017 并进入 `ENV-001` 依赖修复：收窄 TensorFlow/Python 3.8 兼容范围，登记 typing-extensions 与 dev 解析边界，新增可选依赖感知的真实 TFRecord round-trip smoke；安装与全门禁结果待回填 |
+| v0.37 | 2026-07-31 | Codex | 接受 ADR-016：后续改造与验收收敛到当前 Linux 服务器并授权修复 `bm` 依赖；据既有 Linux 门禁将 `QA-001` 转 `DONE`，恢复 `ENV-001` 为 `IN_PROGRESS`，记录 8×V100、驱动/CUDA 和 PyTorch GPU 前反向实证及 TensorFlow 依赖 RED 基线 |
+| v0.36 | 2026-07-31 | Codex | `QA-001` 实现转 `REVIEW`：固化公共命名空间/测试的阶段 Ruff、mypy、pytest 与 80% coverage 门禁，修复公共配置类型问题，新增质量门禁文档；Linux 全量 33 tests、83.80% coverage、类型/格式/lint/build 均通过，等待 Windows 静态复核 |
+| v0.35 | 2026-07-31 | Codex | 记录 `QA-001` dev 工具精确版本和 Linux 初始门禁：pytest 33 项与 coverage/build 通过；将 Ruff 的 160 个 legacy 问题和 mypy 的 6 个公共配置类型问题分层，扩展任务文件范围以实施最小修复 |
+| v0.34 | 2026-07-31 | Codex | 维护者明确授权在 `bm` 中按需安装并要求临时文件/数据留在项目磁盘；解除 `QA-001` 阻塞、恢复为 `IN_PROGRESS`，继续 dev 工具安装与 Linux 门禁基线 |
+| v0.33 | 2026-07-31 | Codex | 将 `QA-001` 标为 `BLOCKED`：共享 `bm` 缺少 dev 门禁工具，安装请求因尚无维护者明确授权被拒绝且未改变环境；记录版本范围、影响和解除条件 |
+| v0.32 | 2026-07-31 | Codex | 领取 `QA-001`：登记 Linux `bm` 上 pytest/Ruff/mypy/coverage 分阶段门禁范围、现有 33 项回归基线和 dev 工具安装授权边界 |
+| v0.31 | 2026-07-31 | Codex | 回填首次 Linux `bm` 服务器实证：记录绝对解释器、OS、框架/CPU smoke、33 项回归通过，以及 `pip check` 冲突、开发工具缺失和 CUDA 会话不可用的精确缺口；`ENV-001` 保持 `REVIEW` |
 | v0.30 | 2026-07-31 | Codex | 固化服务器 VS Code/Codex 交接：新增根 `AGENTS.md`，记录 `bm` 环境、项目同盘下载/缓存、原始版本只读参考规则；接受 ADR-015，`ENV-001` 保持 `REVIEW` |
 | v0.29 | 2026-07-31 | Codex | 完成 `CLI-001`：新增 import-safe console/module CLI 与四个子命令，显式参数化主 Trainer，移除 import-time argparse/硬编码线程，并通过仓库外 wheel 入口验证 |
 | v0.28 | 2026-07-31 | Codex | 领取 `CLI-001`；接受 ADR-014，登记统一 console/module CLI、lazy train runtime、显式 Trainer 参数化及 help/import/list/config tests |

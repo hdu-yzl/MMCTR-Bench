@@ -107,10 +107,12 @@ def load_local_paths(
         merged["output_root"] = output_root
 
     if not merged:
-        raise ConfigValidationError([
-            "no local paths found; copy configs/local/paths.example.yaml to "
-            "configs/local/paths.yaml or set an MMCTR_*_DATA_DIR environment variable"
-        ])
+        raise ConfigValidationError(
+            [
+                "no local paths found; copy configs/local/paths.example.yaml to "
+                "configs/local/paths.yaml or set an MMCTR_*_DATA_DIR environment variable"
+            ]
+        )
     return LocalPaths.from_mapping(merged, require_existing_data=require_existing_data)
 
 
@@ -129,9 +131,9 @@ def resolve_dataset_config(
         raise ConfigValidationError(["dataset config must be a mapping"])
     configured_name = dataset_config.get("name")
     if configured_name != name:
-        raise ConfigValidationError([
-            "dataset config name {!r} does not match {!r}".format(configured_name, name)
-        ])
+        raise ConfigValidationError(
+            ["dataset config name {!r} does not match {!r}".format(configured_name, name)]
+        )
 
     resolved = deepcopy(dict(dataset_config))
     override = local_paths.datasets.get(name) if local_paths else None
@@ -164,9 +166,9 @@ def load_dataset_catalog(
     catalog = load_yaml_mapping(config_path)
     name = dataset_name.lower()
     if name not in catalog:
-        raise ConfigValidationError([
-            "dataset {!r} is missing from {}".format(name, Path(config_path).resolve())
-        ])
+        raise ConfigValidationError(
+            ["dataset {!r} is missing from {}".format(name, Path(config_path).resolve())]
+        )
     local_paths = None
     if use_local_data:
         paths_path = local_paths_path or (
@@ -174,9 +176,7 @@ def load_dataset_catalog(
         )
         local_paths = load_local_paths(paths_path, environ=environ)
         if name not in local_paths.datasets:
-            raise ConfigValidationError([
-                "local path for dataset {!r} is missing".format(name)
-            ])
+            raise ConfigValidationError(["local path for dataset {!r} is missing".format(name)])
     catalog[name] = resolve_dataset_config(
         name,
         catalog[name],

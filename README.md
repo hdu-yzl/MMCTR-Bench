@@ -37,7 +37,8 @@ Machine-specific dataset and output paths are configured as described in
   regression results.
 - Python 3.8.5 is the initial experiment compatibility baseline. Package metadata currently
   declares Python `>=3.8,<3.9` until Linux and CI validation justify a wider range.
-- Windows Python 3.12 is used only for UTF-8, AST, TOML, Markdown, and lightweight build checks.
+- All subsequent editing, static checks, tests, dependency validation, and CUDA work run on the
+  Linux server in the maintainer-provided `bm` environment.
 - Real datasets, checkpoints, local path files, and experiment outputs are not included.
 
 Environment roles and known framework compatibility risks are documented in
@@ -71,24 +72,17 @@ isolated legacy training adapter:
 <SERVER_ENV>/bin/python -m mmctr.cli validate-config --config config/train.yaml
 ```
 
-See [docs/cli.md](docs/cli.md) and [docs/run-layout.md](docs/run-layout.md). The training adapter's
-full Linux/CUDA and real-data behavior is still a deferred server gate. A dependency-light test
-baseline covers pooling behavior and an ID-only DNN CPU forward/loss/backward step with synthetic
-tensors:
+See [docs/cli.md](docs/cli.md) and [docs/run-layout.md](docs/run-layout.md). The Linux framework and
+CUDA environment gates now pass; end-to-end training on each real dataset remains tracked by the
+data/model migration tasks. A dependency-light test baseline covers pooling behavior and an ID-only
+DNN CPU forward/loss/backward step with synthetic tensors:
 
 ```bash
 <SERVER_ENV>/bin/python -m pytest tests/unit tests/smoke
 ```
 
-When pytest is unavailable in the configured Windows static-check environment, the same
-`unittest.TestCase` suite can be run without installing packages:
-
-```powershell
-$env:PYTHONPATH = (Resolve-Path -LiteralPath 'src').Path
-& 'd:\anaconda\envs\py312\python.exe' -m unittest discover -s tests -p 'test_*.py' -v
-```
-
-These checks do not use real data or prove that full Linux/CUDA training is reproducible.
+These CPU checks do not use real data or by themselves prove that full CUDA training is
+reproducible; GPU and real-data gates are run explicitly on the same Linux server.
 
 ## Data layout
 
@@ -138,6 +132,9 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) and claim a task in
 [REFACTORING_PLAN.md](REFACTORING_PLAN.md) before modifying shared interfaces. Local Python
 commands in this workspace must use the configured absolute interpreter path; server validation
 records must likewise use the real absolute server interpreter.
+
+The staged Linux lint, formatting, typing, test, coverage, and package-build commands are
+documented in [docs/quality-gates.md](docs/quality-gates.md).
 
 ## Citation
 

@@ -87,9 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
     models = subparsers.add_parser("list-models", help="list registered legacy model names")
     models.set_defaults(handler=_list_models)
 
-    datasets = subparsers.add_parser(
-        "list-datasets", help="list registered legacy dataset names"
-    )
+    datasets = subparsers.add_parser("list-datasets", help="list registered legacy dataset names")
     datasets.set_defaults(handler=_list_datasets)
     return parser
 
