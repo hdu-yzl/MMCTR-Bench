@@ -1,7 +1,7 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.9`
+> 当前版本：`v0.11`
 > 最近更新：`2026-07-31`  
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
@@ -855,7 +855,7 @@ Follow-up tasks:
 
 | Milestone | 状态 | 当前进度说明 | 退出证据 |
 |---|---|---|---|
-| S1 开源发布与工程基线 | `IN_PROGRESS` | Git/生成物治理和公开远程接入已完成；`ENV-001` 等待 Linux 服务器验证 | Linux 安装、公开文档、P0 修复、smoke baseline |
+| S1 开源发布与工程基线 | `IN_PROGRESS` | Git/生成物治理、公开远程和包元数据已完成；Linux 验证延期为发布门禁；下一项为 `OSS-001` | Linux 安装、公开文档、P0 修复、smoke baseline |
 | S2 数据处理与模型主干 | `TODO` | 已完成 AntM2C 只读问题定位，尚未实施 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
 | S3 模型公共组件 | `TODO` | 未开始 | pooling/fusion 可按模态配置且默认 preset 回归通过 |
 | S4 实验分析体系 | `TODO` | 未开始 | 无模型复制、统一 runner/result schema、五类分析可配置运行 |
@@ -870,8 +870,8 @@ Follow-up tasks:
 | GOV-001 | P0 | 建立/确认 Git 基线，保护现有用户改动 | GOV-000 | `DONE` | Codex (`/root`) | repo metadata、`REFACTORING_PLAN.md` | 改造前 267 个文件已纳入本地可恢复快照；公开分支从远程初始提交生成干净历史；2026-07-31 |
 | GOV-002 | P0 | 添加 `.gitignore`，治理 pyc/egg-info/outputs | GOV-001 | `DONE` | Codex (`/root`) | `.gitignore`、generated files、`REFACTORING_PLAN.md` | 移除 105 个 `.pyc`、9 个 `__pycache__` 和 1 个 `egg-info`；本地 `.vscode/settings.json` 保留但取消跟踪；19 个论文图表保留；`git ls-files -ci --exclude-standard` 为 0；2026-07-31 |
 | PUB-001 | P0 | 公开推送前净化个人路径与历史生成物，并接入目标远程 | GOV-002 | `DONE` | Codex (`/root`) | hard-coded path files、Git refs/history、`REFACTORING_PLAN.md` | 远程 `origin/main` 非强制前进至 `222591b`；当前树个人路径/常见密钥扫描均为 0；公开历史 pyc/egg-info/IDE 对象为 0；6 个改动脚本 AST 与 4 个 YAML 静态检查通过；原本地历史保留于 `local/refactor-bootstrap`；2026-07-31 |
-| ENV-001 | P0 | 审计并保留 Linux server snapshot，生成可移植环境说明 | GOV-001 | `REVIEW` | Codex (`/root`) | `bm_env.yml`、`environment.yml`、`docs/environment.md`、`REFACTORING_PLAN.md` | 服务器包清单保留，机器专属 prefix 在 `PUB-001` 中移除；Windows `d:\anaconda\envs\py312\python.exe` 3.12.11 完成 UTF-8/YAML/无 prefix/无镜像 URL 静态检查；发现 TF/Keras/NumPy 与 CUDA 组合风险；Linux 环境创建、解释器/CUDA/框架版本和 smoke 仍待真实服务器验证 |
-| ENV-002 | P0 | 建立 `pyproject.toml`、依赖分组和 Python 兼容范围 | ENV-001 | `TODO` | - | root metadata | Linux import/build smoke；Windows AST 补充检查 |
+| ENV-001 | P0 | 审计并保留 Linux server snapshot，生成可移植环境说明 | GOV-001 | `REVIEW` | Codex (`/root`) | `bm_env.yml`、`environment.yml`、`docs/environment.md`、`REFACTORING_PLAN.md` | 服务器包清单保留，机器专属 prefix 在 `PUB-001` 中移除；Windows `d:\anaconda\envs\py312\python.exe` 3.12.11 完成 UTF-8/YAML/无 prefix/无镜像 URL 静态检查；发现 TF/Keras/NumPy 与 CUDA 组合风险；维护者于 2026-07-31 明确同意暂缓 Linux 验证并继续改造，Linux 环境创建、框架版本和 smoke 保留为发布门禁 |
+| ENV-002 | P0 | 建立 `pyproject.toml`、依赖分组和 Python 兼容范围 | ENV-001 | `DONE` | Codex (`/root`) | `pyproject.toml`、`setup.py`、`requrements.txt`、`docs/environment.md`、`REFACTORING_PLAN.md` | 新增 PEP 517/621 元数据与 6 个 optional groups，声明 Python `>=3.8,<3.9`，删除空的错误拼写依赖文件；Windows 3.12.11：TOML、118 AST、20 legacy packages、`setup.py --name` 通过；常规 wheel 正确拒绝 3.12，`--ignore-requires-python --no-deps --no-build-isolation` 构建成功，wheel 120 文件且无缓存；临时产物已清理；Linux 门禁按 ADR-010 延期；2026-07-31 |
 | OSS-001 | P0 | README/Quick Start、LICENSE、CITATION、CONTRIBUTING | ENV-002 | `TODO` | - | root/docs | 外部 Linux 用户可完成合成 smoke |
 | OSS-002 | P0 | 数据来源、许可、下载、目录与模型引用清单 | OSS-001 | `TODO` | - | `data/README.md`, docs | 无私有数据/路径，第三方许可可追踪 |
 | SCI-001 | P0 | 隔离并修复现有 tuner 的 test-set 泄漏 | TEST-001 | `TODO` | - | tuning scripts/core | objective 无 test 依赖的防回归测试 |
@@ -947,6 +947,8 @@ Follow-up tasks:
 | ADR-007 | 2026-07-31 | 多模态模型主干只保留 BaseSeqModel | `ACCEPTED` | 原 BaseModel 模型通过序列 pooling 接入统一契约 |
 | ADR-008 | 2026-07-31 | AntM2C item 特征独立存储并按 item index gather | `ACCEPTED` | 删除 4608 打包和 item 固定切片协议 |
 | ADR-009 | 2026-07-31 | pooling/fusion 按分支与模态配置，并做 capability 校验 | `ACCEPTED` | 支持可组合实验且避免无效组合 |
+| ADR-010 | 2026-07-31 | `ENV-001` 保持 `REVIEW`，Linux 实测延期为发布门禁；允许继续本地静态可验证任务 | `ACCEPTED` | 维护者明确要求服务器环境暂不验证并继续改造；不得据此宣称 Linux/CUDA 已通过 |
+| ADR-011 | 2026-07-31 | 分发名使用 `mmctr-bench`，目标导入命名空间仍为 `mmctr`；迁移前暂时发现 legacy `src` 包 | `ACCEPTED` | 区分 PyPI 分发名与 Python 包名，并使 `ENV-002` 可在 `PKG-001` 前建立可构建元数据 |
 
 ---
 
@@ -954,6 +956,8 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.11 | 2026-07-31 | Codex | 完成 `ENV-002`：建立 `pyproject.toml` 权威元数据与依赖分组、收敛 legacy setup shim、删除空的错误拼写依赖文件并通过本地 wheel 检查 |
+| v0.10 | 2026-07-31 | Codex | 记录维护者延期 Linux 验证的决定；新增 ADR-010/011；领取 `ENV-002` 并登记依赖分组、兼容范围和本地验收方式 |
 | v0.9 | 2026-07-31 | Codex | 完成 `PUB-001`：净化个人路径与服务器 prefix，基于远程初始提交发布无生成物历史的干净快照 |
 | v0.8 | 2026-07-31 | Codex | 新增并领取 `PUB-001`：响应维护者指定 GitHub 远程，登记公开推送前的个人路径与历史生成物净化策略 |
 | v0.7 | 2026-07-31 | Codex | `ENV-001` 实现转 `REVIEW`：保留服务器快照，新增可移植 bootstrap 与审计文档；明确 Linux 验证缺口 |

@@ -1,10 +1,7 @@
-# setup.py
-from setuptools import setup, find_packages
+"""Compatibility shim for tools that have not migrated to PEP 517 yet."""
 
-setup(
-    name='mmctr',
-    version='0.1.0',
-    packages=find_packages(where='src'),  # 告诉 setuptools 包在 src 里
-    package_dir={'': 'src'},              # 把 src 映射成顶层包
-    python_requires='>=3.8',
-)
+from setuptools import setup
+
+
+if __name__ == "__main__":
+    setup()
