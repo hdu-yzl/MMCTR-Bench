@@ -4,10 +4,10 @@ MMCTR-Bench is a research benchmark for click-through-rate recommendation with m
 sequential features. The repository includes conventional CTR baselines, multimodal fusion
 models, quantization-oriented models, dataset adapters, tuning scripts, and analysis workflows.
 
-> **Project status:** active engineering refactor. The historical research implementation is
-> available, but the unified package, CLI, synthetic smoke suite, and reproducible Linux release
-> gate are still being built. See [REFACTORING_PLAN.md](REFACTORING_PLAN.md) for the authoritative
-> task status and validation evidence.
+> **Project status:** active engineering refactor. The public package, CLI, synthetic smoke suite,
+> and local engineering guards are available; unified model/data/training internals, CI, and the
+> reproducible Linux release gate are still being built. See
+> [REFACTORING_PLAN.md](REFACTORING_PLAN.md) for authoritative status and validation evidence.
 
 ## Scope
 
@@ -62,11 +62,19 @@ cd MMCTR-Bench
 Install the server-approved PyTorch/CUDA build from its official channel before the editable
 installation. The dependency groups do not select a GPU build automatically.
 
-There is not yet a supported public full-training command: the legacy trainer parses arguments
-and changes process-wide thread settings during import. Its output is now isolated by run ID, but
-that does not remove the remaining CLI/environment limitations. The current directory contract is
-documented in [docs/run-layout.md](docs/run-layout.md). A dependency-light test baseline now covers
-pooling behavior and an ID-only DNN CPU forward/loss/backward step with synthetic tensors:
+A public CLI surface is now available for help, registry listing, strict config validation, and an
+isolated legacy training adapter:
+
+```bash
+<SERVER_ENV>/bin/python -m mmctr.cli --help
+<SERVER_ENV>/bin/python -m mmctr.cli list-models
+<SERVER_ENV>/bin/python -m mmctr.cli validate-config --config config/train.yaml
+```
+
+See [docs/cli.md](docs/cli.md) and [docs/run-layout.md](docs/run-layout.md). The training adapter's
+full Linux/CUDA and real-data behavior is still a deferred server gate. A dependency-light test
+baseline covers pooling behavior and an ID-only DNN CPU forward/loss/backward step with synthetic
+tensors:
 
 ```bash
 <SERVER_ENV>/bin/python -m pytest tests/unit tests/smoke

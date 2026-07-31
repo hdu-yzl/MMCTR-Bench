@@ -1,7 +1,7 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.27`
+> 当前版本：`v0.29`
 > 最近更新：`2026-07-31`  
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
@@ -855,7 +855,7 @@ Follow-up tasks:
 
 | Milestone | 状态 | 当前进度说明 | 退出证据 |
 |---|---|---|---|
-| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、`mmctr` 公共命名空间、严格 training/本地路径配置层、主要公开文档、合成 CPU smoke、首个数值回归基线、tuner 科研红线修复和主训练运行目录隔离已完成；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
+| S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、`mmctr` 公共命名空间、统一 CLI、严格 training/本地路径配置层、主要公开文档、合成 CPU smoke、首个数值回归基线、tuner 科研红线修复和主训练运行目录隔离已完成；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
 | S2 数据处理与模型主干 | `TODO` | 已完成 AntM2C 只读问题定位，尚未实施 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
 | S3 模型公共组件 | `TODO` | 未开始 | pooling/fusion 可按模态配置且默认 preset 回归通过 |
 | S4 实验分析体系 | `TODO` | 未开始 | 无模型复制、统一 runner/result schema、五类分析可配置运行 |
@@ -881,7 +881,7 @@ Follow-up tasks:
 | PKG-001 | P1 | 创建 `src/mmctr` 包并迁移导入 | ENV-002, TEST-001 | `DONE` | Codex (`/root`) | `src/mmctr/`、legacy import bridge、`src/utils/helper.py`、core imports、docs、`tests/`、`REFACTORING_PLAN.md` | 新增 `mmctr.models`/`mmctr.data`/`mmctr.utils` 公共入口；helper 改为 model/data 调用时加载，直接 model-first 与 helper-first 导入顺序均通过且 DNN 类身份一致；15 个核心 helper 调用方迁至 `mmctr.utils`，legacy 直接 helper import 为 0；Windows 指定解释器完成 `src`/`tests` compileall，`unittest discover` 16 tests/21.870s 全通过；仓库外 cwd 临时安装 wheel 成功，`mmctr` 路径来自目标目录，wheel 260175 bytes、SHA-256 `5410f853c3fcb52076b3210615741e6c3c6dc895ed082b11ef9d6f67de46c524`；临时目录、2 个构建目录和 29 个缓存目录已清理；legacy 顶层包作为显式兼容桥保留，物理迁移随模型/数据任务推进；Linux 验证按 ADR-010 延期；2026-07-31 |
 | CFG-001 | P1 | 配置分层、typed schema 和校验 | PKG-001 | `DONE` | Codex (`/root`) | `src/mmctr/config/`、`src/trainers/Trainers.py`、`config/`、`docs/configuration.md`、`docs/legacy_tuning_history.yaml`、`tests/`、`REFACTORING_PLAN.md` | 新增 frozen `TrainingConfig`、唯一键/顶层 mapping YAML loader、项目根发现、无副作用递归 layer merge；严格覆盖必填、未知、类型、范围、optimizer 和 patience 跨字段约束，主训练通过显式 `to_dict()` 兼容边界消费且配置文件路径不依赖 cwd；`best_params.yaml` 历史 test 记录迁出 `config/`，新 legacy 输出写入 ignored `outputs/tuning/`，`best_param.yaml` 成为唯一 tracked 参数快照；6 个可执行 YAML 唯一键检查通过；Windows 指定解释器完成 `src`/`tests` compileall，最终 `unittest discover` 21 tests/20.310s 全通过，30 个缓存目录已清理；算法专属 model/data typed schema 随对应重构任务推进，tuning provenance 随 `TUNE-001` 完成；Linux 验证按 ADR-010 延期；2026-07-31 |
 | CFG-002 | P0 | 消除缺失 local config 和服务器个人绝对路径 | CFG-001 | `DONE` | Codex (`/root`) | `src/mmctr/config/paths.py`、training/tuning/analysis callers、`configs/local/paths.example.yaml`、`.gitignore`、`docs/local-paths.md`、`tests/`、`REFACTORING_PLAN.md` | 新增 frozen `LocalPaths`、selected dataset catalog resolver、绝对路径/存在性/未知数据集校验；ignored `paths.yaml` < 环境变量 < 显式 legacy CLI override，canonical 路径按项目根解析且不修改输入；主训练、普通 tuner、alignment、两版 modal robustness 和 analysis trainer 全部移除缺失 local YAML；`src/` 中 `local_data.yaml`/`local_seq_data.yaml` 引用为 0，公开 config/example 个人路径扫描为 0；真实 `paths.yaml` 命中 ignore，example 不被忽略；Windows 指定解释器完成 `src`/`tests` compileall，最终 `unittest discover` 28 tests/19.096s 全通过，30 个缓存目录已清理；Linux local-path smoke 按 ADR-010 延期；2026-07-31 |
-| CLI-001 | P1 | 建立统一 CLI，移除 import-time argparse | PKG-001, CFG-001 | `TODO` | - | cli/entry points | `--help` 与 import tests |
+| CLI-001 | P1 | 建立统一 CLI，移除 import-time argparse | PKG-001, CFG-001 | `DONE` | Codex (`/root`) | `src/mmctr/cli/`、`src/trainers/Trainers.py`、`src/mmctr/models/`、`src/mmctr/data/`、`pyproject.toml`、`docs/cli.md`、README、`tests/`、`REFACTORING_PLAN.md` | 新增 console/module CLI 与 train/validate-config/list-models/list-datasets 子命令；CLI/catalog import 不加载 torch/TensorFlow，train 设置 5 组线程环境后才 lazy import runtime；主 Trainer 改为显式参数构造，import 不解析宿主 argv 且移除硬编码 24 线程副作用；Windows 指定解释器完成 `src`/`tests` compileall，`unittest discover` 33 tests/26.696s 全通过；仓库外临时 wheel 的 module help、dependency-light import 和 `mmctr = mmctr.cli:main` entry point 均通过，wheel 268941 bytes、SHA-256 `f03e6bf71e6bab2ebda0ff735deccad8b4ed39eba36b5a9a11a5710faf2342a8`；临时目录、2 个构建目录和 32 个缓存目录已清理；真实 train Linux/CUDA gate 按 ADR-010 延期；2026-07-31 |
 | QA-001 | P1 | Ruff/pytest/mypy/coverage 分阶段门禁 | ENV-002, PKG-001 | `TODO` | - | pyproject/tests | Linux 门禁报告，Windows 静态报告 |
 | CI-001 | P1 | Linux CPU CI；Windows 仅可选静态检查 | QA-001 | `TODO` | - | CI config | clean Linux runner 通过 |
 | CORE-001 | P0 | 定义统一 Batch/ModelOutput/RunResult | PKG-001, CFG-001 | `TODO` | - | core schemas | shape/dtype/mask/type unit tests |
@@ -951,6 +951,7 @@ Follow-up tasks:
 | ADR-011 | 2026-07-31 | 分发名使用 `mmctr-bench`，目标导入命名空间仍为 `mmctr`；迁移前暂时发现 legacy `src` 包 | `ACCEPTED` | 区分 PyPI 分发名与 Python 包名，并使 `ENV-002` 可在 `PKG-001` 前建立可构建元数据 |
 | ADR-012 | 2026-07-31 | 配置相对路径统一相对包含 `pyproject.toml` 的项目根解析；training 配置先以 frozen dataclass 严格校验，模型/数据算法字段在对应任务中逐步 typed 化 | `ACCEPTED` | 消除 cwd 差异并立即保护运行关键字段，同时避免在未建立模型回归前一次性重写全部论文专属参数 |
 | ADR-013 | 2026-07-31 | 机器专属数据路径只允许来自 ignored `configs/local/paths.yaml`、`MMCTR_*_DATA_DIR` 环境变量或显式 CLI override；优先级为本地文件 < 环境变量 < CLI，tracked 配置只保留相对路径和空 example | `ACCEPTED` | 同一公开配置可跨机器复用，真实服务器路径不进入 Git，缺失 override 时给出明确错误而非引用不存在文件 |
+| ADR-014 | 2026-07-31 | 公共命令统一为 `mmctr` / `python -m mmctr.cli` 子命令；CLI 模块保持 dependency-light，train 命令完成参数/线程设置后才导入训练 runtime | `ACCEPTED` | `--help`、配置检查和列表命令可安全导入运行，避免 argparse/torch/TensorFlow 在模块导入阶段产生副作用 |
 
 ---
 
@@ -958,6 +959,8 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.29 | 2026-07-31 | Codex | 完成 `CLI-001`：新增 import-safe console/module CLI 与四个子命令，显式参数化主 Trainer，移除 import-time argparse/硬编码线程，并通过仓库外 wheel 入口验证 |
+| v0.28 | 2026-07-31 | Codex | 领取 `CLI-001`；接受 ADR-014，登记统一 console/module CLI、lazy train runtime、显式 Trainer 参数化及 help/import/list/config tests |
 | v0.27 | 2026-07-31 | Codex | 完成 `CFG-002`：新增 ignored local-path/environment/CLI 注入与严格解析，迁移全部缺失 local YAML 调用方，提交无真实路径 example 和回归测试 |
 | v0.26 | 2026-07-31 | Codex | 领取 `CFG-002`；接受 ADR-013，登记 ignored local paths、环境变量优先级、无真实路径 example、canonical 路径解析与主训练接入范围 |
 | v0.25 | 2026-07-31 | Codex | 完成 `CFG-001`：建立 frozen training schema、严格唯一键 YAML/分层合并/项目根路径规则，接入主训练并消除双 best-params tracked 配置 |

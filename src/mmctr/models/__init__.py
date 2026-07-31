@@ -1,8 +1,6 @@
 """Lazy public model exports backed by the current legacy implementations."""
 
-from models.base_model import BaseModel
-from models.base_seq_model import BaseSeqModel
-from mmctr.utils.helper import get_model, resolve_model_class
+import importlib
 
 
 _MODEL_EXPORTS = {
@@ -33,15 +31,42 @@ _MODEL_EXPORTS = {
     "PSRQ": "psrq",
 }
 
+_BASE_EXPORTS = {
+    "BaseModel": ("models.base_model", "BaseModel"),
+    "BaseSeqModel": ("models.base_seq_model", "BaseSeqModel"),
+}
+
+
+def available_models():
+    return tuple(sorted(set(_MODEL_EXPORTS.values())))
+
+
+def get_model(*args, **kwargs):
+    from mmctr.utils.helper import get_model as legacy_get_model
+
+    return legacy_get_model(*args, **kwargs)
+
 
 def __getattr__(name):
+    if name in _BASE_EXPORTS:
+        module_name, class_name = _BASE_EXPORTS[name]
+        model_class = getattr(importlib.import_module(module_name), class_name)
+        globals()[name] = model_class
+        return model_class
     try:
         model_name = _MODEL_EXPORTS[name]
     except KeyError as error:
         raise AttributeError("module {!r} has no attribute {!r}".format(__name__, name)) from error
+    from mmctr.utils.helper import resolve_model_class
+
     model_class = resolve_model_class(model_name)
     globals()[name] = model_class
     return model_class
 
 
-__all__ = ["BaseModel", "BaseSeqModel", "get_model"] + list(_MODEL_EXPORTS)
+__all__ = [
+    "BaseModel",
+    "BaseSeqModel",
+    "available_models",
+    "get_model",
+] + list(_MODEL_EXPORTS)

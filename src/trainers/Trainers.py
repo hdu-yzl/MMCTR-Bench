@@ -1,12 +1,5 @@
-import os
-num_threads = "24"
-os.environ["OMP_NUM_THREADS"] = num_threads
-os.environ["OPENBLAS_NUM_THREADS"] = num_threads
-os.environ["MKL_NUM_THREADS"] = num_threads
-os.environ["VECLIB_MAXIMUM_THREADS"] = num_threads
-os.environ["NUMEXPR_NUM_THREADS"] = num_threads
-import argparse
 from pathlib import Path
+from typing import Optional, Sequence
 
 from mmctr.utils import helper
 from mmctr.utils.run_context import create_run_context
@@ -20,26 +13,25 @@ from mmctr.config import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-parser = argparse.ArgumentParser(description="MMCTR-Trainer")
-parser.add_argument("--dataset_name", type=str, help="specify dataset", default="antm2c")
-parser.add_argument("--model_name", type=str, help="specify model", default="dnn")
-parser.add_argument("--use_local_data", type=int, help="data", default=0)
-parser.add_argument("--cuda", type=int, help="override cuda id in config/train.yaml", default=None)
-parser.add_argument("--output_root", type=str, help="isolated run output root", default=None)
-args = parser.parse_args()
-
 
 class Trainer(object):
-    def __init__(self):
-        self.model_name = str(args.model_name).lower()
-        self.dataset_name = str(args.dataset_name).lower()
+    def __init__(
+        self,
+        dataset_name: str = "antm2c",
+        model_name: str = "dnn",
+        use_local_data: bool = False,
+        cuda: Optional[int] = None,
+        output_root: Optional[str] = None,
+    ):
+        self.model_name = str(model_name).lower()
+        self.dataset_name = str(dataset_name).lower()
 
         self.model_config = helper.load_yaml(PROJECT_ROOT / 'config/model.yaml')[self.model_name]
         self.model_config['model_name'] = self.model_name
         data_config_name = 'seq_data.yaml' if self.model_config["seq_modeling"] else 'data.yaml'
         all_data_config = helper.load_yaml(PROJECT_ROOT / 'config' / data_config_name)
         local_paths = None
-        if args.use_local_data:
+        if use_local_data:
             local_paths = load_local_paths(PROJECT_ROOT / 'configs/local/paths.yaml')
             if self.dataset_name not in local_paths.datasets:
                 raise ConfigValidationError([
@@ -53,17 +45,17 @@ class Trainer(object):
         )
         self.data_config = {self.dataset_name: dataset_config}
         self.train_config = load_training_config(PROJECT_ROOT / 'config/train.yaml').to_dict()
-        if args.cuda is not None:
-            self.train_config['cuda'] = args.cuda
+        if cuda is not None:
+            self.train_config['cuda'] = cuda
         local_output_root = local_paths.output_root if local_paths else None
-        output_root = args.output_root or local_output_root or self.train_config['output_root']
+        resolved_output_root = output_root or local_output_root or self.train_config['output_root']
         experiment_config = {
             'model': self.model_config,
             'data': self.data_config[self.dataset_name],
             'train': self.train_config,
         }
         self.run_context = create_run_context(
-            output_root=output_root,
+            output_root=resolved_output_root,
             experiment_name='training',
             dataset=self.dataset_name,
             model=self.model_name,
@@ -125,9 +117,30 @@ class Trainer(object):
             raise
 
 
-if __name__ == "__main__":
-    '''
-    python trainers.py --model_name=dnn --dataset_name=Tiktok
-    '''
-    trainer = Trainer()
+def build_parser():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="MMCTR legacy training adapter")
+    parser.add_argument("--dataset_name", default="antm2c")
+    parser.add_argument("--model_name", default="dnn")
+    parser.add_argument("--use_local_data", action="store_true")
+    parser.add_argument("--cuda", type=int, default=None)
+    parser.add_argument("--output_root", default=None)
+    return parser
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    arguments = build_parser().parse_args(argv)
+    trainer = Trainer(
+        dataset_name=arguments.dataset_name,
+        model_name=arguments.model_name,
+        use_local_data=arguments.use_local_data,
+        cuda=arguments.cuda,
+        output_root=arguments.output_root,
+    )
     trainer.run()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
