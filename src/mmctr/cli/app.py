@@ -68,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=__version__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    train = subparsers.add_parser("train", help="run the isolated legacy training adapter")
+    train = subparsers.add_parser("train", help="run an isolated training task")
     train.add_argument("--dataset-name", default="antm2c")
     train.add_argument("--model-name", default="dnn")
     train.add_argument("--use-local-data", action="store_true")
@@ -84,10 +84,10 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--project-root", type=Path, default=None)
     validate.set_defaults(handler=_validate_config)
 
-    models = subparsers.add_parser("list-models", help="list registered legacy model names")
+    models = subparsers.add_parser("list-models", help="list registered model names")
     models.set_defaults(handler=_list_models)
 
-    datasets = subparsers.add_parser("list-datasets", help="list registered legacy dataset names")
+    datasets = subparsers.add_parser("list-datasets", help="list registered dataset names")
     datasets.set_defaults(handler=_list_datasets)
     return parser
 

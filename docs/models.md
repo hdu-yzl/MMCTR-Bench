@@ -1,0 +1,51 @@
+# Model contract and migration
+
+The only public model base is `mmctr.models.BaseSeqModel`. Despite the name, it supports both
+non-sequential models that consume pooled history and models that retain sequence tokens. Each
+model declares exactly one `HistoryCapability`:
+
+- `pooled_history`: use `BaseSeqModel.masked_pool` to reduce `[B, L, D]` before the model-specific
+  body;
+- `sequence_tokens`: retain `[B, L, D]` and use `Batch.history_mask` in sequence interactions.
+
+The base owns no optimizer, device selection, logger, metric implementation, checkpoint path, or
+training loop. Its public forward signature is always `forward(batch: Batch) -> ModelOutput`.
+
+`LegacyModelAdapter` is a temporary migration bridge. It copies all feature dictionaries before
+calling an old model, joins separate user/item IDs only for old pooled models, and converts
+`pred`/`au_loss` output dictionaries into `ModelOutput`. This prevents old in-place mutations from
+changing the caller's `Batch`; it does not make the wrapped constructor side-effect free.
+
+The old `models.base_model.BaseModel` and `models.base_seq_model.BaseSeqModel` emit deprecation
+warnings and remain solely so unmigrated research models keep working. Model-family tasks replace
+them with pure implementations before the compatibility packages can be removed.
+
+## Migrated baseline family
+
+The formal registry now resolves `dnn`, `dcn`, `deepfm`, `autoint`, and `din` to pure implementations
+under `mmctr.models.baselines`. DNN/DCN/DeepFM/AutoInt concatenate separate user and target-item IDs,
+then apply mask-aware mean history pooling before their original model-specific body. DIN retains
+history tokens and applies its target-aware attention with the explicit history mask. All five keep
+logits at `[B]`, including batch size one.
+
+`mmctr.utils.helper.getModel` and `helper.resolve_model_class` intentionally continue to resolve the
+frozen legacy classes for historical scripts and numerical fixtures. This is a compatibility API,
+not the formal registry. New callers use `mmctr.models.registry.create_model` with `(model_config,
+data_config)` and let `TrainingEngine` own all training state.
+
+## Migrated simple multimodal family
+
+The formal registry also resolves `dnn_mm`, `dnn_mm_seq`, `lmf`, and `mtfn` to pure canonical
+implementations in `mmctr.models.multimodal`. All project target and history features by name,
+zero projected padding tokens explicitly, and pool with `Batch.history_mask`. `dnn_mm_seq` keeps
+user, target item, and history fields separate and never uses rank-destroying bare `squeeze()`.
+
+The currently required cat/add/mean/MAF/LMF/MTFN operations are private migration components, not
+the future public fusion registry. This preserves the `FUSE-001` boundary while allowing the four
+models to leave the training-owning legacy bases. Legacy helper resolution remains frozen for
+server numerical regression.
+
+`simcen` is the first complex auxiliary-loss migration. Its segmentation and multi-level experts
+remain model-private, while contrastive training is exposed as the scalar named loss
+`simcen_contrastive` and its ego/two-view tensors are returned through `ModelOutput.representations`.
+The stable log-sum-exp formulation avoids the legacy exponentiation overflow path.

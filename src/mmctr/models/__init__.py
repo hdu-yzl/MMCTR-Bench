@@ -2,6 +2,8 @@
 
 import importlib
 
+from .registry import available_models, create_model, resolve_model_class
+
 
 _MODEL_EXPORTS = {
     "DNN": "dnn",
@@ -33,18 +35,14 @@ _MODEL_EXPORTS = {
 
 _BASE_EXPORTS = {
     "BaseModel": ("models.base_model", "BaseModel"),
-    "BaseSeqModel": ("models.base_seq_model", "BaseSeqModel"),
+    "BaseSeqModel": ("mmctr.models.base", "BaseSeqModel"),
+    "HistoryCapability": ("mmctr.models.base", "HistoryCapability"),
+    "LegacyModelAdapter": ("mmctr.models.compat", "LegacyModelAdapter"),
 }
 
 
-def available_models():
-    return tuple(sorted(set(_MODEL_EXPORTS.values())))
-
-
 def get_model(*args, **kwargs):
-    from mmctr.utils.helper import get_model as legacy_get_model
-
-    return legacy_get_model(*args, **kwargs)
+    return create_model(*args, **kwargs)
 
 
 def __getattr__(name):
@@ -57,8 +55,6 @@ def __getattr__(name):
         model_name = _MODEL_EXPORTS[name]
     except KeyError as error:
         raise AttributeError("module {!r} has no attribute {!r}".format(__name__, name)) from error
-    from mmctr.utils.helper import resolve_model_class
-
     model_class = resolve_model_class(model_name)
     globals()[name] = model_class
     return model_class
@@ -67,6 +63,8 @@ def __getattr__(name):
 __all__ = [
     "BaseModel",
     "BaseSeqModel",
+    "HistoryCapability",
+    "LegacyModelAdapter",
     "available_models",
     "get_model",
 ] + list(_MODEL_EXPORTS)

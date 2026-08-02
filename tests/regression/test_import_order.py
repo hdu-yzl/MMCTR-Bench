@@ -33,14 +33,15 @@ class ImportOrderRegressionTest(unittest.TestCase):
             "assert 'models.mm_ctr_models' not in sys.modules\n"
         )
 
-    def test_direct_legacy_model_then_public_namespace_has_one_class(self):
+    def test_legacy_helper_and_public_registry_have_explicitly_separate_classes(self):
         self._run_in_clean_process(
             "from models.ctr_models.dnn import DNN as LegacyDNN\n"
             "from mmctr import __version__\n"
             "from mmctr.models import DNN\n"
             "from mmctr.utils import helper\n"
             "assert __version__ == '0.1.0'\n"
-            "assert DNN is LegacyDNN\n"
+            "assert DNN is not LegacyDNN\n"
+            "assert DNN.__module__.startswith('mmctr.models.baselines')\n"
             "assert helper.resolve_model_class('dnn') is LegacyDNN\n"
         )
 

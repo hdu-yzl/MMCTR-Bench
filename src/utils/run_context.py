@@ -171,6 +171,15 @@ class RunContext:
         ) + "\n"
         _atomic_write_text(self.summary_path, content)
 
+    def append_metrics(self, metrics: Mapping[str, Any]) -> None:
+        """Append one JSON record to this run's versioned metrics stream."""
+
+        content = json.dumps(_normalise(metrics), ensure_ascii=False, sort_keys=True) + "\n"
+        with self.metrics_path.open("a", encoding="utf-8", newline="\n") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+
     def update_metadata(self, updates: Mapping[str, Any]) -> None:
         with self.metadata_path.open("r", encoding="utf-8") as handle:
             metadata = json.load(handle)

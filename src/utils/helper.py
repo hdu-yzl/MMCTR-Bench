@@ -2,7 +2,6 @@ import torch
 import random
 import numpy as np
 import os
-import importlib
 import time
 from contextlib import contextmanager
 from typing import List, Optional
@@ -13,62 +12,16 @@ import sys
 from pathlib import Path
 
 
-_DATA_LOADER_SPECS = {
-    "antm2c": ("data.dataloaders", "Antm2cLoader"),
-    "microlens": ("data.dataloaders", "MicrolensLoader"),
-    "tiktok": ("data.dataloaders", "TiktokLoader"),
-}
-
-_MODEL_SPECS = {
-    "dnn": ("models.ctr_models", "DNN", True),
-    "dnn_mm": ("models.ctr_models", "DNN_mm", True),
-    "dnn_mm_seq": ("models.ctr_models", "DNN_mm_seq", True),
-    "dcn": ("models.ctr_models", "DCN", True),
-    "deepfm": ("models.ctr_models", "DeepFM", True),
-    "din": ("models.ctr_models", "DIN", True),
-    "autoint": ("models.ctr_models", "AutoInt", True),
-    "lmf": ("models.mm_ctr_models", "LMF", True),
-    "diff_msin": ("models.mm_ctr_models", "Diff_MSIN", True),
-    "marn": ("models.mm_ctr_models", "MARN", True),
-    "mtfn": ("models.mm_ctr_models", "MTFN", True),
-    "dmf": ("models.mm_ctr_models", "DMF", True),
-    "simcen": ("models.mm_ctr_models", "SimCEN", True),
-    "naml": ("models.mm_ctr_models", "NAML", True),
-    "make": ("models.mm_ctr_models", "MAKE", True),
-    "em3": ("models.mm_ctr_models", "EM3", True),
-    "gmmf": ("models.mm_ctr_models", "GMMF", True),
-    "qarm": ("models.mm_ctr_models", "QARM", True),
-    "mcca": ("models.mm_ctr_models", "MCCA", True),
-    "mb": ("models.mm_ctr_models", "MB", True),
-    "pamd": ("models.mm_ctr_models", "PAMD", True),
-    "mmmlp": ("models.mm_ctr_models", "MMMLP", True),
-    "m3srec": ("models.mm_ctr_models", "M3SRec", True),
-    "rq": ("models.pre_models", "RQ", False),
-    "psrq": ("models.pre_models", "PSRQ", False),
-}
-
-
-def _load_symbol(module_name, symbol_name):
-    module = importlib.import_module(module_name)
-    return getattr(module, symbol_name)
-
-
 def resolve_data_loader_class(dataset):
-    dataset = dataset.lower()
-    try:
-        module_name, class_name = _DATA_LOADER_SPECS[dataset]
-    except KeyError:
-        raise ValueError("Invalid dataset type:{}".format(dataset))
-    return _load_symbol(module_name, class_name)
+    from mmctr.data.registry import resolve_data_loader_class as resolve
+
+    return resolve(dataset)
 
 
 def resolve_model_class(model_name):
-    model_name = model_name.lower()
-    try:
-        module_name, class_name, _takes_logger = _MODEL_SPECS[model_name]
-    except KeyError:
-        raise ValueError("Invalid model type:{}".format(model_name))
-    return _load_symbol(module_name, class_name)
+    from mmctr.models.registry import resolve_legacy_model_class as resolve
+
+    return resolve(model_name)
 
 
 def getOptim(network, optim, lr, l2):
@@ -111,21 +64,19 @@ def setup_env(cuda_id: int = 0,
 
 
 def getDataLoader(dataset, data_config, batch_size):
-    loader_class = resolve_data_loader_class(dataset)
-    return loader_class(data_config, batch_size)
+    from mmctr.data.registry import create_data_loader
+
+    return create_data_loader(dataset, data_config, batch_size)
 
 
 def getModel(model_name, model_config, train_config, data_config, logger):
-    model_name = model_name.lower()
-    try:
-        _module_name, _class_name, takes_logger = _MODEL_SPECS[model_name]
-    except KeyError:
-        raise ValueError("Invalid model type:{}".format(model_name))
-    model_class = resolve_model_class(model_name)
+    from mmctr.models.registry import model_spec, resolve_legacy_model_class
+
+    takes_logger = model_spec(model_name).metadata.get("takes_logger", True)
     arguments = (model_config, train_config, data_config)
     if takes_logger:
         arguments += (logger,)
-    return model_class(*arguments)
+    return resolve_legacy_model_class(model_name)(*arguments)
 
 
 @contextmanager

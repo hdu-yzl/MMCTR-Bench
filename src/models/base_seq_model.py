@@ -1,4 +1,5 @@
 import torch, numpy as np
+import warnings
 from pathlib import Path
 from sklearn import metrics
 from abc import ABC, abstractmethod
@@ -13,6 +14,12 @@ class BaseSeqModel(torch.nn.Module, ABC):
                  data_config,
                  logger):
         super().__init__()
+        warnings.warn(
+            "models.base_seq_model.BaseSeqModel is a legacy compatibility class; "
+            "migrate to mmctr.models.BaseSeqModel",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         self.model_config = model_config
         self.train_config = train_config

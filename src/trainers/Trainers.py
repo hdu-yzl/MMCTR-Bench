@@ -9,6 +9,9 @@ from mmctr.config import (
     load_training_config,
     resolve_dataset_config,
 )
+from mmctr.data import HistoryMode, adapt_legacy_loader
+from mmctr.models.registry import create_model, model_spec
+from mmctr.training import CheckpointManager, TrainingEngine, build_optimizer
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -23,10 +26,16 @@ class Trainer(object):
         cuda: Optional[int] = None,
         output_root: Optional[str] = None,
     ):
-        self.model_name = str(model_name).lower()
+        requested_model_name = str(model_name).lower()
+        specification = model_spec(requested_model_name)
+        self.model_name = specification.name
         self.dataset_name = str(dataset_name).lower()
 
-        self.model_config = helper.load_yaml(PROJECT_ROOT / 'config/model.yaml')[self.model_name]
+        model_catalog = helper.load_yaml(PROJECT_ROOT / 'config/model.yaml')
+        config_name = requested_model_name
+        if config_name not in model_catalog and self.model_name == 'dnn_mm_seq':
+            config_name = 'dnn_seq'
+        self.model_config = model_catalog[config_name]
         self.model_config['model_name'] = self.model_name
         data_config_name = 'seq_data.yaml' if self.model_config["seq_modeling"] else 'data.yaml'
         all_data_config = helper.load_yaml(PROJECT_ROOT / 'config' / data_config_name)
@@ -75,7 +84,7 @@ class Trainer(object):
         experiment_config['run'] = self.run_context.runtime_config()
         self.run_context.write_resolved_config(experiment_config)
         try:
-            self.dataloader = helper.getDataLoader(
+            legacy_data_loader = helper.getDataLoader(
                 self.dataset_name,
                 self.data_config[self.dataset_name],
                 self.train_config["batch_size"],
@@ -85,14 +94,54 @@ class Trainer(object):
                 self.train_config['log_dir'],
                 filename='run.log',
             )
-            self.model = helper.getModel(
-                self.model_name,
-                self.model_config,
-                self.train_config,
-                self.data_config[self.dataset_name],
-                self.logger,
+            if specification.module.startswith('mmctr.models.'):
+                self.runtime_kind = 'canonical'
+                helper.setup_seed(self.train_config['seed'])
+                history_mode = (
+                    HistoryMode.POOLED_COMPAT
+                    if specification.metadata.get('history') == 'pooled'
+                    else HistoryMode.SEQUENCE_TOKENS
+                )
+                self.dataloader = adapt_legacy_loader(
+                    self.dataset_name,
+                    legacy_data_loader,
+                    self.data_config[self.dataset_name],
+                    history_mode=history_mode,
+                )
+                self.model = create_model(
+                    self.model_name,
+                    self.model_config,
+                    self.data_config[self.dataset_name],
+                )
+                device = helper.getDevice(self.train_config['cuda'])
+                optimizer = build_optimizer(
+                    self.model,
+                    self.train_config['optim'],
+                    self.train_config['lr'],
+                    self.train_config['l2'],
+                )
+                self.engine = TrainingEngine(
+                    self.model,
+                    optimizer,
+                    device,
+                    CheckpointManager(self.run_context.checkpoints_dir),
+                    logger=self.logger,
+                    metric_writer=self.run_context.append_metrics,
+                )
+            else:
+                self.runtime_kind = 'legacy'
+                self.dataloader = legacy_data_loader
+                self.model = helper.getModel(
+                    self.model_name,
+                    self.model_config,
+                    self.train_config,
+                    self.data_config[self.dataset_name],
+                    self.logger,
+                )
+                device = self.model.device
+            self.run_context.update_metadata(
+                {'device': str(device), 'runtime_kind': self.runtime_kind}
             )
-            self.run_context.update_metadata({'device': str(self.model.device)})
 
             self.logger.info(f"run_id={self.run_context.run_id}")
             self.logger.info(f"run_dir={self.run_context.root_dir}")
@@ -103,13 +152,33 @@ class Trainer(object):
 
     def run(self):
         try:
-            best_val = self.model.fit(self.dataloader)
-            test_auc, test_loss = self.model.evalate(self.dataloader, 'test')
-            summary = {
-                'best_val_auc': float(best_val),
-                'test_auc': float(test_auc),
-                'test_loss': float(test_loss),
-            }
+            if self.runtime_kind == 'canonical':
+                fit_result = self.engine.fit(
+                    self.dataloader,
+                    self.train_config['max_epochs'],
+                    self.train_config['early_stop_patience'],
+                    self.run_context.run_id,
+                    self.run_context.root_dir,
+                )
+                test_result = self.engine.evaluate(
+                    self.dataloader,
+                    'test',
+                    int(fit_result.metrics['best_epoch']),
+                )
+                if test_result.metrics is None:
+                    raise RuntimeError('test metrics were not produced')
+                test_auc = test_result.metrics.auc
+                test_loss = test_result.metrics.log_loss
+                summary = dict(fit_result.metrics)
+                summary.update({'test_auc': test_auc, 'test_loss': test_loss})
+            else:
+                best_val = self.model.fit(self.dataloader)
+                test_auc, test_loss = self.model.evalate(self.dataloader, 'test')
+                summary = {
+                    'best_val_auc': float(best_val),
+                    'test_auc': float(test_auc),
+                    'test_loss': float(test_loss),
+                }
             self.logger.info(f'test_auc={test_auc:.6f}, test_loss={test_loss:.6f}')
             self.run_context.finalize('completed', summary=summary)
         except BaseException as error:

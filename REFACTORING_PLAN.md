@@ -1,8 +1,8 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.42`
-> 最近更新：`2026-07-31`  
+> 当前版本：`v0.58`
+> 最近更新：`2026-08-03`
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
 
@@ -855,11 +855,11 @@ Follow-up tasks:
 | Milestone | 状态 | 当前进度说明 | 退出证据 |
 |---|---|---|---|
 | S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、Linux `bm` 依赖/CUDA 基线、`mmctr` 公共命名空间、统一 CLI、严格 training/本地路径配置层、主要公开文档、合成 CPU/TFRecord smoke、首个数值回归基线、tuner 科研红线修复、主训练运行目录隔离、分阶段 Linux QA 门禁及首次 GitHub clean-runner CI 已完成；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
-| S2 数据处理与模型主干 | `TODO` | 已完成 AntM2C 只读问题定位，尚未实施 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
+| S2 数据处理与模型主干 | `IN_PROGRESS` | 统一 Batch/ModelOutput/RunResult、dataset manifest/adapter、model/data registry、training engine、单一公共 BaseSeqModel 与首批五个 CTR 模型已实现并等待服务器门禁；AntM2C 字段审计与其余模型迁移尚未完成 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
 | S3 模型公共组件 | `TODO` | 未开始 | pooling/fusion 可按模态配置且默认 preset 回归通过 |
 | S4 实验分析体系 | `TODO` | 未开始 | 无模型复制、统一 runner/result schema、五类分析可配置运行 |
 
-> 当前结论：治理、包元数据、公开文档主体、合成 smoke 与首个行为基线已落地；模型和数据主干改造尚未开始。不得把“已写方案”计作模型或训练链路完成度。
+> 当前结论：S1 工程基线已基本落地；S2 的核心契约、统一 loader/registry/training/base-model 主干和首批基础 CTR 模型代码已进入 `REVIEW`/`IN_PROGRESS`。当前非服务器工作区未执行 Python 门禁，因此不得把这些实现写成已验收；AntM2C 去切片链路和其余模型家族仍未完成。
 
 ### 13.2 可领取任务
 
@@ -883,22 +883,22 @@ Follow-up tasks:
 | CLI-001 | P1 | 建立统一 CLI，移除 import-time argparse | PKG-001, CFG-001 | `DONE` | Codex (`/root`) | `src/mmctr/cli/`、`src/trainers/Trainers.py`、`src/mmctr/models/`、`src/mmctr/data/`、`pyproject.toml`、`docs/cli.md`、README、`tests/`、`REFACTORING_PLAN.md` | 新增 console/module CLI 与 train/validate-config/list-models/list-datasets 子命令；CLI/catalog import 不加载 torch/TensorFlow，train 设置 5 组线程环境后才 lazy import runtime；主 Trainer 改为显式参数构造，import 不解析宿主 argv 且移除硬编码 24 线程副作用；Windows 指定解释器完成 `src`/`tests` compileall，`unittest discover` 33 tests/26.696s 全通过；仓库外临时 wheel 的 module help、dependency-light import 和 `mmctr = mmctr.cli:main` entry point 均通过，wheel 268941 bytes、SHA-256 `f03e6bf71e6bab2ebda0ff735deccad8b4ed39eba36b5a9a11a5710faf2342a8`；临时目录、2 个构建目录和 32 个缓存目录已清理；真实 train Linux/CUDA gate 按 ADR-010 延期；2026-07-31 |
 | QA-001 | P1 | Ruff/pytest/mypy/coverage 分阶段门禁 | ENV-002, PKG-001 | `DONE` | Codex (`/root`) | `pyproject.toml`、`src/mmctr/`、`tests/`、`docs/quality-gates.md`、README、`REFACTORING_PLAN.md` | 已建立明确阶段边界：Ruff 约束 `src/mmctr + tests`，mypy 检查 14 个公共源文件但不递归 legacy bridge，coverage 下限 80%。最终 Linux `/home/star/Disk3/hkl/envs/bm/bin/python`：Ruff format 34 files 与 lint 通过，mypy 1.10.1 的 14 files 通过，unit+smoke 25 passed/7.48s，全量 pytest 35 passed/17.84s、coverage 83.80%，隔离 sdist+wheel build 通过；wheel 137 files/268965 bytes/SHA-256 `c279ede0278cdd3871aefdaf08b3040fac4ddd90b4b849e913ce7e18388d3413`。全仓 legacy 基线仍为 160 lint 问题/116 待格式化文件并已文档化；依据 ADR-016 仅以 Linux 验收；2026-07-31 |
 | CI-001 | P1 | 建立 Linux CPU CI | QA-001 | `DONE` | Codex (`/root`) | `.github/workflows/linux-ci.yml`、`tests/unit/test_ci_workflow.py`、`docs/quality-gates.md`、`REFACTORING_PLAN.md` | 以固定 Ubuntu 22.04/Python 3.8 + PyTorch 1.13.1 CPU 执行 pip check、Ruff、mypy、unit/smoke、全量 coverage 和隔离 build，缓存/临时目录全部位于 workspace；TDD 合约测试先因 workflow 缺失为 RED，随后发现并阻止无效 YAML 单行命令，最终 YAML 解析和 runner/action/Python/命令/缓存约束通过。Linux `bm` 复核 Ruff 34 files、mypy 14 files、unit+smoke 25 passed、全量 35 passed/83.80% 及隔离 build；提交 `66db7d7` 的首次 clean GitHub Actions run `30642128515` 全部成功；2026-07-31 |
-| CORE-001 | P0 | 定义统一 Batch/ModelOutput/RunResult | PKG-001, CFG-001 | `TODO` | - | core schemas | shape/dtype/mask/type unit tests |
-| DATA-001 | P0 | 统一三个数据集 loader contract 与 manifest | CORE-001 | `TODO` | - | data/datasets | 三 adapter contract tests |
-| ANT-001 | P0 | 审计 AntM2C 六类文本字段语义与 feature ownership | DATA-001 | `TODO` | - | antm2c schema/docs | 字段归属、shape、split 协议经确认 |
-| ANT-002 | P0 | 用 event_id + 单次时序扫描重写历史构造 | ANT-001 | `TODO` | - | antm2c preprocessing | 无未来泄漏、重复 item 和复杂度测试 |
-| ANT-003 | P0 | 建立 item index 和去重 item feature store | ANT-001 | `TODO` | - | antm2c preprocessing | target/history 同表 gather 一致性 |
-| ANT-004 | P1 | 重写文本/图像 batch 提取、单次模型加载和断点续跑 | ANT-003 | `TODO` | - | antm2c extractors | 吞吐报告、resume、missing manifest |
-| ANT-005 | P0 | 重写 split 序列化和 loader，删除 4608 拼接/固定切片 | ANT-002, ANT-003, ANT-004 | `TODO` | - | antm2c serializer/loader | 无 `text_full[4]`；三 split 抽样审计 |
+| CORE-001 | P0 | 定义统一 Batch/ModelOutput/RunResult | PKG-001, CFG-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/core/`、`src/mmctr/__init__.py`、`tests/unit/test_core_schemas.py`、`docs/architecture.md`、`REFACTORING_PLAN.md` | 已建立不可变顶层核心契约、严格 shape/dtype/batch-size 校验、设备迁移与 legacy tuple/dict 显式适配；代码与单元测试已写入，按维护者本轮指示未在非服务器环境执行 Python/Linux 门禁，待服务器验证后转 `DONE`；2026-08-03 |
+| DATA-001 | P0 | 统一三个数据集 loader contract 与 manifest | CORE-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/data/`、legacy loader compatibility boundary、`tests/unit/test_data_contracts.py`、`docs/data.md`、`REFACTORING_PLAN.md` | 已建立统一 split/history capability、版本化 manifest 和 `CanonicalDataLoader`，三类 legacy loader 可显式转换为 `Batch`，并分离兼容路径中的组合 user/item ID；未改变 TFRecord 与 AntM2C 4608 字段语义；代码与三 adapter 合约测试已写入，真实数据/Linux 门禁按本轮指示延后；2026-08-03 |
+| ANT-001 | P0 | 审计 AntM2C 六类文本字段语义与 feature ownership | DATA-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/data/datasets/antm2c/`、`docs/data/antm2c.md`、`tests/unit/test_antm2c_schema.py`、`REFACTORING_PLAN.md` | 已固化 service/query/bill/log_time 为 interaction context，title/image 为 item feature，item_entity_names 为待全量一致性审计的 item candidate；已登记稳定 event_id、原脚本精确午夜切分、padding/ID offset、split embedding 和未来泄漏协议。schema/audit 测试已写；真实数据一致性与切分意图确认延后，故不转 `DONE`；2026-08-03 |
+| ANT-002 | P0 | 用 event_id + 单次时序扫描重写历史构造 | ANT-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/data/datasets/antm2c/history.py`、`tests/unit/test_antm2c_history.py`、`docs/data/antm2c.md`、`REFACTORING_PLAN.md` | 已实现稳定 `(user_id,timestamp,event_id)` 排序后每用户单次扫描、只纳入严格更早正反馈、左 padding、重复 item 事件保留、event_id 唯一性和顺序审计；泄漏/重复事件测试已写但未运行，真实全量复杂度与 split 抽样门禁延后；2026-08-03 |
+| ANT-003 | P0 | 建立 item index 和去重 item feature store | ANT-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/data/datasets/antm2c/item_store.py`、`tests/unit/test_antm2c_item_store.py`、`docs/data/antm2c.md`、`REFACTORING_PLAN.md` | 已实现按稳定事件流首次出现顺序分配的连续 item index、padding 0/OOV 规则、具名 float feature table、target/history 同表 gather、缺失零填充与 audit；一致性/维度/范围校验和测试已写，真实数据构建/hash/规模门禁延后；2026-08-03 |
+| ANT-004 | P1 | 重写文本/图像 batch 提取、单次模型加载和断点续跑 | ANT-003 | `REVIEW` | Codex (`/root`) | `src/mmctr/data/datasets/antm2c/extraction.py`、`tests/unit/test_antm2c_extraction.py`、数据文档、`REFACTORING_PLAN.md` | 已实现单次 encoder factory、缺失值零填充、具名 key、分批原子 `.npy`/JSON 写入、连续 shard resume、source fingerprint/shape/finiteness/checksum 校验；测试已写但未运行，真实文本/图像模型、吞吐和故障恢复门禁留待服务器，故不转 `DONE`；2026-08-03 |
+| ANT-005 | P0 | 重写 split 序列化和 loader，删除 4608 拼接/固定切片 | ANT-002, ANT-003, ANT-004 | `REVIEW` | Codex (`/root`) | `src/mmctr/data/datasets/antm2c/array_store.py`、`src/mmctr/core/schemas.py`、`tests/unit/test_antm2c_array_store.py`、数据文档、`REFACTORING_PLAN.md` | 已实现具名 InteractionTable、独立 context/item arrays、item store target/history gather、padding-safe ID offset、memory-map loader 与 canonical `Batch.context_features`；`named-npy-candidate-v1` 仅为 ANT-006 候选且无固定切片，round-trip 测试已写未运行，三 split 真实抽样审计延后，故不转 `DONE`；2026-08-03 |
 | ANT-006 | P1 | Linux 基准比较 TFRecord 与候选分层格式 | ANT-005 | `TODO` | - | benchmark/docs | 空间、吞吐、CPU/GPU wait 报告 |
 | DATA-002 | P1 | 将 MicroLens/TikTok 对齐统一数据契约 | DATA-001, ANT-005 | `TODO` | - | data/datasets | contract + smoke tests |
-| TRAIN-001 | P0 | 统一 training engine、evaluate、early stop、optimizer | CORE-001, RUN-001 | `TODO` | - | training/evaluation | 单步训练、save/load、resume；复用 `RUN-001` run context，并把 legacy 模型 checkpoint basename 收敛为 `best.pt`/`last.pt` |
-| MODEL-BASE-001 | P0 | 建立单一 BaseSeqModel 与 pooled/token 两种历史能力 | CORE-001, TRAIN-001 | `TODO` | - | model base | pooled_history/sequence_tokens tests |
-| MODEL-BASE-002 | P0 | 迁移并弃用 BaseModel 子类，先 pool 后复用原主体 | MODEL-BASE-001, DATA-001 | `TODO` | - | baselines/multimodal | 每模型迁移前后 fixture 回归 |
-| REG-001 | P1 | 模型/数据集 registry（fusion registry 留到 S3） | PKG-001, CFG-001 | `TODO` | - | registries | 唯一名称与全构造测试 |
-| MOD-001 | P1 | 迁移基础 CTR 模型 | MODEL-BASE-002, REG-001 | `TODO` | - | baselines | 每模型 forward/backward |
-| MOD-002 | P1 | 迁移简单多模态模型 | MOD-001 | `TODO` | - | multimodal | regression + smoke |
-| MOD-003 | P1 | 迁移复杂序列/辅助损失模型 | MOD-002 | `TODO` | - | multimodal | mask/aux loss + regression |
+| TRAIN-001 | P0 | 统一 training engine、evaluate、early stop、optimizer | CORE-001, RUN-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/training/`、`src/mmctr/evaluation/`、`src/trainers/Trainers.py`、`src/mmctr/utils/run_context.py`、`tests/unit/test_training_engine.py`、`docs/training.md`、`REFACTORING_PLAN.md` | 已建立只消费 `Batch -> ModelOutput` 的 engine、validation-only early stop、显式 optimizer、严格 AUC/LogLoss、原子 `best.pt`/`last.pt` checkpoint、resume 与 run metrics writer；resume 同步恢复 best/best_epoch/bad_epochs/patience 并校验 run ID，避免中断后重置选择状态；主 Trainer 对正式 registry 中已迁移模型自动走 canonical engine，其余模型保留 legacy 路由；单步/save-load/resume/test 隔离测试已写入，Python/Linux 门禁按本轮指示延后；2026-08-03 |
+| MODEL-BASE-001 | P0 | 建立单一 BaseSeqModel 与 pooled/token 两种历史能力 | CORE-001, TRAIN-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/models/base.py`、`src/mmctr/models/compat.py`、model public exports/registry、`tests/unit/test_model_base.py`、`docs/models.md`、`REFACTORING_PLAN.md` | 已建立纯 `Batch -> ModelOutput` 单一基类、显式 history capability、mask-aware mean/sum/max/softmax helper、不修改输入映射的 legacy adapter，并将旧双基类标记弃用；pooled/all-padding/adapter 测试已写，Linux 门禁延后；2026-08-03 |
+| MODEL-BASE-002 | P0 | 迁移并弃用 BaseModel 子类，先 pool 后复用原主体 | MODEL-BASE-001, DATA-001 | `IN_PROGRESS` | Codex (`/root`) | `src/mmctr/models/baselines/`、`src/mmctr/models/multimodal.py`、model registry/legacy bridge、legacy subclasses、regression tests、`docs/models.md`、`REFACTORING_PLAN.md` | 已迁移 DNN/DCN/DeepFM/AutoInt/DIN、DNN-MM/DNN-MM-Seq/LMF/MTFN 及 SimCEN 共 10 个纯 canonical 模型；正式 registry 指向新实现，helper 历史入口继续指向冻结 legacy 类。物理 legacy 双基类文件仍保留供回归，其余复杂/量化模型尚待迁移，完成前不删除兼容层；2026-08-03 |
+| REG-001 | P1 | 模型/数据集 registry（fusion registry 留到 S3） | PKG-001, CFG-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/core/registry.py`、`src/mmctr/models/registry.py`、`src/mmctr/data/registry.py`、public exports、legacy helper bridge、`tests/unit/test_registries.py`、`REFACTORING_PLAN.md` | 已建立稳定 snake_case 名称、`dnn_seq -> dnn_mm_seq` alias、capability metadata 与 lazy import；25 模型/3 数据集只有一份正式注册表，helper 改为兼容委托，fusion/pooling 未抢跑；唯一性/无重依赖导入测试已写入，构造与 Linux 门禁按本轮指示延后；2026-08-03 |
+| MOD-001 | P1 | 迁移基础 CTR 模型 | MODEL-BASE-002, REG-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/models/baselines/`、model registry/legacy helper、`src/trainers/Trainers.py`、`tests/unit/test_canonical_baselines.py`、`tests/regression/`、`docs/models.md`、`REFACTORING_PLAN.md` | DNN/DCN/DeepFM/AutoInt/DIN 已迁为纯 `Batch -> ModelOutput`，pooled 模型显式 mask mean，DIN 保留 token 并用 mask attention，batch size 1 不降秩；正式 registry/Trainer 走新实现，helper 保留冻结 legacy 数值入口；五模型 forward/backward 测试已写但未运行，最终验收依赖 `MODEL-BASE-002` 完成和 Linux 回归；2026-08-03 |
+| MOD-002 | P1 | 迁移简单多模态模型 | MOD-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/models/multimodal.py`、model registry/legacy bridge、`tests/unit/test_canonical_multimodal.py`、`docs/models.md`、`REFACTORING_PLAN.md` | DNN-MM、DNN-MM-Seq、LMF、MTFN 已迁为纯 `Batch -> ModelOutput`，具名 target/history/context 投影、显式 padding mask、稳定 batch rank；模型私有 cat/add/mean/MAF/LMF/MTFN 仅覆盖迁移所需能力，不提前建立公共 fusion registry；正式 registry/Trainer 走 canonical，helper 仍提供 legacy 回归入口；forward/backward 测试已写未运行，数值回归与 Linux 门禁延后；2026-08-03 |
+| MOD-003 | P1 | 迁移复杂序列/辅助损失模型 | MOD-002 | `IN_PROGRESS` | Codex (`/root`) | `src/mmctr/models/multimodal.py`、model registry/legacy bridge、`tests/unit/test_canonical_multimodal.py`、`docs/models.md`、`REFACTORING_PLAN.md` | 已迁移 SimCEN：mask-aware history、纯 forward、具名 scalar contrastive auxiliary loss、ego/view representations 与稳定 log-sum-exp；正式 registry 指向 canonical，legacy helper 保留回归。其余复杂序列/辅助损失模型尚未迁移，测试已写未运行，故保持 `IN_PROGRESS`；2026-08-03 |
 | MOD-004 | P1 | 迁移 MB/PAMD/MMMLP/M3SRec | MOD-003 | `TODO` | - | multimodal | model-specific regression |
 | MOD-005 | P1 | 迁移 RQ/PSRQ/QARM/MCCA | MOD-004 | `TODO` | - | quantization | codebook save/load + smoke |
 | COMP-001 | P1 | 统一 projection、mask、dimension adapter | MOD-005 | `TODO` | - | model components | dtype/rank/dimension tests |
@@ -954,6 +954,14 @@ Follow-up tasks:
 | ADR-015 | 2026-07-31 | 服务器接续使用既有 Conda `bm` 环境；下载、缓存和临时产物与当前项目同盘；原始 `/home/star/Disk3/hkl/Benchmark` 只读参考 | `ACCEPTED` | 遵循维护者提供的服务器资源边界，避免占用其他磁盘或误改原始版本，同时为数据位置和历史约定保留可核对证据 |
 | ADR-016 | 2026-07-31 | 后续修改、静态检查、依赖/CUDA 和任务验收全部在当前 Linux 服务器完成，不再使用 Windows；允许在既有 `bm` 中按需安装并调整冲突依赖 | `ACCEPTED` | 维护者明确指定服务器为唯一工作面并授权环境修复，消除双环境复核造成的任务悬置，同时仍要求记录精确版本、影响与真实运行证据 |
 | ADR-017 | 2026-07-31 | `bm` 的 TFRecord 适配栈对齐 TensorFlow `>=2.12.1,<2.13`、h5py `>=3.8,<3.11`、JAX/JAXlib `0.4.13` 与 typing-extensions `>=4.4,<4.6`；保留 NumPy 1.23.5、PyTorch 1.13.1+cu117 和 CUDA 主栈，并让 dev/tuning 的传递依赖选择兼容版本 | `ACCEPTED` | TensorFlow 2.4 与当前 NumPy/typing/Keras 明确冲突，旧 h5py 2.10 另有可复现 NumPy C-ABI warning；2.12.1 支持 Python 3.8、NumPy 1.22–1.24.3 且包含已知安全修复，但官方要求 typing-extensions `<4.6` 且其 Python 3.8 JAX 传递解析未自动安装 jaxlib，因此显式配对 JAX/JAXlib，只联动更新 TF/h5py 并回退冲突的工具/ORM/backport，不降级数值或训练框架 |
+| ADR-018 | 2026-08-03 | 在 `mmctr.core` 建立 `Batch`、`ModelOutput`、`RunResult` 单一公共契约；核心对象使用冻结 dataclass、只读映射视图和构造时校验，legacy tuple/dict 仅通过显式 adapter 进入核心边界 | `ACCEPTED` | 先固定跨 data/model/training/experiments 的 shape、dtype、mask、辅助损失与运行结果语义，避免后续迁移继续扩散隐式 tuple 顺序和 `pred`/`au_loss` 拼写；显式兼容适配允许按模型逐步迁移而不一次性改变论文实现 |
+| ADR-019 | 2026-08-03 | 数据公共入口使用 `CanonicalDataLoader` 适配现有三类 loader，统一为 `iter_batches(split, history_mode)` 与版本化 `DatasetManifest`；数据集专属读取/索引暂留 adapter 内，AntM2C 字段拆分由后续 `ANT-*` 实施 | `ACCEPTED` | 先让 training/model 只消费统一 `Batch`，同时避免在字段 ownership 尚未审计前静默改变 TFRecord 语义；manifest 固定 padding/OOV/ID offset、特征维度和 split 统计边界 |
+| ADR-020 | 2026-08-03 | 模型和数据集使用独立的正式 registry，注册项只保存规范名称、lazy import spec、alias 与 capability metadata；fusion/pooling registry 仍按 S3 任务边界后置 | `ACCEPTED` | CLI 列表与配置校验无需加载 torch/TensorFlow，构造时才解析实现；唯一规范名称消除 helper 长分支和 `dnn_seq`/`dnn_mm_seq` 漂移，同时不抢跑第三阶段组件协议 |
+| ADR-021 | 2026-08-03 | 训练生命周期从模型类移入 `TrainingEngine`；engine 只消费 canonical loader/Batch/ModelOutput，early stop 仅看 validation AUC，checkpoint manager 原子管理 `best.pt`/`last.pt` 并保存 optimizer/epoch/metric | `ACCEPTED` | 消除 BaseModel/BaseSeqModel 重复训练和跨 run checkpoint 覆盖；模型恢复为纯张量模块，测试集评估保持为配置冻结后的显式独立步骤，resume 所需状态由统一 payload 管理 |
+| ADR-022 | 2026-08-03 | 正式模型只继承 `mmctr.models.BaseSeqModel` 并声明 `pooled_history` 或 `sequence_tokens` capability；legacy 双基类及其旧 forward 签名通过只复制输入的 `LegacyModelAdapter` 过渡，不进入新 engine 核心 | `ACCEPTED` | 将迁移风险限制在适配边界，立即保证 canonical forward 不修改 `Batch`，同时允许按模型 fixture 逐步替换旧实现；公共基类不再持有 train config、optimizer、device、logger 或 checkpoint 路径 |
+| ADR-023 | 2026-08-03 | AntM2C 的 service/query/bill/log_time 属于交互上下文，item_title/image 属于 item；item_entity_names 在全量 `item_id -> value` 一致性审计前标为 item candidate，不得直接去重；event_id 使用数据版本内稳定的 source-shard/source-row 身份，历史按 `(user_id, timestamp, event_id)` 单次扫描 | `ACCEPTED` | 字段名与现有提取/序列化代码足以确认明确归属，但没有真实数据时不能假设 item_entity_names 对同一 item 永远不变；稳定事件身份和并列时间排序是消除 `items.index` 重复 item 错位与未来泄漏的前提 |
+| ADR-024 | 2026-08-03 | `Batch` 增加独立只读 `context_features`；AntM2C serializer 以具名 interaction/item arrays 为语义边界，`named-npy-candidate-v1` 只作为 ANT-006 基准候选而非最终格式 | `ACCEPTED` | interaction context 不能伪装成 item feature，也不能继续依赖 4608 拼接偏移；先稳定字段 ownership 和 loader 契约可并行推进模型，最终存储仍必须由服务器空间/吞吐实测决定 |
+| ADR-025 | 2026-08-03 | 简单多模态迁移在模型模块内保留私有 cat/add/mean/MAF/LMF/MTFN 运算，正式 registry 指向 canonical 模型，旧 helper 指向冻结实现；公共 fusion registry 仍留给 FUSE-001 | `ACCEPTED` | DNN-MM/LMF/MTFN 可先脱离训练型基类，同时不抢跑尚需 capability/output_dim/aux-loss 统一设计的第三阶段公共组件；双入口为服务器数值回归保留证据 |
 
 ---
 
@@ -961,6 +969,22 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.58 | 2026-08-03 | Codex | 收尾强化 canonical/compat 边界：checkpoint resume 恢复完整 early-stop 状态并校验 run/patience；legacy adapter 显式合并 interaction context 且拒绝同名冲突；对应测试已写未运行 |
+| v0.57 | 2026-08-03 | Codex | 领取 `MOD-003` 并迁移首个复杂模型 SimCEN：分割/多层专家纯模块化，contrastive loss/representations 进入 `ModelOutput`，正式 registry 接入；测试已写未运行，其余复杂模型待续 |
+| v0.56 | 2026-08-03 | Codex | `MOD-002` 实现转 `REVIEW`：DNN-MM/DNN-MM-Seq/LMF/MTFN 迁入纯 canonical 模块，正式 registry/Trainer 接入，私有 fusion 只覆盖迁移范围，forward/backward 测试已写未运行；接受 ADR-025 |
+| v0.55 | 2026-08-03 | Codex | `ANT-005` 实现转 `REVIEW`：新增一等 `Batch.context_features`、具名 InteractionTable/候选 array store/memory-map canonical loader，删除新路径中的 4608 固定切片依赖；真实三 split 审计与格式基准延后；接受 ADR-024 |
+| v0.54 | 2026-08-03 | Codex | `ANT-004` 实现转 `REVIEW`：新增单次 encoder 加载、batch shard 原子写入、source fingerprint/checksum resume 与 missing manifest；测试已写未运行，真实模型吞吐门禁延后 |
+| v0.53 | 2026-08-03 | Codex | 回填当前非服务器静态审计：`git diff --check` 通过，新增/改造范围 100 列超限 0、冲突标记 0、25 模型/3 数据集 registry 均无重复、三个 dependency-light `__init__` 无直接 torch import；未运行任何 Python/pytest/Linux/CUDA 门禁，`MODEL-BASE-002` 保持 `IN_PROGRESS` |
+| v0.52 | 2026-08-03 | Codex | `ANT-002/003` 实现转 `REVIEW`：新增稳定事件单次历史扫描、重复 item/未来泄漏守卫、连续 item index、去重具名 feature store、缺失 audit 及单元测试；仅文本静态检查，真实数据门禁延后 |
+| v0.51 | 2026-08-03 | Codex | `ANT-001` 实现转 `REVIEW`：具名字段 ownership/schema、candidate 一致性审计函数和协议文档已写，真实数据确认延后；领取 `ANT-002/003` 纯历史扫描与 item store 实现 |
+| v0.50 | 2026-08-03 | Codex | 领取 `ANT-001` 并接受 ADR-023：登记六类文本/图像字段 ownership、item_entity_names 待全量一致性审计边界、稳定 event_id/时间排序与 split embedding 协议 |
+| v0.49 | 2026-08-03 | Codex | 完成首批 canonical CTR 主干并将 `MOD-001` 转 `REVIEW`：DNN/DCN/DeepFM/AutoInt/DIN、正式 registry 和主 Trainer 已接入统一 Batch/engine；修复 core/data lazy export 以保持 CLI 不加载 torch；仅完成文本静态检查，服务器门禁延后 |
+| v0.48 | 2026-08-03 | Codex | `MODEL-BASE-001` 实现转 `REVIEW`：新增纯统一基类、history capability、mask-aware helper、legacy 输入隔离适配和弃用标记；测试已写未运行；领取 `MODEL-BASE-002` 首批基础 CTR 迁移 |
+| v0.47 | 2026-08-03 | Codex | `TRAIN-001` 核心实现转 `REVIEW`：新增统一 engine/evaluator/optimizer/early-stop/checkpoint/resume 与指标写入，测试已写未运行；领取 `MODEL-BASE-001` 并接受 ADR-022 |
+| v0.46 | 2026-08-03 | Codex | `REG-001` 实现转 `REVIEW`：建立 25 模型/3 数据集唯一 lazy registry、alias/capability 元数据及 helper 兼容委托；测试已写未运行；领取 `TRAIN-001` 并接受 ADR-021 |
+| v0.45 | 2026-08-03 | Codex | `DATA-001` 实现转 `REVIEW`：新增统一 loader protocol、legacy adapter、版本化 manifest、数据文档和三 adapter 合约测试；未改变 AntM2C 数据语义且门禁延后；领取 `REG-001` 并接受 ADR-020 |
+| v0.44 | 2026-08-03 | Codex | `CORE-001` 实现转 `REVIEW`：新增统一核心 dataclass、严格契约、设备迁移、legacy adapter、架构文档和单元测试；因当前非服务器环境未执行门禁；领取 `DATA-001` 并接受 ADR-019 |
+| v0.43 | 2026-08-03 | Codex | 领取 `CORE-001` 并接受 ADR-018：登记统一 `Batch`/`ModelOutput`/`RunResult`、严格契约校验、设备迁移、legacy 显式适配及非服务器环境暂缓门禁的实施边界 |
 | v0.42 | 2026-07-31 | Codex | 完成 `CI-001`：将 origin 切换为已认证 SSH 并快进推送 `66db7d7`；首次 GitHub Actions Linux CPU quality run `30642128515` 在 clean Ubuntu runner 上成功，远端提交 SHA 与本地一致 |
 | v0.41 | 2026-07-31 | Codex | `CI-001` 实现转 `REVIEW`：新增固定 Ubuntu 22.04/Python 3.8 CPU workflow 和 YAML 合约测试，采用当前 actions v6，项目本地化全部缓存/临时目录；本地 Ruff/mypy、25 unit+smoke、35 tests/83.80% 与 137-file wheel 隔离构建通过，首次远程 clean-runner 运行仍待推送后取得 |
 | v0.40 | 2026-07-31 | Codex | 领取 `CI-001`：登记 Linux-only Ubuntu/Python 3.8 CPU workflow、项目本地缓存、CPU PyTorch 安装、阶段质量门禁与 workflow 合约测试；远程 runner 通过前不标 `DONE` |
