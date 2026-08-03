@@ -30,7 +30,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "dnn_mm_seq",
-            "mmctr.models.multimodal",
+            "mmctr.models.sequence",
             "DNN_mm_seq",
             aliases=("dnn_seq",),
             metadata={
@@ -125,10 +125,24 @@ MODEL_REGISTRY.register_many(
             },
         ),
         ComponentSpec(
-            "naml", "models.mm_ctr_models", "NAML", metadata={"history": "sequence_tokens"}
+            "naml",
+            "mmctr.models.sequence",
+            "NAML",
+            metadata={
+                "history": "sequence_tokens",
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "NAML",
+            },
         ),
         ComponentSpec(
-            "make", "models.mm_ctr_models", "MAKE", metadata={"history": "sequence_tokens"}
+            "make",
+            "mmctr.models.sequence",
+            "MAKE",
+            metadata={
+                "history": "sequence_tokens",
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "MAKE",
+            },
         ),
         ComponentSpec(
             "em3", "models.mm_ctr_models", "EM3", metadata={"history": "sequence_tokens"}

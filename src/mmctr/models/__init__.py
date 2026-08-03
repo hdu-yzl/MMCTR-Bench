@@ -1,4 +1,4 @@
-"""Lazy public model exports backed by the current legacy implementations."""
+"""Lazy public model exports backed by the formal registry and compatibility bases."""
 
 import importlib
 

@@ -35,10 +35,11 @@ data_config)` and let `TrainingEngine` own all training state.
 
 ## Migrated simple multimodal family
 
-The formal registry also resolves `dnn_mm`, `dnn_mm_seq`, `lmf`, and `mtfn` to pure canonical
-implementations in `mmctr.models.multimodal`. All project target and history features by name,
-zero projected padding tokens explicitly, and pool with `Batch.history_mask`. `dnn_mm_seq` keeps
-user, target item, and history fields separate and never uses rank-destroying bare `squeeze()`.
+The formal registry resolves `dnn_mm`, `lmf`, and `mtfn` to pure canonical implementations in
+`mmctr.models.multimodal`, while `dnn_mm_seq` lives in `mmctr.models.sequence`. All project target
+and history features by name, zero projected padding tokens explicitly, and pool or attend with
+`Batch.history_mask`. `dnn_mm_seq` keeps user, target item, and history fields separate and never
+uses rank-destroying bare `squeeze()`.
 
 The currently required cat/add/mean/MAF/LMF/MTFN operations are private migration components, not
 the future public fusion registry. This preserves the `FUSE-001` boundary while allowing the four
@@ -49,3 +50,17 @@ server numerical regression.
 remain model-private, while contrastive training is exposed as the scalar named loss
 `simcen_contrastive` and its ego/two-view tensors are returned through `ModelOutput.representations`.
 The stable log-sum-exp formulation avoids the legacy exponentiation overflow path.
+
+## Migrated sequence-token family
+
+`dnn_mm_seq`, `naml`, and `make` now share the pure encoding boundary in
+`mmctr.models.sequence`. The boundary projects user, target-item, and history fields by name,
+preserves `[B, L, D]` history tensors, applies the explicit boolean history mask after projection,
+and never mutates the input batch.
+
+NAML keeps its MAF target/history fusion and learned user-interest attention, but padded tokens are
+excluded with masked softmax and an all-padding row returns zero interest. MAKE keeps configurable
+migration fusion, target-aware DIN pooling, cosine similarity tiers, and its MLP head; both DIN and
+the tier histogram consume the same mask. Similarity diagnostics are returned as representations,
+not written by the model. The formal registry points to these canonical implementations while the
+legacy helper metadata remains available for server regression.

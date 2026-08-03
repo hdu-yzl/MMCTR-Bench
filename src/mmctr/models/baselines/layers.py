@@ -114,7 +114,7 @@ class Dice(torch.nn.Module):
 
     def forward(self, values: torch.Tensor) -> torch.Tensor:
         mean = values.mean(dim=0)
-        variance = values.var(dim=0)
+        variance = values.var(dim=0, unbiased=False)
         probability = torch.sigmoid((values - mean) / torch.sqrt(variance + self.epsilon))
         return self.alpha * values * (1 - probability) + values * probability
 
