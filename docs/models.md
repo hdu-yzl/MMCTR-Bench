@@ -64,3 +64,13 @@ migration fusion, target-aware DIN pooling, cosine similarity tiers, and its MLP
 the tier histogram consume the same mask. Similarity diagnostics are returned as representations,
 not written by the model. The formal registry points to these canonical implementations while the
 legacy helper metadata remains available for server regression.
+
+DMF and MARN also use this sequence boundary. DMF preserves its non-ID modality-center similarity,
+discretised similarity embeddings, decoupled target attention, tier histogram, and weighted dual
+interest branches. Its DTA and tier counts now consume `Batch.history_mask`, so padded buckets do
+not contribute. MARN preserves modality-specific/shared projections, domain uncertainty weighting,
+gradient reversal, MAF, and target-aware history attention. Its three training objectives are named
+`marn_domain_classifier`, `marn_adversarial_invariance`, and `marn_specific_classifier` in
+`ModelOutput.auxiliary_losses`; the configured `lambda0` weight is applied exactly where the legacy
+total applied it. The canonical module does not enable global autograd anomaly detection or create
+training state during import/construction.

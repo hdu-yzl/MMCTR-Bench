@@ -1,6 +1,6 @@
 """Canonical sequence-token multimodal models and their migration backbone."""
 
-from typing import Dict, Mapping
+from typing import Dict, Mapping, Tuple
 
 import torch
 
@@ -275,4 +275,361 @@ class MAKE(_SequenceMultimodalModel):
         )
 
 
-__all__ = ["DNN_mm_seq", "MAKE", "NAML"]
+class _SimilarityDiscretizer(torch.nn.Module):
+    def __init__(
+        self, bucket_count: int, minimum: float = -1.0, maximum: float = 1.0
+    ) -> None:
+        super().__init__()
+        if bucket_count <= 0 or minimum >= maximum:
+            raise ContractError("similarity discretizer requires a valid bucket range")
+        self.bucket_count = int(bucket_count)
+        self.minimum = float(minimum)
+        self.maximum = float(maximum)
+
+    def forward(self, scores: torch.Tensor) -> torch.Tensor:
+        clipped = torch.clamp(scores, self.minimum, self.maximum)
+        normalised = (clipped - self.minimum) / (self.maximum - self.minimum)
+        return (normalised * self.bucket_count).long().clamp(0, self.bucket_count - 1)
+
+
+class _DecoupledTargetAttention(torch.nn.Module):
+    """DMF's ID attention enriched by discretised multimodal similarity."""
+
+    def __init__(
+        self,
+        dimension: int,
+        attention_dim: int,
+        bucket_count: int,
+        dropout: float,
+    ) -> None:
+        super().__init__()
+        if attention_dim <= 0:
+            raise ContractError("DMF attention_dim must be positive")
+        self.query = torch.nn.Linear(dimension, attention_dim)
+        self.key = torch.nn.Linear(dimension, attention_dim)
+        self.value = torch.nn.Linear(dimension, attention_dim)
+        self.discretizer = _SimilarityDiscretizer(bucket_count)
+        self.similarity_key = FeatureEmbedding(bucket_count, attention_dim)
+        self.similarity_value = FeatureEmbedding(bucket_count, attention_dim)
+        self.dropout = torch.nn.Dropout(dropout)
+        self.scale = attention_dim ** 0.5
+
+    def forward(
+        self,
+        target_id: torch.Tensor,
+        history_id: torch.Tensor,
+        similarities: torch.Tensor,
+        mask: torch.Tensor,
+    ) -> torch.Tensor:
+        query = self.query(target_id)
+        buckets = self.discretizer(similarities)
+        keys = self.key(history_id) + self.similarity_key(buckets)
+        values = self.value(history_id) + self.similarity_value(buckets)
+        scores = torch.einsum("bd,bld->bl", query, keys) / self.scale
+        weights = self.dropout(BaseSeqModel.masked_softmax(scores, mask))
+        return torch.sum(weights.unsqueeze(-1) * values, dim=1)
+
+
+class DMF(_SequenceMultimodalModel):
+    def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
+        super().__init__(model_config, data_config)
+        self.non_id_features = tuple(
+            name for name in self.feature_names if name != "id"
+        )
+        if not self.non_id_features:
+            raise ContractError("DMF requires at least one non-ID modality")
+        self.tier_count = int(model_config.get("tier_num", 10))
+        self.attention_dim = int(model_config.get("attention_dim", 128))
+        self.bucket_count = int(model_config.get("num_buckets", 35))
+        self.alpha = float(model_config.get("alpha", 0.5))
+        if not 0.0 <= self.alpha <= 1.0:
+            raise ContractError("DMF alpha must be in [0, 1]")
+        self.similarity_tiers = _SimilarityTiers(self.tier_count)
+        self.modal_fusion = _build_fusion(
+            model_config.get("modal_fusion_method", "cat"),
+            self.non_id_features,
+            self.projection_dim,
+        )
+        self.target_attention = _DecoupledTargetAttention(
+            self.projection_dim,
+            self.attention_dim,
+            self.bucket_count,
+            self.dropout,
+        )
+        self.enhanced_mlp = MultiLayerPerceptron(
+            self.attention_dim,
+            self.mlp_dims,
+            self.dropout,
+            batch_norm=self.batch_norm,
+        )
+        self.center_mlp = MultiLayerPerceptron(
+            self.tier_count,
+            self.mlp_dims,
+            self.dropout,
+            batch_norm=self.batch_norm,
+        )
+        predictor_dim = (
+            self.projection_dim * len(self.user_feature_names) + self.mlp_dims[-1]
+        )
+        self.dnn = MultiLayerPerceptron(
+            predictor_dim,
+            self.mlp_dims,
+            self.dropout,
+            batch_norm=self.batch_norm,
+        )
+        self.output = MultiLayerPerceptron(
+            self.mlp_dims[-1],
+            [1],
+            self.dropout,
+            batch_norm=self.batch_norm,
+            activation=None,
+        )
+
+    def forward_batch(self, batch: Batch) -> ModelOutput:
+        target_features = self.project_target(batch)
+        history_features = self.project_history(batch)
+        target_center = self.modal_fusion(
+            {name: target_features[name] for name in self.non_id_features}
+        )
+        history_center = self.modal_fusion(
+            {name: history_features[name] for name in self.non_id_features}
+        )
+        history_center = history_center * batch.history_mask.unsqueeze(-1)
+        similarities = torch.nn.functional.cosine_similarity(
+            target_center.unsqueeze(1), history_center, dim=-1
+        )
+        enhanced = self.target_attention(
+            target_features["id"],
+            history_features["id"],
+            similarities,
+            batch.history_mask,
+        )
+        tiers = self.similarity_tiers(similarities, batch.history_mask)
+        enhanced_interest = self.enhanced_mlp(enhanced)
+        center_interest = self.center_mlp(tiers)
+        interest = self.alpha * enhanced_interest + (1.0 - self.alpha) * center_interest
+        user = self.project_user(batch)
+        logits = self.output(self.dnn(torch.cat([user, interest], dim=-1)))
+        return ModelOutput(
+            logits,
+            representations={
+                "modality_enhanced": enhanced,
+                "modality_center": center_interest,
+                "similarities": similarities,
+                "similarity_tiers": tiers,
+            },
+        )
+
+
+class _GradientReversal(torch.autograd.Function):
+    @staticmethod
+    def forward(context, values: torch.Tensor, weight: float) -> torch.Tensor:
+        context.weight = float(weight)
+        return values.view_as(values)
+
+    @staticmethod
+    def backward(context, gradient: torch.Tensor):
+        return -context.weight * gradient, None
+
+
+def _reverse_gradient(values: torch.Tensor, weight: float = 1.0) -> torch.Tensor:
+    return _GradientReversal.apply(values, weight)
+
+
+class _ModalitySplit(torch.nn.Module):
+    def __init__(self, dimension: int, feature_names: Tuple[str, ...]) -> None:
+        super().__init__()
+        self.feature_names = feature_names
+        self.specific = torch.nn.ModuleDict(
+            {name: torch.nn.Linear(dimension, dimension) for name in feature_names}
+        )
+        self.invariant = torch.nn.Linear(dimension, dimension)
+
+    def forward(
+        self, features: Mapping[str, torch.Tensor]
+    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+        specific = {
+            name: self.specific[name](features[name]) for name in self.feature_names
+        }
+        invariant = {
+            name: self.invariant(features[name]) for name in self.feature_names
+        }
+        return specific, invariant
+
+
+class _AdversarialModalityEncoder(torch.nn.Module):
+    def __init__(self, dimension: int, feature_names: Tuple[str, ...]) -> None:
+        super().__init__()
+        self.feature_names = feature_names
+        self.feature_count = len(feature_names)
+        self.domain_classifier = self._classifier(dimension)
+        self.adversarial_classifier = self._classifier(dimension)
+
+    def _classifier(self, dimension: int) -> torch.nn.Module:
+        return torch.nn.Sequential(
+            torch.nn.Linear(dimension, 64),
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, self.feature_count),
+        )
+
+    def _weighted(
+        self, features: Mapping[str, torch.Tensor]
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        stacked = torch.stack(
+            [features[name] for name in self.feature_names], dim=1
+        )
+        batch_size, feature_count, dimension = stacked.shape
+        flattened = stacked.reshape(batch_size * feature_count, dimension)
+        labels = torch.arange(feature_count, device=stacked.device).repeat(batch_size)
+        logits = self.domain_classifier(flattened.detach())
+        uncertainty = 1.0 - torch.softmax(logits, dim=-1)
+        rows = torch.arange(batch_size * feature_count, device=stacked.device)
+        weights = uncertainty[rows, labels].reshape(batch_size, feature_count, 1)
+        return stacked, labels, logits, weights * stacked
+
+    def representation(self, features: Mapping[str, torch.Tensor]) -> torch.Tensor:
+        _, _, _, weighted = self._weighted(features)
+        return weighted.max(dim=1).values
+
+    def forward(
+        self, features: Mapping[str, torch.Tensor]
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        stacked, labels, logits, weighted = self._weighted(features)
+        dimension = stacked.shape[-1]
+        domain_loss = torch.nn.functional.cross_entropy(logits, labels)
+        reversed_values = _reverse_gradient(weighted.reshape(-1, dimension))
+        adversarial_logits = self.adversarial_classifier(reversed_values)
+        adversarial_loss = torch.nn.functional.cross_entropy(
+            adversarial_logits, labels
+        )
+        return domain_loss, adversarial_loss, weighted.max(dim=1).values
+
+
+class _ModalitySpecificClassifier(torch.nn.Module):
+    def __init__(self, dimension: int, feature_names: Tuple[str, ...]) -> None:
+        super().__init__()
+        self.feature_names = feature_names
+        self.feature_count = len(feature_names)
+        self.classifier = torch.nn.Sequential(
+            torch.nn.Linear(dimension, 64),
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, self.feature_count),
+        )
+
+    def forward(self, features: Mapping[str, torch.Tensor]) -> torch.Tensor:
+        stacked = torch.stack(
+            [features[name].detach() for name in self.feature_names], dim=1
+        )
+        logits = self.classifier(stacked)
+        labels = torch.arange(self.feature_count, device=stacked.device).repeat(
+            stacked.shape[0]
+        )
+        return torch.nn.functional.cross_entropy(
+            logits.reshape(-1, self.feature_count), labels
+        )
+
+
+class MARN(_SequenceMultimodalModel):
+    def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
+        super().__init__(model_config, data_config)
+        self.auxiliary_weight = float(model_config.get("lambda0", 0.05))
+        if self.auxiliary_weight < 0.0:
+            raise ContractError("MARN lambda0 must be non-negative")
+        self.split = _ModalitySplit(self.projection_dim, self.feature_names)
+        self.private_fusion = _MAFFusion(self.feature_names, self.projection_dim)
+        self.adversarial = _AdversarialModalityEncoder(
+            self.projection_dim, self.feature_names
+        )
+        self.specific_classifier = _ModalitySpecificClassifier(
+            self.projection_dim, self.feature_names
+        )
+        self.attention = DinAttention(
+            self.projection_dim, self.mlp_dims, self.dropout
+        )
+        predictor_dim = self.projection_dim * (
+            2 + len(self.user_feature_names)
+        )
+        self.dnn = MultiLayerPerceptron(
+            predictor_dim,
+            self.mlp_dims,
+            self.dropout,
+            batch_norm=self.batch_norm,
+        )
+        self.output = MultiLayerPerceptron(
+            self.mlp_dims[-1],
+            [1],
+            self.dropout,
+            batch_norm=self.batch_norm,
+            activation=None,
+        )
+
+    @staticmethod
+    def _apply_mask(
+        features: Mapping[str, torch.Tensor], mask: torch.Tensor
+    ) -> Dict[str, torch.Tensor]:
+        expanded = mask.unsqueeze(-1)
+        return {name: values * expanded for name, values in features.items()}
+
+    def _history_invariant(
+        self, features: Mapping[str, torch.Tensor], batch: Batch
+    ) -> torch.Tensor:
+        flattened = {
+            name: values.reshape(-1, self.projection_dim)
+            for name, values in features.items()
+        }
+        invariant = self.adversarial.representation(flattened)
+        invariant = invariant.reshape(
+            batch.batch_size, batch.sequence_length, self.projection_dim
+        )
+        return invariant * batch.history_mask.unsqueeze(-1)
+
+    def forward_batch(self, batch: Batch) -> ModelOutput:
+        target = self.project_target(batch)
+        history = self.project_history(batch)
+        target_specific, target_invariant = self.split(target)
+        history_specific, history_invariant = self.split(history)
+        history_specific = self._apply_mask(history_specific, batch.history_mask)
+        history_invariant = self._apply_mask(history_invariant, batch.history_mask)
+
+        target_private = self.private_fusion(target_specific)
+        history_private = self.private_fusion(history_specific)
+        history_private = history_private * batch.history_mask.unsqueeze(-1)
+        domain_loss, adversarial_loss, invariant_target = self.adversarial(
+            target_invariant
+        )
+        specific_loss = self.specific_classifier(target_specific)
+        invariant_history = self._history_invariant(history_invariant, batch)
+
+        target_representation = invariant_target + target_private
+        history_representation = invariant_history + history_private
+        history_representation = history_representation * batch.history_mask.unsqueeze(-1)
+        history_interest = self.attention(
+            target_representation,
+            history_representation,
+            batch.history_mask,
+        )
+        user = self.project_user(batch)
+        logits = self.output(
+            self.dnn(
+                torch.cat(
+                    [user, history_interest, target_representation], dim=-1
+                )
+            )
+        )
+        return ModelOutput(
+            logits,
+            auxiliary_losses={
+                "marn_domain_classifier": domain_loss,
+                "marn_adversarial_invariance": (
+                    adversarial_loss * self.auxiliary_weight
+                ),
+                "marn_specific_classifier": specific_loss * self.auxiliary_weight,
+            },
+            representations={
+                "target": target_representation,
+                "history_interest": history_interest,
+            },
+        )
+
+
+__all__ = ["DMF", "DNN_mm_seq", "MAKE", "MARN", "NAML"]

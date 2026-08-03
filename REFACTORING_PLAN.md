@@ -1,7 +1,7 @@
 # MMCTR Benchmark 全局改造方案与协作规范
 
 > 文档状态：`ACTIVE`  
-> 当前版本：`v0.61`
+> 当前版本：`v0.63`
 > 最近更新：`2026-08-03`
 > 适用范围：本仓库内的代码、配置、数据处理、训练、调参、评估、分析、文档与产物管理  
 > 目标读者：维护者、研究人员，以及参与本项目改造的所有 agent
@@ -855,11 +855,11 @@ Follow-up tasks:
 | Milestone | 状态 | 当前进度说明 | 退出证据 |
 |---|---|---|---|
 | S1 开源发布与工程基线 | `IN_PROGRESS` | 包元数据、Linux `bm` 依赖/CUDA 基线、`mmctr` 公共命名空间、统一 CLI、严格 training/本地路径配置层、主要公开文档、合成 CPU/TFRecord smoke、首个数值回归基线、tuner 科研红线修复、主训练运行目录隔离、分阶段 Linux QA 门禁及首次 GitHub clean-runner CI 已完成；`OSS-001` 等待许可证 | Linux 安装、公开文档、P0 修复、smoke baseline |
-| S2 数据处理与模型主干 | `IN_PROGRESS` | 统一 Batch/ModelOutput/RunResult、dataset manifest/adapter、model/data registry、training engine、单一公共 BaseSeqModel、AntM2C 无切片候选链路与 12 个 canonical 模型已实现并等待服务器门禁；其余复杂/量化模型迁移和真实数据格式基准尚未完成 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
+| S2 数据处理与模型主干 | `IN_PROGRESS` | 统一 Batch/ModelOutput/RunResult、dataset manifest/adapter、model/data registry、training engine、单一公共 BaseSeqModel、AntM2C 无切片候选链路与 14 个 canonical 模型已实现并等待服务器门禁；其余复杂/量化模型迁移和真实数据格式基准尚未完成 | 无切片数据链路、统一 Batch、单一 BaseSeqModel |
 | S3 模型公共组件 | `TODO` | 未开始 | pooling/fusion 可按模态配置且默认 preset 回归通过 |
 | S4 实验分析体系 | `TODO` | 未开始 | 无模型复制、统一 runner/result schema、五类分析可配置运行 |
 
-> 当前结论：S1 工程基线已基本落地；S2 的核心契约、统一 loader/registry/training/base-model 主干、AntM2C 具名候选链路及 12 个 canonical 模型代码已进入 `REVIEW`/`IN_PROGRESS`。当前非服务器工作区未执行 Python 门禁，因此不得把这些实现写成已验收；AntM2C 最终格式基准和其余复杂/量化模型仍未完成。
+> 当前结论：S1 工程基线已基本落地；S2 的核心契约、统一 loader/registry/training/base-model 主干、AntM2C 具名候选链路及 14 个 canonical 模型代码已进入 `REVIEW`/`IN_PROGRESS`。当前非服务器工作区未执行 Python 门禁，因此不得把这些实现写成已验收；AntM2C 最终格式基准和其余复杂/量化模型仍未完成。
 
 ### 13.2 可领取任务
 
@@ -894,11 +894,11 @@ Follow-up tasks:
 | DATA-002 | P1 | 将 MicroLens/TikTok 对齐统一数据契约 | DATA-001, ANT-005 | `TODO` | - | data/datasets | contract + smoke tests |
 | TRAIN-001 | P0 | 统一 training engine、evaluate、early stop、optimizer | CORE-001, RUN-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/training/`、`src/mmctr/evaluation/`、`src/trainers/Trainers.py`、`src/mmctr/utils/run_context.py`、`tests/unit/test_training_engine.py`、`docs/training.md`、`REFACTORING_PLAN.md` | 已建立只消费 `Batch -> ModelOutput` 的 engine、validation-only early stop、显式 optimizer、严格 AUC/LogLoss、原子 `best.pt`/`last.pt` checkpoint、resume 与 run metrics writer；resume 同步恢复 best/best_epoch/bad_epochs/patience 并校验 run ID，避免中断后重置选择状态；主 Trainer 对正式 registry 中已迁移模型自动走 canonical engine，其余模型保留 legacy 路由；单步/save-load/resume/test 隔离测试已写入，Python/Linux 门禁按本轮指示延后；2026-08-03 |
 | MODEL-BASE-001 | P0 | 建立单一 BaseSeqModel 与 pooled/token 两种历史能力 | CORE-001, TRAIN-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/models/base.py`、`src/mmctr/models/compat.py`、model public exports/registry、`tests/unit/test_model_base.py`、`docs/models.md`、`REFACTORING_PLAN.md` | 已建立纯 `Batch -> ModelOutput` 单一基类、显式 history capability、mask-aware mean/sum/max/softmax helper、不修改输入映射的 legacy adapter，并将旧双基类标记弃用；pooled/all-padding/adapter 测试已写，Linux 门禁延后；2026-08-03 |
-| MODEL-BASE-002 | P0 | 迁移并弃用 BaseModel 子类，先 pool 后复用原主体 | MODEL-BASE-001, DATA-001 | `IN_PROGRESS` | Codex (`/root`) | `src/mmctr/models/baselines/`、`src/mmctr/models/multimodal.py`、`src/mmctr/models/sequence.py`、model registry/legacy bridge、legacy subclasses、regression tests、`docs/models.md`、`REFACTORING_PLAN.md` | 已迁移 DNN/DCN/DeepFM/AutoInt/DIN、DNN-MM/DNN-MM-Seq/LMF/MTFN、SimCEN、NAML、MAKE 共 12 个纯 canonical 模型；正式 registry 指向新实现，helper 历史入口继续指向冻结 legacy 类。物理 legacy 双基类文件仍保留供回归，其余复杂/量化模型尚待迁移，完成前不删除兼容层；2026-08-03 |
+| MODEL-BASE-002 | P0 | 迁移并弃用 BaseModel 子类，先 pool 后复用原主体 | MODEL-BASE-001, DATA-001 | `IN_PROGRESS` | Codex (`/root`) | `src/mmctr/models/baselines/`、`src/mmctr/models/multimodal.py`、`src/mmctr/models/sequence.py`、model registry/legacy bridge、legacy subclasses、regression tests、`docs/models.md`、`REFACTORING_PLAN.md` | 已迁移 DNN/DCN/DeepFM/AutoInt/DIN、DNN-MM/DNN-MM-Seq/LMF/MTFN、SimCEN/NAML/MAKE/DMF/MARN 共 14 个纯 canonical 模型；正式 registry 指向新实现，helper 历史入口继续指向冻结 legacy 类。物理 legacy 双基类文件仍保留供回归，其余复杂/量化模型尚待迁移，完成前不删除兼容层；2026-08-03 |
 | REG-001 | P1 | 模型/数据集 registry（fusion registry 留到 S3） | PKG-001, CFG-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/core/registry.py`、`src/mmctr/models/registry.py`、`src/mmctr/data/registry.py`、public exports、legacy helper bridge、`tests/unit/test_registries.py`、`REFACTORING_PLAN.md` | 已建立稳定 snake_case 名称、`dnn_seq -> dnn_mm_seq` alias、capability metadata 与 lazy import；25 模型/3 数据集只有一份正式注册表，helper 改为兼容委托，fusion/pooling 未抢跑；唯一性/无重依赖导入测试已写入，构造与 Linux 门禁按本轮指示延后；2026-08-03 |
 | MOD-001 | P1 | 迁移基础 CTR 模型 | MODEL-BASE-002, REG-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/models/baselines/`、model registry/legacy helper、`src/trainers/Trainers.py`、`tests/unit/test_canonical_baselines.py`、`tests/regression/`、`docs/models.md`、`REFACTORING_PLAN.md` | DNN/DCN/DeepFM/AutoInt/DIN 已迁为纯 `Batch -> ModelOutput`，pooled 模型显式 mask mean，DIN 保留 token 并用 mask attention，batch size 1 不降秩；正式 registry/Trainer 走新实现，helper 保留冻结 legacy 数值入口；五模型 forward/backward 测试已写但未运行，最终验收依赖 `MODEL-BASE-002` 完成和 Linux 回归；2026-08-03 |
 | MOD-002 | P1 | 迁移简单多模态模型 | MOD-001 | `REVIEW` | Codex (`/root`) | `src/mmctr/models/multimodal.py`、`src/mmctr/models/sequence.py`、model registry/legacy bridge、`tests/unit/test_canonical_multimodal.py`、`tests/unit/test_canonical_sequence.py`、`docs/models.md`、`REFACTORING_PLAN.md` | DNN-MM、DNN-MM-Seq、LMF、MTFN 已迁为纯 `Batch -> ModelOutput`，具名 target/history/context 投影、显式 padding mask、稳定 batch rank；DNN-MM-Seq 后续整理到共享 sequence-token 编码边界，模型私有 cat/add/mean/MAF/LMF/MTFN 仅覆盖迁移所需能力，不提前建立公共 fusion registry；正式 registry/Trainer 走 canonical，helper 仍提供 legacy 回归入口；forward/backward 测试已写未运行，数值回归与 Linux 门禁延后；2026-08-03 |
-| MOD-003 | P1 | 迁移复杂序列/辅助损失模型 | MOD-002 | `IN_PROGRESS` | Codex (`/root`) | `src/mmctr/models/multimodal.py`、`src/mmctr/models/sequence.py`、model registry/legacy bridge、`tests/unit/test_canonical_multimodal.py`、`tests/unit/test_canonical_sequence.py`、`docs/models.md`、`REFACTORING_PLAN.md` | 已迁移 SimCEN、NAML、MAKE，并将 DNN-MM-Seq 整理到共享纯序列编码边界；NAML 使用 mask-aware learned attention，MAKE 使用 mask-aware DIN/相似度 tier，三路投影不修改 Batch、batch size 1 不降秩、all-padding 输出有限；正式 registry 指向 canonical，helper 保留 legacy 回归入口。forward/backward/registry/边界测试已写未运行；Diff-MSIN/MARN/DMF/EM3/GMMF 等尚未迁移，故保持 `IN_PROGRESS`；2026-08-03 |
+| MOD-003 | P1 | 迁移复杂序列/辅助损失模型 | MOD-002 | `IN_PROGRESS` | Codex (`/root`) | `src/mmctr/models/multimodal.py`、`src/mmctr/models/sequence.py`、model registry/legacy bridge、`tests/unit/test_canonical_multimodal.py`、`tests/unit/test_canonical_sequence.py`、`tests/unit/test_canonical_complex_sequence.py`、`docs/models.md`、`REFACTORING_PLAN.md` | 已迁移 SimCEN/NAML/MAKE/DMF/MARN，并将 DNN-MM-Seq 整理到共享纯序列编码边界；DMF 以私有 mask-aware DTA/SimTier 保留双兴趣分支，MARN 保留 specific/invariant、梯度反转、域判别、MAF/DIN 及原三项辅助损失权重，canonical import 不再开启全局 anomaly detection；正式 registry 指向 canonical，helper 保留 legacy 回归入口。all-padding/batch-size-1/forward-backward/registry/Batch 不变性/配置守卫测试已写未运行；Diff-MSIN/EM3/GMMF 等仍待迁移，故保持 `IN_PROGRESS`；2026-08-03 |
 | MOD-004 | P1 | 迁移 MB/PAMD/MMMLP/M3SRec | MOD-003 | `TODO` | - | multimodal | model-specific regression |
 | MOD-005 | P1 | 迁移 RQ/PSRQ/QARM/MCCA | MOD-004 | `TODO` | - | quantization | codebook save/load + smoke |
 | COMP-001 | P1 | 统一 projection、mask、dimension adapter | MOD-005 | `TODO` | - | model components | dtype/rank/dimension tests |
@@ -969,6 +969,8 @@ Follow-up tasks:
 
 | Version | Date | Author | Change |
 |---|---|---|---|
+| v0.63 | 2026-08-03 | Codex | 完成 DMF/MARN canonical 迁移：正式模型数增至 14；DMF 的 DTA/SimTier 和 MARN 的 DIN 均显式使用 history mask，MARN 三项旧辅助损失拆成具名 scalar 且保留 `lambda0` 权重；补齐 forward/backward、all-padding、batch-size-1、context fallback/Batch 不变性、配置守卫和 legacy metadata 测试。`git diff --check`、3 个改造 Python 文件 100 列、冲突/裸 squeeze/固定切片/全局 anomaly 副作用文本检查均通过；Python/Linux 门禁未运行，`MOD-003` 保持 `IN_PROGRESS` |
+| v0.62 | 2026-08-03 | Codex | 继续 `MOD-003`：登记 DMF/MARN canonical 迁移范围；DMF 保留非 ID 模态中心、DTA 与 SimTier 双分支，MARN 保留 specific/invariant、梯度反转判别和原辅助损失权重，同时统一显式 history mask、纯 `Batch -> ModelOutput`、具名辅助损失与 legacy 回归元数据；非服务器环境不执行 Python 门禁 |
 | v0.61 | 2026-08-03 | Codex | 完成本批非服务器静态审计：`git diff --check` 通过，6 个新增/改造 Python 文件 100 列超限 0、冲突标记 0、正式 registry 25 个 canonical 名称加 1 个 alias 无重复、canonical 模型模块计数 12、模型目录裸 `.squeeze()` 与固定 `text_full[...]` 切片均为 0；清理未使用导入并补充正维度/dropout 配置守卫及 context fallback/Batch 不变性测试；未执行 Python/pytest/Linux/CUDA 门禁，`MOD-003` 保持 `IN_PROGRESS` |
 | v0.60 | 2026-08-03 | Codex | NAML/MAKE 与 DNN-MM-Seq 共享序列编码边界完成：正式 registry 新增 2 个 canonical 模型，NAML attention、MAKE DIN/相似度 tier 全部显式使用 history mask，补齐 all-padding/batch-size-1/forward-backward/legacy metadata 测试；仅静态审查，Python/Linux 门禁未运行 |
 | v0.59 | 2026-08-03 | Codex | 继续领取 `MOD-003`：登记 DNN-MM-Seq 公共序列编码边界整理和 NAML/MAKE canonical 迁移范围；计划补齐 masked attention/DIN、相似度分层、稳定 batch rank、registry/legacy bridge 与合成契约测试，非服务器环境不执行 Python 门禁 |

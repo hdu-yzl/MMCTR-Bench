@@ -97,9 +97,13 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "marn",
-            "models.mm_ctr_models",
+            "mmctr.models.sequence",
             "MARN",
-            metadata={"history": "sequence_tokens"},
+            metadata={
+                "history": "sequence_tokens",
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "MARN",
+            },
         ),
         ComponentSpec(
             "mtfn",
@@ -112,7 +116,14 @@ MODEL_REGISTRY.register_many(
             },
         ),
         ComponentSpec(
-            "dmf", "models.mm_ctr_models", "DMF", metadata={"history": "sequence_tokens"}
+            "dmf",
+            "mmctr.models.sequence",
+            "DMF",
+            metadata={
+                "history": "sequence_tokens",
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "DMF",
+            },
         ),
         ComponentSpec(
             "simcen",
