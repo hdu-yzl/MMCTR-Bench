@@ -74,3 +74,19 @@ gradient reversal, MAF, and target-aware history attention. Its three training o
 `ModelOutput.auxiliary_losses`; the configured `lambda0` weight is applied exactly where the legacy
 total applied it. The canonical module does not enable global autograd anomaly detection or create
 training state during import/construction.
+
+## Migrated advanced sequence family
+
+`em3` and `diff_msin` live in `mmctr.models.advanced_sequence` and reuse the same named projection
+boundary. EM3 preserves its learned FQ-Former query tokens, target-aware DIN history pooling,
+content projection, and bidirectional content/item CIC objective. Fused padded history positions
+are explicitly zeroed before masked DIN pooling, and the weighted CIC term is exposed as
+`em3_content_item_contrastive`.
+
+Diff-MSIN preserves per-modality DIN pooling, specific/shared experts, modal gates, stochastic
+reverse cross-modal fusion, the final gate/cross network, and label-aware synthesis hinge loss.
+Its former aggregate `au_loss` is exposed as the weighted scalar terms `diff_msin_synthesis` and
+`diff_msin_contrastive`; labels come directly from `Batch.labels`. GMMF is intentionally still
+legacy-only because its algorithm couples three optimizers with an alternating GAN schedule. It
+must migrate together with an explicit multi-optimizer training-engine protocol, not as an
+incomplete forward-only model.

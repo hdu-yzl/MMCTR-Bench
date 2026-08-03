@@ -91,9 +91,14 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "diff_msin",
-            "models.mm_ctr_models",
+            "mmctr.models.advanced_sequence",
             "Diff_MSIN",
-            metadata={"history": "sequence_tokens", "forward_uses_labels": True},
+            metadata={
+                "history": "sequence_tokens",
+                "forward_uses_labels": True,
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "Diff_MSIN",
+            },
         ),
         ComponentSpec(
             "marn",
@@ -156,7 +161,14 @@ MODEL_REGISTRY.register_many(
             },
         ),
         ComponentSpec(
-            "em3", "models.mm_ctr_models", "EM3", metadata={"history": "sequence_tokens"}
+            "em3",
+            "mmctr.models.advanced_sequence",
+            "EM3",
+            metadata={
+                "history": "sequence_tokens",
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "EM3",
+            },
         ),
         ComponentSpec(
             "gmmf", "models.mm_ctr_models", "GMMF", metadata={"history": "sequence_tokens"}
