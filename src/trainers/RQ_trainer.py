@@ -1,52 +1,74 @@
-import os
-num_threads = "16"
-os.environ["OMP_NUM_THREADS"] = num_threads
-os.environ["OPENBLAS_NUM_THREADS"] = num_threads
-os.environ["MKL_NUM_THREADS"] = num_threads
-os.environ["VECLIB_MAXIMUM_THREADS"] = num_threads
-os.environ["NUMEXPR_NUM_THREADS"] = num_threads
-import argparse
-from mmctr.utils import helper
+"""Explicit entry point for fitting canonical per-modality RQ artifacts."""
 
-from models.pre_models.RQ import ResidualQuantizer
+import argparse
+from pathlib import Path
+
 import numpy as np
 
-parser = argparse.ArgumentParser(description="MMCTR-Trainer")
-parser.add_argument("--dataset_name", type=str, help="specify dataset", default="antm2c")
-args = parser.parse_args()
+from mmctr.config import (
+    ConfigValidationError,
+    load_local_paths,
+    load_training_config,
+    resolve_dataset_config,
+)
+from mmctr.quantization import ResidualQuantizer, rq_artifact_path
+from mmctr.utils import helper
 
-class Trainer(object):
-    def __init__(self):
-        self.dataset_name = str(args.dataset_name).lower()
-        self.model_name = 'rq'
-        self.model_config = helper.load_yaml(f'config/model.yaml')
 
-        self.data_config = helper.load_yaml('config/seq_data.yaml')
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-        self.train_config = helper.load_yaml('config/train.yaml')
-        self.dataloader = helper.getDataLoader(self.dataset_name, self.data_config[self.dataset_name],
-                                               self.train_config["batch_size"])
 
-    def run(self):
-        epsilon = 1e-8
-        # 优先使用数据集特定配置，缺省时回退到顶层配置（与 qarm 推荐模型保持一致）
-        rq_config = self.model_config[self.model_name]
-        rq_config = rq_config.get(self.dataset_name, rq_config)
-        mm_modals = self.dataloader.get_multi_modal()
-        for k in mm_modals.keys():
-            mm_modal = mm_modals[k] / np.maximum(np.linalg.norm(mm_modals[k], axis=1, keepdims=True), epsilon)
-            rq = ResidualQuantizer(rq_config,
-                                   self.train_config,
-                                   self.data_config[self.dataset_name])
+def train(dataset_name: str, use_local_data: bool = False) -> None:
+    dataset = dataset_name.lower()
+    model_catalog = helper.load_yaml(PROJECT_ROOT / "config/model.yaml")
+    data_catalog = helper.load_yaml(PROJECT_ROOT / "config/seq_data.yaml")
+    training = load_training_config(PROJECT_ROOT / "config/train.yaml")
+    helper.setup_seed(training.seed)
+    local_paths = None
+    if use_local_data:
+        local_paths = load_local_paths(PROJECT_ROOT / "configs/local/paths.yaml")
+        if dataset not in local_paths.datasets:
+            raise ConfigValidationError(
+                ["local path for dataset {!r} is missing".format(dataset)]
+            )
+    data_config = resolve_dataset_config(
+        dataset,
+        data_catalog[dataset],
+        project_root=PROJECT_ROOT,
+        local_paths=local_paths,
+    )
+    config = model_catalog["rq"]
+    config = dict(config.get(dataset, config))
+    loader = helper.getDataLoader(dataset, data_config, training.batch_size)
+    modalities = tuple(name for name in data_config["use_mm_features"] if name != "id")
+    feature_table = loader.get_multi_modal()
+    for modality in modalities:
+        values = np.asarray(feature_table[modality], dtype=np.float32)
+        denominator = np.maximum(np.linalg.norm(values, axis=1, keepdims=True), 1e-8)
+        modality_config = dict(config)
+        modality_config["dimension"] = int(values.shape[1])
+        quantizer = ResidualQuantizer(modality_config).fit(values / denominator)
+        destination = rq_artifact_path(
+            training.quantization_artifact_dir, dataset, modality
+        )
+        quantizer.save(
+            destination,
+            metadata={
+                "dataset": dataset,
+                "modality": modality,
+                "normalization": "l2",
+            },
+        )
+        print("saved {}".format(destination))
 
-            rq.fit(mm_modal, verbose=True)
-            # 量化预模型统一保存到 checkpoint_dir，按 数据集_模态 命名，避免各数据集冲突
-            save_dir = f"{self.train_config['checkpoint_dir']}/{args.dataset_name}_{k}_rq.npz"
-            rq.save(save_dir)
+
+def main(argv=None) -> None:
+    parser = argparse.ArgumentParser(description="Fit canonical MMCTR RQ artifacts")
+    parser.add_argument("--dataset-name", default="antm2c")
+    parser.add_argument("--use-local-data", action="store_true")
+    arguments = parser.parse_args(argv)
+    train(arguments.dataset_name, arguments.use_local_data)
+
 
 if __name__ == "__main__":
-    '''
-    python trainers.py --model_name=dnn --dataset_name=Tiktok
-    '''
-    trainer = Trainer()
-    trainer.run()
+    main()

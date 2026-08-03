@@ -110,3 +110,27 @@ explicit masked history means; token models mask padded tokens throughout their
 sequence path and locate the last valid token from mask positions, including
 left-padded histories. The legacy implementations remain available only through
 registry regression metadata.
+
+## Quantization premodels and quantized CTR models
+
+RQ and PSRQ are pretraining components under `mmctr.quantization`, not CTR
+`BaseSeqModel` subclasses. RQ fits deterministic residual K-means codebooks and
+keeps the resulting `[levels, codes, dimension]` tensor as a registered buffer.
+PSRQ owns modality and joint autoencoders and returns a `PSRQOutput` containing
+reconstruction/quantization objectives and codes; it deliberately does not emit
+click logits or own an optimizer, device, checkpoint path, or training loop.
+
+QARM and MCCA are canonical sequence-token CTR models in
+`mmctr.models.quantized`. Their constructors accept already-loaded RQ/PSRQ
+dependencies. They never resolve paths, create directories, or load checkpoints.
+`create_model_from_artifacts` is the composition boundary used by the main
+Trainer: it loads the dataset-specific artifacts, validates modalities, raw
+dimensions, level count, codebook size and PSRQ architecture, then injects them.
+
+Both models preserve the original discrete-code embedding bodies while using the
+canonical `Batch.history_mask`. QARM performs masked mean pooling. MCCA applies a
+masked query/history attention and pins its frozen PSRQ encoder in evaluation mode
+even while the CTR head trains. Original zero-valued modalities stay zero after
+code lookup, so a nearest code cannot silently turn a missing modality into a
+present one. Frozen legacy classes remain reachable through registry metadata for
+server numerical regression and the legacy codebook tuner only.

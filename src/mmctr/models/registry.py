@@ -174,10 +174,26 @@ MODEL_REGISTRY.register_many(
             "gmmf", "models.mm_ctr_models", "GMMF", metadata={"history": "sequence_tokens"}
         ),
         ComponentSpec(
-            "qarm", "models.mm_ctr_models", "QARM", metadata={"history": "sequence_tokens"}
+            "qarm",
+            "mmctr.models.quantized",
+            "QARM",
+            metadata={
+                "history": "sequence_tokens",
+                "quantization_artifacts": "rq_per_modality",
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "QARM",
+            },
         ),
         ComponentSpec(
-            "mcca", "models.mm_ctr_models", "MCCA", metadata={"history": "sequence_tokens"}
+            "mcca",
+            "mmctr.models.quantized",
+            "MCCA",
+            metadata={
+                "history": "sequence_tokens",
+                "quantization_artifacts": "psrq",
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "MCCA",
+            },
         ),
         ComponentSpec(
             "mb",
@@ -220,18 +236,6 @@ MODEL_REGISTRY.register_many(
                 "legacy_symbol": "M3SRec",
             },
         ),
-        ComponentSpec(
-            "rq",
-            "models.pre_models",
-            "RQ",
-            metadata={"history": "none", "takes_logger": False, "pretraining": True},
-        ),
-        ComponentSpec(
-            "psrq",
-            "models.pre_models",
-            "PSRQ",
-            metadata={"history": "none", "takes_logger": False, "pretraining": True},
-        ),
     ]
 )
 
@@ -263,6 +267,25 @@ def create_model(name: str, *args: Any, **kwargs: Any):
     return MODEL_REGISTRY.create(name, *args, **kwargs)
 
 
+def create_model_from_artifacts(
+    name: str,
+    model_config,
+    data_config,
+    artifact_root,
+):
+    """Compose a pure CTR model with validated pretrained quantization artifacts."""
+
+    spec = model_spec(name)
+    if "quantization_artifacts" not in spec.metadata:
+        return create_model(name, model_config, data_config)
+    from mmctr.quantization import load_model_quantization_dependencies
+
+    dependencies = load_model_quantization_dependencies(
+        spec.name, model_config, data_config, artifact_root
+    )
+    return create_model(name, model_config, data_config, **dependencies)
+
+
 def create_canonical_model(name: str, *args: Any, **kwargs: Any):
     """Construct a registered model and adapt legacy forward signatures when required."""
 
@@ -291,6 +314,7 @@ __all__ = [
     "available_models",
     "create_canonical_model",
     "create_model",
+    "create_model_from_artifacts",
     "model_spec",
     "resolve_legacy_model_class",
     "resolve_model_class",

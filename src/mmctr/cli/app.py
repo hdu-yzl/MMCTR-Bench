@@ -63,6 +63,13 @@ def _list_datasets(_arguments) -> int:
     return 0
 
 
+def _list_quantizers(_arguments) -> int:
+    from mmctr.quantization import available_quantizers
+
+    print("\n".join(available_quantizers()))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mmctr", description="MMCTR-Bench command line")
     parser.add_argument("--version", action="version", version=__version__)
@@ -86,6 +93,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     models = subparsers.add_parser("list-models", help="list registered model names")
     models.set_defaults(handler=_list_models)
+
+    quantizers = subparsers.add_parser(
+        "list-quantizers", help="list registered quantization premodels"
+    )
+    quantizers.set_defaults(handler=_list_quantizers)
 
     datasets = subparsers.add_parser("list-datasets", help="list registered dataset names")
     datasets.set_defaults(handler=_list_datasets)

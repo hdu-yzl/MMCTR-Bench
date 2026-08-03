@@ -45,6 +45,7 @@ class TrainingConfig:
     optim: str
     early_stop_patience: int
     checkpoint_dir: Path
+    quantization_artifact_dir: Path
     output_root: Path
     cuda: int
     log_dir: Path
@@ -68,6 +69,7 @@ class TrainingConfig:
             "optim",
             "early_stop_patience",
             "checkpoint_dir",
+            "quantization_artifact_dir",
             "output_root",
             "cuda",
             "log_dir",
@@ -129,6 +131,12 @@ class TrainingConfig:
 
         root = Path(project_root).expanduser().resolve()
         checkpoint_dir = _resolve_path(values.get("checkpoint_dir"), "checkpoint_dir", root, issues)
+        quantization_artifact_dir = _resolve_path(
+            values.get("quantization_artifact_dir"),
+            "quantization_artifact_dir",
+            root,
+            issues,
+        )
         output_root = _resolve_path(values.get("output_root"), "output_root", root, issues)
         log_dir = _resolve_path(values.get("log_dir"), "log_dir", root, issues)
 
@@ -142,6 +150,7 @@ class TrainingConfig:
             optim=optim,
             early_stop_patience=early_stop_patience,
             checkpoint_dir=checkpoint_dir,
+            quantization_artifact_dir=quantization_artifact_dir,
             output_root=output_root,
             cuda=cuda,
             log_dir=log_dir,
@@ -158,6 +167,7 @@ class TrainingConfig:
             "optim": self.optim,
             "early_stop_patience": self.early_stop_patience,
             "checkpoint_dir": str(self.checkpoint_dir),
+            "quantization_artifact_dir": str(self.quantization_artifact_dir),
             "output_root": str(self.output_root),
             "cuda": self.cuda,
             "log_dir": str(self.log_dir),

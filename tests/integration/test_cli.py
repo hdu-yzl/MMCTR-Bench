@@ -32,6 +32,7 @@ class CliIntegrationTest(unittest.TestCase):
         self.assertEqual(root.returncode, 0, msg=root.stderr)
         self.assertIn("validate-config", root.stdout)
         self.assertIn("list-models", root.stdout)
+        self.assertIn("list-quantizers", root.stdout)
         self.assertEqual(train.returncode, 0, msg=train.stderr)
         self.assertIn("--use-local-data", train.stdout)
         self.assertNotIn("tensorflow", (root.stderr + train.stderr).lower())
@@ -39,16 +40,22 @@ class CliIntegrationTest(unittest.TestCase):
     def test_list_commands_are_deterministic(self):
         models = self._run("list-models")
         datasets = self._run("list-datasets")
+        quantizers = self._run("list-quantizers")
 
         self.assertEqual(models.returncode, 0, msg=models.stderr)
         self.assertEqual(datasets.returncode, 0, msg=datasets.stderr)
+        self.assertEqual(quantizers.returncode, 0, msg=quantizers.stderr)
         model_names = models.stdout.splitlines()
         dataset_names = datasets.stdout.splitlines()
+        quantizer_names = quantizers.stdout.splitlines()
         self.assertEqual(model_names, sorted(model_names))
         self.assertIn("dnn", model_names)
         self.assertIn("mcca", model_names)
         self.assertEqual(dataset_names, ["antm2c", "microlens", "tiktok"])
-        self.assertNotIn("tensorflow", (models.stderr + datasets.stderr).lower())
+        self.assertEqual(quantizer_names, ["psrq", "rq"])
+        self.assertNotIn(
+            "tensorflow", (models.stderr + datasets.stderr + quantizers.stderr).lower()
+        )
 
     def test_validate_config_outputs_resolved_json(self):
         result = self._run(
@@ -70,6 +77,7 @@ class CliIntegrationTest(unittest.TestCase):
             "import mmctr.cli\n"
             "import mmctr.models\n"
             "import mmctr.data\n"
+            "import mmctr.quantization\n"
             "assert 'torch' not in sys.modules\n"
             "assert 'tensorflow' not in sys.modules\n"
         )
@@ -84,14 +92,18 @@ class CliIntegrationTest(unittest.TestCase):
             )
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
 
-    def test_legacy_trainer_import_does_not_parse_process_arguments(self):
+    def test_trainer_imports_do_not_parse_process_arguments(self):
         environment = os.environ.copy()
         environment["PYTHONPATH"] = str(SOURCE_ROOT)
         source = (
             "import sys\n"
             "sys.argv = ['host-process', '--unrelated-host-argument']\n"
             "from trainers.Trainers import Trainer\n"
+            "from trainers.RQ_trainer import train as train_rq\n"
+            "from trainers.PSRQ_trainer import train as train_psrq\n"
             "assert Trainer.__name__ == 'Trainer'\n"
+            "assert train_rq.__name__ == 'train'\n"
+            "assert train_psrq.__name__ == 'train'\n"
         )
         with tempfile.TemporaryDirectory() as temporary_directory:
             result = subprocess.run(

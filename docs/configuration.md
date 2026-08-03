@@ -21,7 +21,9 @@ explicit compatibility boundary for legacy code that still consumes dictionaries
 
 Relative paths are resolved against the project root containing `pyproject.toml`, never against
 the caller's current working directory. Callers may supply an explicit project root when embedding
-the library.
+the library. `checkpoint_dir` stores ordinary training checkpoints, while
+`quantization_artifact_dir` is the independent stable root for RQ/PSRQ artifacts consumed across
+isolated CTR runs; see [quantization.md](quantization.md).
 
 ## YAML safety
 

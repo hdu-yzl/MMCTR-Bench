@@ -29,6 +29,10 @@ class TrainingConfigTest(unittest.TestCase):
             config.checkpoint_dir,
             (REPOSITORY_ROOT / "experiments" / "checkpoints").resolve(),
         )
+        self.assertEqual(
+            config.quantization_artifact_dir,
+            (REPOSITORY_ROOT / "experiments" / "quantization").resolve(),
+        )
         self.assertIsInstance(config.lr, float)
         with self.assertRaises(FrozenInstanceError):
             config.max_epochs = 10

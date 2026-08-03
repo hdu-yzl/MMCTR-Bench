@@ -1,44 +1,77 @@
-import os
-num_threads = "16"
-os.environ["OMP_NUM_THREADS"] = num_threads
-os.environ["OPENBLAS_NUM_THREADS"] = num_threads
-os.environ["MKL_NUM_THREADS"] = num_threads
-os.environ["VECLIB_MAXIMUM_THREADS"] = num_threads
-os.environ["NUMEXPR_NUM_THREADS"] = num_threads
+"""Explicit entry point for fitting a canonical PSRQ artifact."""
+
 import argparse
+from pathlib import Path
+
+import torch
+
+from mmctr.config import (
+    ConfigValidationError,
+    load_local_paths,
+    load_training_config,
+    resolve_dataset_config,
+)
+from mmctr.quantization import PSRQPretrainer, fit_psrq, psrq_artifact_path
+from mmctr.training import build_optimizer
 from mmctr.utils import helper
 
-from models.pre_models.PSRQ import PSRQ_Premodel
-import numpy as np
 
-parser = argparse.ArgumentParser(description="MMCTR-Trainer")
-parser.add_argument("--dataset_name", type=str, help="specify dataset", default="antm2c")
-args = parser.parse_args()
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-class Trainer(object):
-    def __init__(self):
-        self.dataset_name = str(args.dataset_name).lower()
-        self.model_name = 'psrq'
-        self.model_config = helper.load_yaml(f'config/model.yaml')
 
-        self.data_config = helper.load_yaml('config/seq_data.yaml')
+def train(dataset_name: str, cuda=None, use_local_data: bool = False) -> None:
+    dataset = dataset_name.lower()
+    model_catalog = helper.load_yaml(PROJECT_ROOT / "config/model.yaml")
+    data_catalog = helper.load_yaml(PROJECT_ROOT / "config/seq_data.yaml")
+    training = load_training_config(PROJECT_ROOT / "config/train.yaml")
+    helper.setup_seed(training.seed)
+    local_paths = None
+    if use_local_data:
+        local_paths = load_local_paths(PROJECT_ROOT / "configs/local/paths.yaml")
+        if dataset not in local_paths.datasets:
+            raise ConfigValidationError(
+                ["local path for dataset {!r} is missing".format(dataset)]
+            )
+    data_config = resolve_dataset_config(
+        dataset,
+        data_catalog[dataset],
+        project_root=PROJECT_ROOT,
+        local_paths=local_paths,
+    )
+    config = model_catalog["psrq"]
+    config = dict(config.get(dataset, config))
+    loader = helper.getDataLoader(dataset, data_config, training.batch_size)
+    raw_features = loader.get_multi_modal()
+    modalities = tuple(name for name in data_config["use_mm_features"] if name != "id")
+    features = {
+        name: torch.from_numpy(raw_features[name]).to(dtype=torch.float32)
+        for name in modalities
+    }
+    model = PSRQPretrainer(config, data_config)
+    optimizer = build_optimizer(model, training.optim, training.lr, training.l2)
+    requested_cuda = training.cuda if cuda is None else int(cuda)
+    device = helper.getDevice(requested_cuda)
+    loss = fit_psrq(
+        model,
+        features,
+        optimizer,
+        training.max_epochs,
+        max(training.batch_size, model.codebook_size),
+        device,
+    )
+    destination = psrq_artifact_path(training.quantization_artifact_dir, dataset)
+    model.save(destination, metadata={"dataset": dataset})
+    print("saved {} (final_loss={:.6f})".format(destination, loss))
 
-        self.train_config = helper.load_yaml('config/train.yaml')
-        self.dataloader = helper.getDataLoader(self.dataset_name, self.data_config[self.dataset_name],
-                                               self.train_config["batch_size"])
 
-        # 优先使用数据集特定配置，缺省时回退到顶层配置（与 mcca 推荐模型保持一致）
-        psrq_config = self.model_config[self.model_name]
-        psrq_config = psrq_config.get(self.dataset_name, psrq_config)
-        self.model = PSRQ_Premodel(psrq_config, self.train_config, self.data_config[self.dataset_name])
+def main(argv=None) -> None:
+    parser = argparse.ArgumentParser(description="Fit canonical MMCTR PSRQ artifact")
+    parser.add_argument("--dataset-name", default="antm2c")
+    parser.add_argument("--cuda", type=int)
+    parser.add_argument("--use-local-data", action="store_true")
+    arguments = parser.parse_args(argv)
+    train(arguments.dataset_name, arguments.cuda, arguments.use_local_data)
 
-    def run(self):
-        self.model.fit(self.dataloader)
-        self.model.save()
 
 if __name__ == "__main__":
-    '''
-    python trainers.py --model_name=dnn --dataset_name=Tiktok
-    '''
-    trainer = Trainer()
-    trainer.run()
+    main()

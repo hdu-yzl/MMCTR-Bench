@@ -10,7 +10,7 @@ from mmctr.config import (
     resolve_dataset_config,
 )
 from mmctr.data import HistoryMode, adapt_legacy_loader
-from mmctr.models.registry import create_model, model_spec
+from mmctr.models.registry import create_model, create_model_from_artifacts, model_spec
 from mmctr.training import CheckpointManager, TrainingEngine, build_optimizer
 
 
@@ -54,6 +54,7 @@ class Trainer(object):
         )
         self.data_config = {self.dataset_name: dataset_config}
         self.train_config = load_training_config(PROJECT_ROOT / 'config/train.yaml').to_dict()
+        quantization_artifact_dir = self.train_config['quantization_artifact_dir']
         if cuda is not None:
             self.train_config['cuda'] = cuda
         local_output_root = local_paths.output_root if local_paths else None
@@ -108,11 +109,19 @@ class Trainer(object):
                     self.data_config[self.dataset_name],
                     history_mode=history_mode,
                 )
-                self.model = create_model(
-                    self.model_name,
-                    self.model_config,
-                    self.data_config[self.dataset_name],
-                )
+                if specification.metadata.get('quantization_artifacts'):
+                    self.model = create_model_from_artifacts(
+                        self.model_name,
+                        self.model_config,
+                        self.data_config[self.dataset_name],
+                        quantization_artifact_dir,
+                    )
+                else:
+                    self.model = create_model(
+                        self.model_name,
+                        self.model_config,
+                        self.data_config[self.dataset_name],
+                    )
                 device = helper.getDevice(self.train_config['cuda'])
                 optimizer = build_optimizer(
                     self.model,

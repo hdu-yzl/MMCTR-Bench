@@ -10,9 +10,10 @@ python -m mmctr.cli --help
 Current subcommands:
 
 ```text
-train             Run the isolated legacy training adapter
+train             Run isolated canonical or compatibility training
 validate-config   Validate and print a resolved training YAML file
-list-models       List registered legacy model names
+list-models       List registered CTR model names
+list-quantizers   List registered quantization premodels
 list-datasets     List registered dataset names
 ```
 
@@ -20,6 +21,7 @@ Examples:
 
 ```bash
 python -m mmctr.cli list-models
+python -m mmctr.cli list-quantizers
 python -m mmctr.cli validate-config --config config/train.yaml
 python -m mmctr.cli train --model-name dnn --dataset-name antm2c --cuda 0
 ```

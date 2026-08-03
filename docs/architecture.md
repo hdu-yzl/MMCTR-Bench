@@ -4,7 +4,7 @@ MMCTR is migrating from legacy top-level packages to a single `mmctr` namespace.
 this dependency direction:
 
 ```text
-cli -> experiments -> training/evaluation -> models + data -> core/config/utils
+cli -> experiments -> training/evaluation -> models + data + quantization -> core/config/utils
 ```
 
 ## Core contracts
@@ -27,3 +27,9 @@ of new core code while model families are migrated incrementally.
 The core contracts do not create optimizers, select devices, write checkpoints, compute sklearn
 metrics, or parse command-line arguments. Those responsibilities belong to the training,
 evaluation, experiment, and CLI layers.
+
+Quantization premodels form a sibling boundary to CTR models. RQ/PSRQ consume item
+feature tables and produce versioned artifacts, while QARM/MCCA remain ordinary
+`BaseSeqModel` consumers after the composition layer injects those loaded
+artifacts. This keeps pretraining objectives and artifact I/O out of
+`Batch -> ModelOutput` and out of model constructors.

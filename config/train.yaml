@@ -11,6 +11,8 @@ early_stop_patience: 1
 
 # 检查点配置
 checkpoint_dir: "experiments/checkpoints/"
+# RQ/PSRQ 预训练产物独立于单次推荐训练 run；路径按项目根解析。
+quantization_artifact_dir: "experiments/quantization/"
 # 主训练入口的新运行根目录；每次运行会在其下创建独立目录
 output_root: "outputs"
 cuda: 1

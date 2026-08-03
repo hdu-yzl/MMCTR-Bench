@@ -28,6 +28,8 @@ are still introduced incrementally.
 
 Strict training configuration validation and layer precedence are documented in
 [docs/configuration.md](docs/configuration.md).
+RQ/PSRQ artifact layout and the QARM/MCCA composition boundary are documented in
+[docs/quantization.md](docs/quantization.md).
 Machine-specific dataset and output paths are configured as described in
 [docs/local-paths.md](docs/local-paths.md); real server paths remain untracked.
 
@@ -69,6 +71,7 @@ isolated legacy training adapter:
 ```bash
 <SERVER_ENV>/bin/python -m mmctr.cli --help
 <SERVER_ENV>/bin/python -m mmctr.cli list-models
+<SERVER_ENV>/bin/python -m mmctr.cli list-quantizers
 <SERVER_ENV>/bin/python -m mmctr.cli validate-config --config config/train.yaml
 ```
 
@@ -119,8 +122,9 @@ The full protocol and refactor red lines are defined in
 ```text
 config/        Legacy dataset, model, training, and tuning configuration
 src/data/      Dataset adapters and preprocessing scripts
-src/models/    CTR, multimodal, quantization, and shared layer implementations
-src/trainers/  Legacy training entry points
+src/mmctr/     Canonical core, data, models, quantization, training, and utilities
+src/models/    Frozen legacy model implementations retained for regression
+src/trainers/  Training entry points and remaining legacy trainers
 src/scripts/   Legacy tuning and batch scripts
 src/analysis/  Cold-start, robustness, alignment, fusion, efficiency, and plotting analysis
 docs/          Environment and future architecture/usage documentation

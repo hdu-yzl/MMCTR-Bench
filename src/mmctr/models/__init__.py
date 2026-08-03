@@ -2,7 +2,12 @@
 
 import importlib
 
-from .registry import available_models, create_model, resolve_model_class
+from .registry import (
+    available_models,
+    create_model,
+    create_model_from_artifacts,
+    resolve_model_class,
+)
 
 
 _MODEL_EXPORTS = {
@@ -29,8 +34,6 @@ _MODEL_EXPORTS = {
     "PAMD": "pamd",
     "MMMLP": "mmmlp",
     "M3SRec": "m3srec",
-    "RQ": "rq",
-    "PSRQ": "psrq",
 }
 
 _BASE_EXPORTS = {
@@ -66,5 +69,6 @@ __all__ = [
     "HistoryCapability",
     "LegacyModelAdapter",
     "available_models",
+    "create_model_from_artifacts",
     "get_model",
 ] + list(_MODEL_EXPORTS)
