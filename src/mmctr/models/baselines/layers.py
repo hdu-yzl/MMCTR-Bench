@@ -84,9 +84,7 @@ class MultiHeadSelfAttention(torch.nn.Module):
         self.query = torch.nn.Linear(embedding_dim, output_dim, bias=False)
         self.key = torch.nn.Linear(embedding_dim, output_dim, bias=False)
         self.value = torch.nn.Linear(embedding_dim, output_dim, bias=False)
-        self.residual = (
-            torch.nn.Linear(embedding_dim, output_dim, bias=False) if residual else None
-        )
+        self.residual = torch.nn.Linear(embedding_dim, output_dim, bias=False) if residual else None
 
     def forward(self, values: torch.Tensor) -> torch.Tensor:
         batch_size, field_count, _ = values.shape
@@ -99,7 +97,7 @@ class MultiHeadSelfAttention(torch.nn.Module):
         query = split_heads(self.query(values))
         key = split_heads(self.key(values))
         value = split_heads(self.value(values))
-        scale = self.attention_dim ** 0.5
+        scale = self.attention_dim**0.5
         weights = torch.softmax(torch.matmul(query, key.transpose(-2, -1)) / scale, dim=-1)
         output = torch.matmul(weights, value)
         output = output.transpose(1, 2).contiguous().view(batch_size, field_count, -1)
@@ -109,18 +107,18 @@ class MultiHeadSelfAttention(torch.nn.Module):
 
 
 class DinAttention(DinPooling):
-    """Compatibility signature for canonical models migrated before POOL-001."""
+    """Canonical DIN pooling alias retained for stable checkpoint state keys."""
 
     def __init__(self, embedding_dim: int, hidden_dims, dropout: float) -> None:
         super().__init__(embedding_dim, hidden_dims, dropout)
 
     def forward(
         self,
-        target: torch.Tensor,
-        history: torch.Tensor,
+        sequence: torch.Tensor,
         mask: torch.Tensor,
+        target: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        return super().forward(history, mask, target)
+        return super().forward(sequence, mask, target)
 
 
 __all__ = [

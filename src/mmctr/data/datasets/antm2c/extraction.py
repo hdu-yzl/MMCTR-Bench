@@ -4,7 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Protocol, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, Mapping, Protocol, Sequence, Tuple
 
 import numpy as np
 
@@ -17,8 +17,7 @@ EXTRACTION_SCHEMA_VERSION = 1
 class BatchEncoder(Protocol):
     """A loaded text or image encoder used for the complete extraction job."""
 
-    def encode(self, values: Sequence[Any]) -> np.ndarray:
-        ...
+    def encode(self, values: Sequence[Any]) -> np.ndarray: ...
 
 
 @dataclass(frozen=True)
@@ -196,9 +195,7 @@ def run_batch_extraction(
         stop = min(start + batch_size, len(materialized))
         batch = materialized[start:stop]
         present = [
-            (index, record)
-            for index, record in enumerate(batch)
-            if not _is_missing(record.value)
+            (index, record) for index, record in enumerate(batch) if not _is_missing(record.value)
         ]
         features = np.zeros((len(batch), dimension), dtype=np.float32)
         if present:
@@ -223,12 +220,8 @@ def run_batch_extraction(
         feature_file = stem + ".npy"
         key_file = stem + ".keys.json"
         digest = _atomic_array(output_dir / feature_file, features)
-        key_digest = _atomic_json(
-            output_dir / key_file, {"keys": [record.key for record in batch]}
-        )
-        shards.append(
-            ExtractionShard(start, stop, feature_file, key_file, digest, key_digest)
-        )
+        key_digest = _atomic_json(output_dir / key_file, {"keys": [record.key for record in batch]})
+        shards.append(ExtractionShard(start, stop, feature_file, key_file, digest, key_digest))
         manifest = ExtractionManifest(
             field,
             dimension,

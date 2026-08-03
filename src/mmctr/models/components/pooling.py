@@ -158,9 +158,7 @@ class _Dice(torch.nn.Module):
     def forward(self, values: torch.Tensor) -> torch.Tensor:
         mean = values.mean(dim=0)
         variance = values.var(dim=0, unbiased=False)
-        probability = torch.sigmoid(
-            (values - mean) / torch.sqrt(variance + self.epsilon)
-        )
+        probability = torch.sigmoid((values - mean) / torch.sqrt(variance + self.epsilon))
         return self.alpha * values * (1 - probability) + values * probability
 
 
@@ -201,9 +199,7 @@ class DinPooling(SequencePooling):
         if target is None:
             raise ContractError("DIN pooling requires target")
         targets = target.unsqueeze(1).expand(-1, sequence.shape[1], -1)
-        inputs = torch.cat(
-            [targets, sequence, targets - sequence, targets * sequence], dim=-1
-        )
+        inputs = torch.cat([targets, sequence, targets - sequence, targets * sequence], dim=-1)
         scores = self.network(inputs).squeeze(-1)
         weights = masked_softmax(scores, mask)
         return torch.sum(weights.unsqueeze(-1) * sequence, dim=1)
@@ -222,7 +218,7 @@ class CrossAttentionPooling(SequencePooling):
         if not 0.0 <= float(dropout) < 1.0:
             raise ContractError("cross-attention dropout must be in [0, 1)")
         self.head_dim = dimension // self.heads
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.query = torch.nn.Linear(dimension, dimension, bias=False)
         self.key = torch.nn.Linear(dimension, dimension, bias=False)
         self.value = torch.nn.Linear(dimension, dimension, bias=False)
@@ -240,12 +236,16 @@ class CrossAttentionPooling(SequencePooling):
             raise ContractError("cross-attention pooling requires target")
         batch_size, sequence_length, _ = sequence.shape
         query = self.query(target).reshape(batch_size, self.heads, self.head_dim)
-        keys = self.key(sequence).reshape(
-            batch_size, sequence_length, self.heads, self.head_dim
-        ).transpose(1, 2)
-        values = self.value(sequence).reshape(
-            batch_size, sequence_length, self.heads, self.head_dim
-        ).transpose(1, 2)
+        keys = (
+            self.key(sequence)
+            .reshape(batch_size, sequence_length, self.heads, self.head_dim)
+            .transpose(1, 2)
+        )
+        values = (
+            self.value(sequence)
+            .reshape(batch_size, sequence_length, self.heads, self.head_dim)
+            .transpose(1, 2)
+        )
         scores = torch.einsum("bhd,bhld->bhl", query, keys) * self.scale
         expanded_mask = mask.unsqueeze(1).expand_as(scores)
         weights = self.dropout(masked_softmax(scores, expanded_mask))

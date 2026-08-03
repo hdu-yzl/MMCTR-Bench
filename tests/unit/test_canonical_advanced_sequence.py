@@ -70,16 +70,12 @@ class CanonicalAdvancedSequenceTests(unittest.TestCase):
                 model_config, data_config = configs()
                 model = create_model(name, model_config, data_config)
                 self.assertIsInstance(model, BaseSeqModel)
-                self.assertEqual(
-                    HistoryCapability.SEQUENCE_TOKENS, model.history_capability
-                )
+                self.assertEqual(HistoryCapability.SEQUENCE_TOKENS, model.history_capability)
                 output = model(make_batch())
                 self.assertEqual((2,), tuple(output.logits.shape))
                 objective = output.logits.sum() + output.auxiliary_loss()
                 objective.backward()
-                self.assertTrue(
-                    any(parameter.grad is not None for parameter in model.parameters())
-                )
+                self.assertTrue(any(parameter.grad is not None for parameter in model.parameters()))
 
     def test_auxiliary_losses_are_named_finite_scalars(self):
         expected = {
@@ -99,9 +95,7 @@ class CanonicalAdvancedSequenceTests(unittest.TestCase):
         for name in ("em3", "diff_msin"):
             with self.subTest(name=name):
                 model_config, data_config = configs()
-                output = create_model(name, model_config, data_config)(
-                    make_batch(all_padding=True)
-                )
+                output = create_model(name, model_config, data_config)(make_batch(all_padding=True))
                 self.assertTrue(torch.isfinite(output.logits).all())
                 self.assertTrue(torch.isfinite(output.auxiliary_loss()))
                 if name == "em3":
@@ -112,9 +106,7 @@ class CanonicalAdvancedSequenceTests(unittest.TestCase):
         for name in ("em3", "diff_msin"):
             with self.subTest(name=name):
                 model_config, data_config = configs()
-                output = create_model(name, model_config, data_config)(
-                    make_batch(batch_size=1)
-                )
+                output = create_model(name, model_config, data_config)(make_batch(batch_size=1))
                 self.assertEqual((1,), tuple(output.logits.shape))
                 self.assertEqual(0, output.auxiliary_loss().ndim)
 
@@ -161,9 +153,7 @@ class CanonicalAdvancedSequenceTests(unittest.TestCase):
         for name, symbol in (("em3", "EM3"), ("diff_msin", "Diff_MSIN")):
             specification = model_spec(name)
             self.assertEqual("mmctr.models.advanced_sequence", specification.module)
-            self.assertEqual(
-                "models.mm_ctr_models", specification.metadata["legacy_module"]
-            )
+            self.assertEqual("models.mm_ctr_models", specification.metadata["legacy_module"])
             self.assertEqual(symbol, specification.metadata["legacy_symbol"])
 
 

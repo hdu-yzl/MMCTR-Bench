@@ -28,15 +28,9 @@ class _PooledIdBaseline(BaseSeqModel):
         )
         self.dropout = float(model_config.get("dropout", 0.5))
         self.batch_norm = bool(model_config.get("batch_norm", False))
-        self.mm_projector = NamedFeatureProjector(
-            {"id": self.latent_dim * 2}, self.projection_dim
-        )
-        self.mm_seq_projector = NamedFeatureProjector(
-            {"id": self.latent_dim}, self.projection_dim
-        )
-        self.embedding = FeatureEmbedding(
-            int(data_config["id_feature_num"]) + 1, self.latent_dim
-        )
+        self.mm_projector = NamedFeatureProjector({"id": self.latent_dim * 2}, self.projection_dim)
+        self.mm_seq_projector = NamedFeatureProjector({"id": self.latent_dim}, self.projection_dim)
+        self.embedding = FeatureEmbedding(int(data_config["id_feature_num"]) + 1, self.latent_dim)
 
     def encode_ids(self, batch: Batch) -> Tuple[torch.Tensor, torch.Tensor]:
         try:
@@ -119,9 +113,7 @@ class AutoInt(_PooledIdBaseline):
         layers = []
         embedding_dim = self.projection_dim
         for _ in range(layer_count):
-            layers.append(
-                MultiHeadSelfAttention(embedding_dim, attention_dim, heads, residual)
-            )
+            layers.append(MultiHeadSelfAttention(embedding_dim, attention_dim, heads, residual))
             embedding_dim = attention_dim * heads
         self.attention = torch.nn.ModuleList(layers)
         self.dnn = self.make_mlp(self.projection_dim * 2)
@@ -145,15 +137,9 @@ class DIN(BaseSeqModel):
         projection_dim = int(model_config.get("projection_dim", 128))
         dropout = float(model_config.get("dropout", 0.5))
         batch_norm = bool(model_config.get("batch_norm", False))
-        mlp_dims = tuple(
-            int(value) for value in model_config.get("mlp_dims", [1024, 512, 256])
-        )
-        self.mm_projector = NamedFeatureProjector(
-            {"id": latent_dim}, projection_dim
-        )
-        self.user_projector = NamedFeatureProjector(
-            {"id": latent_dim}, projection_dim
-        )
+        mlp_dims = tuple(int(value) for value in model_config.get("mlp_dims", [1024, 512, 256]))
+        self.mm_projector = NamedFeatureProjector({"id": latent_dim}, projection_dim)
+        self.user_projector = NamedFeatureProjector({"id": latent_dim}, projection_dim)
         self.embedding = FeatureEmbedding(int(data_config["id_feature_num"]) + 1, latent_dim)
         self.attention_pooling = DinAttention(
             projection_dim,
@@ -177,7 +163,7 @@ class DIN(BaseSeqModel):
         user = self.user_projector["id"](self.embedding(user_ids).squeeze(1))
         item = self.mm_projector["id"](self.embedding(item_ids).squeeze(1))
         history = self.mm_projector["id"](self.embedding(history_ids))
-        interest = self.attention_pooling(item, history, batch.history_mask)
+        interest = self.attention_pooling(history, batch.history_mask, item)
         logits = self.out_put(self.dnn(torch.cat([user, item, interest], dim=-1)))
         return ModelOutput(logits)
 

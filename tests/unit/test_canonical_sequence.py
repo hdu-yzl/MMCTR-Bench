@@ -61,15 +61,11 @@ class CanonicalSequenceTests(unittest.TestCase):
                 model_config, data_config = configs()
                 model = create_model(name, model_config, data_config)
                 self.assertIsInstance(model, BaseSeqModel)
-                self.assertEqual(
-                    HistoryCapability.SEQUENCE_TOKENS, model.history_capability
-                )
+                self.assertEqual(HistoryCapability.SEQUENCE_TOKENS, model.history_capability)
                 output = model(make_batch())
                 self.assertEqual((2,), tuple(output.logits.shape))
                 output.logits.sum().backward()
-                self.assertTrue(
-                    any(parameter.grad is not None for parameter in model.parameters())
-                )
+                self.assertTrue(any(parameter.grad is not None for parameter in model.parameters()))
 
     def test_all_padding_history_is_finite_and_masked(self):
         for name in ("naml", "make"):

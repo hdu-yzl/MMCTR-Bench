@@ -30,9 +30,7 @@ def _dataset_config(model_config: Mapping, data_config: Mapping) -> Dict:
 class _QuantizedSequenceModel(_SequenceMultimodalModel):
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
-        self.quantized_modalities = tuple(
-            name for name in self.feature_names if name != "id"
-        )
+        self.quantized_modalities = tuple(name for name in self.feature_names if name != "id")
         if not self.quantized_modalities:
             raise ContractError("quantized CTR models require a non-ID modality")
         self.n_levels = int(model_config.get("n_levels", 3))
@@ -134,9 +132,7 @@ class QARM(_QuantizedSequenceModel):
         return embedded * self._present(values).unsqueeze(-1)
 
     def _project_quantized_target(self, batch: Batch):
-        encoded = {
-            "id": self.embedding(self._target_feature(batch, "id")).squeeze(1)
-        }
+        encoded = {"id": self.embedding(self._target_feature(batch, "id")).squeeze(1)}
         presence = {}
         for name in self.quantized_modalities:
             values = self._target_feature(batch, name)
@@ -145,9 +141,7 @@ class QARM(_QuantizedSequenceModel):
         return self.projectors(encoded, presence)
 
     def _project_quantized_history(self, batch: Batch):
-        encoded = {
-            "id": self.embedding(batch.history_features["id"])
-        }
+        encoded = {"id": self.embedding(batch.history_features["id"])}
         presence = {"id": batch.history_mask}
         for name in self.quantized_modalities:
             values = batch.history_features[name]
@@ -213,9 +207,7 @@ class MCCA(_QuantizedSequenceModel):
         if not isinstance(quantizer, PSRQPretrainer) or not quantizer.is_initialized:
             raise ContractError("MCCA requires an initialized PSRQPretrainer")
         dimensions = dict(data_config.get("mm_seq_dims", data_config.get("mm_dims", {})))
-        expected_dimensions = {
-            name: int(dimensions[name]) for name in self.quantized_modalities
-        }
+        expected_dimensions = {name: int(dimensions[name]) for name in self.quantized_modalities}
         expected_structure = (
             self.quantized_modalities,
             expected_dimensions,
@@ -246,14 +238,9 @@ class MCCA(_QuantizedSequenceModel):
         self.quantizer.requires_grad_(False)
         self.quantizer.eval()
         self.joint_embeddings = torch.nn.ModuleList(
-            [
-                FeatureEmbedding(self.codebook_size, self.latent_dim)
-                for _ in range(self.n_levels)
-            ]
+            [FeatureEmbedding(self.codebook_size, self.latent_dim) for _ in range(self.n_levels)]
         )
-        self.joint_projector = torch.nn.Linear(
-            self.n_levels * self.latent_dim, self.projection_dim
-        )
+        self.joint_projector = torch.nn.Linear(self.n_levels * self.latent_dim, self.projection_dim)
         self.history_attention = torch.nn.ModuleDict(
             {
                 name: _MaskedCrossAttentionPool(self.projection_dim, self.dropout)
@@ -283,10 +270,7 @@ class MCCA(_QuantizedSequenceModel):
         return self
 
     def _raw_target(self, batch: Batch):
-        return {
-            name: self._target_feature(batch, name)
-            for name in self.quantized_modalities
-        }
+        return {name: self._target_feature(batch, name) for name in self.quantized_modalities}
 
     def _raw_history(self, batch: Batch):
         return {name: batch.history_features[name] for name in self.quantized_modalities}
@@ -302,9 +286,7 @@ class MCCA(_QuantizedSequenceModel):
                 self.embedding(self._target_feature(batch, "id")).squeeze(1)
             )
         }
-        history = {
-            "id": self.projectors["id"](self.embedding(batch.history_features["id"]))
-        }
+        history = {"id": self.projectors["id"](self.embedding(batch.history_features["id"]))}
         for name in self.quantized_modalities:
             target_embedding = self._embed_codes(name, modality_codes[name])
             target_embedding = target_embedding * self._present(raw_target[name]).unsqueeze(-1)
@@ -332,12 +314,8 @@ class MCCA(_QuantizedSequenceModel):
         pooled = {}
         for name in self.feature_names:
             query = target["id"] if name == "id" else joint
-            pooled[name] = self.history_attention[name](
-                query, history[name], batch.history_mask
-            )
-        history_vector = torch.cat(
-            [pooled[name] for name in self.feature_names], dim=-1
-        )
+            pooled[name] = self.history_attention[name](query, history[name], batch.history_mask)
+        history_vector = torch.cat([pooled[name] for name in self.feature_names], dim=-1)
         user = self.project_user(batch)
         hidden = self.dnn(torch.cat([user, history_vector, joint], dim=-1))
         return ModelOutput(

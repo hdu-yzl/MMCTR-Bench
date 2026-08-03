@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Dict, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Mapping, Optional, Sequence, Union
 
 import torch
 
@@ -120,9 +120,7 @@ class Batch:
         _require_batch_size(context_features, batch_size, "context_features")
         for name, value in history_features.items():
             if value.ndim < 2 or value.shape[1] != sequence_length:
-                raise ContractError(
-                    "history_features.{} must start with shape [B, L]".format(name)
-                )
+                raise ContractError("history_features.{} must start with shape [B, L]".format(name))
 
         object.__setattr__(self, "user_features", user_features)
         object.__setattr__(self, "item_features", item_features)

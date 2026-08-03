@@ -34,9 +34,7 @@ class _FQAttentionLayer(torch.nn.Module):
 
     def _split_heads(self, values: torch.Tensor) -> torch.Tensor:
         batch_size, length, _ = values.shape
-        return values.view(
-            batch_size, length, self.heads, self.head_dimension
-        ).permute(0, 2, 1, 3)
+        return values.view(batch_size, length, self.heads, self.head_dimension).permute(0, 2, 1, 3)
 
     def forward(self, values: torch.Tensor) -> torch.Tensor:
         query = self._split_heads(self.query(values))
@@ -117,9 +115,7 @@ class EM3(_SequenceMultimodalModel):
             batch_norm=self.batch_norm,
         )
         predictor_dim = (
-            fusion_dim
-            + self.projection_dim * len(self.user_feature_names)
-            + self.projection_dim
+            fusion_dim + self.projection_dim * len(self.user_feature_names) + self.projection_dim
         )
         self.dnn = MultiLayerPerceptron(
             predictor_dim,
@@ -135,9 +131,7 @@ class EM3(_SequenceMultimodalModel):
             activation=None,
         )
 
-    def _content_item_loss(
-        self, content: torch.Tensor, item_id: torch.Tensor
-    ) -> torch.Tensor:
+    def _content_item_loss(self, content: torch.Tensor, item_id: torch.Tensor) -> torch.Tensor:
         content_to_item = torch.matmul(content, item_id.transpose(0, 1))
         content_to_item = content_to_item / self.cic_temperature
         labels = torch.arange(content.shape[0], device=content.device)
@@ -149,12 +143,8 @@ class EM3(_SequenceMultimodalModel):
     def forward_batch(self, batch: Batch) -> ModelOutput:
         target_features = self.project_target(batch)
         history_features = self.project_history(batch)
-        target_tokens = torch.stack(
-            [target_features[name] for name in self.feature_names], dim=1
-        )
-        history_tokens = torch.stack(
-            [history_features[name] for name in self.feature_names], dim=2
-        )
+        target_tokens = torch.stack([target_features[name] for name in self.feature_names], dim=1)
+        history_tokens = torch.stack([history_features[name] for name in self.feature_names], dim=2)
         flat_history = history_tokens.reshape(
             batch.batch_size * batch.sequence_length,
             len(self.feature_names),
@@ -165,15 +155,11 @@ class EM3(_SequenceMultimodalModel):
             batch.batch_size, batch.sequence_length, -1
         )
         history_fusion = apply_sequence_mask(history_fusion, batch.history_mask)
-        history_interest = self.attention(
-            target_fusion, history_fusion, batch.history_mask
-        )
+        history_interest = self.attention(history_fusion, batch.history_mask, target_fusion)
         content = self.content_map(target_fusion)
         cic_loss = self._content_item_loss(content, target_features["id"])
         user = self.project_user(batch)
-        logits = self.output(
-            self.dnn(torch.cat([user, history_interest, content], dim=-1))
-        )
+        logits = self.output(self.dnn(torch.cat([user, history_interest, content], dim=-1)))
         return ModelOutput(
             logits,
             auxiliary_losses={"em3_content_item_contrastive": cic_loss * self.cic_weight},
@@ -192,7 +178,7 @@ class _CrossModalAttention(torch.nn.Module):
             raise ContractError("cross-modal dimension must be divisible by positive heads")
         self.heads = heads
         self.head_dimension = dimension // heads
-        self.scale = self.head_dimension ** -0.5
+        self.scale = self.head_dimension**-0.5
         self.query = torch.nn.Linear(dimension, dimension, bias=False)
         self.key = torch.nn.Linear(dimension, dimension, bias=False)
         self.value = torch.nn.Linear(dimension, dimension, bias=False)
@@ -211,9 +197,7 @@ class _CrossModalAttention(torch.nn.Module):
 
 
 class _StochasticReverseFusion(torch.nn.Module):
-    def __init__(
-        self, dimension: int, feature_names: Sequence[str], steps: int
-    ) -> None:
+    def __init__(self, dimension: int, feature_names: Sequence[str], steps: int) -> None:
         super().__init__()
         if steps <= 0 or len(feature_names) < 2:
             raise ContractError("SRC fusion requires positive steps and two modalities")
@@ -225,24 +209,17 @@ class _StochasticReverseFusion(torch.nn.Module):
         angles = torch.linspace(0, 0.9 * (torch.pi / 2), steps + 1)
         alpha_bars = torch.cos(angles) ** 2
         self.register_buffer("alpha_bars", alpha_bars)
-        self.register_buffer(
-            "alphas", alpha_bars[1:] / (alpha_bars[:-1] + self.epsilon)
-        )
+        self.register_buffer("alphas", alpha_bars[1:] / (alpha_bars[:-1] + self.epsilon))
         self.source_weights = torch.nn.ParameterDict(
             {
-                "{}_to_{}".format(source, target): torch.nn.Parameter(
-                    torch.full((1,), 0.5)
-                )
+                "{}_to_{}".format(source, target): torch.nn.Parameter(torch.full((1,), 0.5))
                 for source in self.feature_names
                 for target in self.feature_names
                 if source != target
             }
         )
         self.attention = torch.nn.ModuleDict(
-            {
-                name: _CrossModalAttention(dimension, 8)
-                for name in self.feature_names
-            }
+            {name: _CrossModalAttention(dimension, 8) for name in self.feature_names}
         )
         self.fusion = torch.nn.Sequential(
             torch.nn.LayerNorm(len(self.feature_names) * dimension),
@@ -273,10 +250,7 @@ class _StochasticReverseFusion(torch.nn.Module):
     ) -> torch.Tensor:
         source_names = tuple(sources)
         logits = torch.cat(
-            [
-                self.source_weights["{}_to_{}".format(name, target_name)]
-                for name in source_names
-            ]
+            [self.source_weights["{}_to_{}".format(name, target_name)] for name in source_names]
         )
         weights = torch.softmax(logits, dim=0)
         aggregated = torch.stack(
@@ -286,34 +260,23 @@ class _StochasticReverseFusion(torch.nn.Module):
         alpha = self.alphas[step]
         alpha_bar = self.alpha_bars[step + 1]
         denominator = torch.sqrt(torch.clamp(alpha, min=self.epsilon))
-        factor = (1.0 - alpha) / torch.sqrt(
-            torch.clamp(1.0 - alpha_bar, min=self.epsilon)
-        )
+        factor = (1.0 - alpha) / torch.sqrt(torch.clamp(1.0 - alpha_bar, min=self.epsilon))
         return (target - factor * prediction) / denominator
 
     def forward(self, features: Mapping[str, torch.Tensor]) -> torch.Tensor:
         current = {name: features[name] for name in self.feature_names}
         for step in range(self.steps):
-            noisy = {
-                name: self._diffuse(current[name], step)
-                for name in self.feature_names
-            }
+            noisy = {name: self._diffuse(current[name], step) for name in self.feature_names}
             current = {
                 target: self._reverse(
                     noisy[target],
-                    {
-                        source: noisy[source]
-                        for source in self.feature_names
-                        if source != target
-                    },
+                    {source: noisy[source] for source in self.feature_names if source != target},
                     step,
                     target,
                 )
                 for target in self.feature_names
             }
-        return self.fusion(
-            torch.cat([current[name] for name in self.feature_names], dim=-1)
-        )
+        return self.fusion(torch.cat([current[name] for name in self.feature_names], dim=-1))
 
 
 class _SigmoidMLP(torch.nn.Module):
@@ -336,16 +299,17 @@ def _mean_pairwise_cosine(
     pair_count = 0
     for left_index, left_name in enumerate(names):
         for right_name in names[left_index + 1 :]:
-            total = total + torch.nn.functional.cosine_similarity(
-                features[left_name], features[right_name], dim=-1
-            ).mean()
+            total = (
+                total
+                + torch.nn.functional.cosine_similarity(
+                    features[left_name], features[right_name], dim=-1
+                ).mean()
+            )
             pair_count += 1
     return total / max(pair_count, 1)
 
 
-def _hinge_cosine(
-    first: torch.Tensor, second: torch.Tensor, labels: torch.Tensor
-) -> torch.Tensor:
+def _hinge_cosine(first: torch.Tensor, second: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
     similarity = torch.nn.functional.cosine_similarity(first, second, dim=-1)
     positive = torch.relu(1.0 - similarity)
     negative = torch.relu(similarity + 1.0)
@@ -361,10 +325,7 @@ class Diff_MSIN(_SequenceMultimodalModel):
             raise ContractError("Diff-MSIN auxiliary weights must be non-negative")
         expert_dims = self.mlp_dims + (self.projection_dim,)
         self.modal_attention = torch.nn.ModuleDict(
-            {
-                name: DinAttention(self.projection_dim, [64, 32], 0.0)
-                for name in self.feature_names
-            }
+            {name: DinAttention(self.projection_dim, [64, 32], 0.0) for name in self.feature_names}
         )
         self.specific_experts = torch.nn.ModuleDict(
             {
@@ -439,30 +400,24 @@ class Diff_MSIN(_SequenceMultimodalModel):
         mask: torch.Tensor,
     ):
         pooled = {
-            name: self.modal_attention[name](target[name], history[name], mask)
+            name: self.modal_attention[name](history[name], mask, target[name])
             for name in self.feature_names
         }
         target_specific = {
-            name: self.specific_experts[name](target[name])
-            for name in self.feature_names
+            name: self.specific_experts[name](target[name]) for name in self.feature_names
         }
         sequence_specific = {
-            name: self.specific_experts[name](pooled[name])
-            for name in self.feature_names
+            name: self.specific_experts[name](pooled[name]) for name in self.feature_names
         }
-        target_shared = {
-            name: self.shared_expert(target[name]) for name in self.feature_names
-        }
-        sequence_shared = {
-            name: self.shared_expert(pooled[name]) for name in self.feature_names
-        }
+        target_shared = {name: self.shared_expert(target[name]) for name in self.feature_names}
+        sequence_shared = {name: self.shared_expert(pooled[name]) for name in self.feature_names}
         return target_specific, sequence_specific, target_shared, sequence_shared
 
     def forward_batch(self, batch: Batch) -> ModelOutput:
         target = self.project_target(batch)
         history = self.project_history(batch)
-        target_specific, sequence_specific, target_shared, sequence_shared = (
-            self._expert_outputs(target, history, batch.history_mask)
+        target_specific, sequence_specific, target_shared, sequence_shared = self._expert_outputs(
+            target, history, batch.history_mask
         )
         target_shared_mean = sum(target_shared.values()) / len(self.feature_names)
         sequence_shared_mean = sum(sequence_shared.values()) / len(self.feature_names)
@@ -473,12 +428,10 @@ class Diff_MSIN(_SequenceMultimodalModel):
             - _mean_pairwise_cosine(sequence_shared, self.feature_names)
         ) / 2.0
         target_gates = {
-            name: self.modal_gates[name](target_specific[name])
-            for name in self.feature_names
+            name: self.modal_gates[name](target_specific[name]) for name in self.feature_names
         }
         sequence_gates = {
-            name: self.modal_gates[name](sequence_specific[name])
-            for name in self.feature_names
+            name: self.modal_gates[name](sequence_specific[name]) for name in self.feature_names
         }
         target_mixed = {
             name: target_gates[name] * target_specific[name]
@@ -492,24 +445,20 @@ class Diff_MSIN(_SequenceMultimodalModel):
         }
         target_synthesis = self.src_fusion(target_mixed)
         sequence_synthesis = self.src_fusion(sequence_mixed)
-        synthesis_loss = _hinge_cosine(
-            target_synthesis, sequence_synthesis, batch.labels
-        )
+        synthesis_loss = _hinge_cosine(target_synthesis, sequence_synthesis, batch.labels)
 
         gate_values = self.final_gate(target_mixed["id"]).view(
             batch.batch_size, self.gated_entry_count, self.projection_dim
         )
-        gate_names = tuple(
-            name for name in self.feature_names if name != "id"
-        ) + ("share", "synthesis")
+        gate_names = tuple(name for name in self.feature_names if name != "id") + (
+            "share",
+            "synthesis",
+        )
         gates: Dict[str, torch.Tensor] = {
-            name: gate_values[:, index]
-            for index, name in enumerate(gate_names)
+            name: gate_values[:, index] for index, name in enumerate(gate_names)
         }
         gated_entries = [
-            gates[name] * sequence_mixed[name]
-            for name in self.feature_names
-            if name != "id"
+            gates[name] * sequence_mixed[name] for name in self.feature_names if name != "id"
         ]
         gated_entries.extend(
             [
@@ -524,9 +473,7 @@ class Diff_MSIN(_SequenceMultimodalModel):
         ).mean(dim=1)
         attended_id = self.id_attention(sequence_mixed["id"], cross_mean)
         user = self.project_user(batch)
-        logits = self.output(
-            self.dnn(torch.cat([crossed, attended_id, user], dim=-1))
-        )
+        logits = self.output(self.dnn(torch.cat([crossed, attended_id, user], dim=-1)))
         return ModelOutput(
             logits,
             auxiliary_losses={

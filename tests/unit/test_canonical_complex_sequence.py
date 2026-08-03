@@ -66,16 +66,12 @@ class CanonicalComplexSequenceTests(unittest.TestCase):
                 model_config, data_config = configs()
                 model = create_model(name, model_config, data_config)
                 self.assertIsInstance(model, BaseSeqModel)
-                self.assertEqual(
-                    HistoryCapability.SEQUENCE_TOKENS, model.history_capability
-                )
+                self.assertEqual(HistoryCapability.SEQUENCE_TOKENS, model.history_capability)
                 output = model(make_batch())
                 self.assertEqual((2,), tuple(output.logits.shape))
                 objective = output.logits.sum() + output.auxiliary_loss()
                 objective.backward()
-                self.assertTrue(
-                    any(parameter.grad is not None for parameter in model.parameters())
-                )
+                self.assertTrue(any(parameter.grad is not None for parameter in model.parameters()))
 
     def test_marn_exposes_weighted_scalar_auxiliary_losses(self):
         model_config, data_config = configs()
@@ -113,9 +109,7 @@ class CanonicalComplexSequenceTests(unittest.TestCase):
         for name in ("dmf", "marn"):
             with self.subTest(name=name):
                 model_config, data_config = configs()
-                output = create_model(name, model_config, data_config)(
-                    make_batch(batch_size=1)
-                )
+                output = create_model(name, model_config, data_config)(make_batch(batch_size=1))
                 self.assertEqual((1,), tuple(output.logits.shape))
 
     def test_context_fallback_does_not_mutate_batch(self):
@@ -159,9 +153,7 @@ class CanonicalComplexSequenceTests(unittest.TestCase):
         for name in ("dmf", "marn"):
             specification = model_spec(name)
             self.assertEqual("mmctr.models.sequence", specification.module)
-            self.assertEqual(
-                "models.mm_ctr_models", specification.metadata["legacy_module"]
-            )
+            self.assertEqual("models.mm_ctr_models", specification.metadata["legacy_module"])
             self.assertEqual(name.upper(), specification.metadata["legacy_symbol"])
 
 

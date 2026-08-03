@@ -15,6 +15,36 @@ from .artifacts import (
 )
 
 
+def _config_int(
+    explicit: Optional[int],
+    values: Mapping[str, object],
+    name: str,
+    default: int,
+) -> int:
+    value: object = explicit if explicit is not None else values.get(name, default)
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise ContractError("RQ {!r} must be an integer".format(name))
+    try:
+        return int(value)
+    except ValueError as error:
+        raise ContractError("RQ {!r} must be an integer".format(name)) from error
+
+
+def _config_float(
+    explicit: Optional[float],
+    values: Mapping[str, object],
+    name: str,
+    default: float,
+) -> float:
+    value: object = explicit if explicit is not None else values.get(name, default)
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise ContractError("RQ {!r} must be numeric".format(name))
+    try:
+        return float(value)
+    except ValueError as error:
+        raise ContractError("RQ {!r} must be numeric".format(name)) from error
+
+
 class ResidualQuantizer(torch.nn.Module):
     """K-means residual quantizer with device-aware inference buffers."""
 
@@ -34,26 +64,18 @@ class ResidualQuantizer(torch.nn.Module):
     ) -> None:
         super().__init__()
         values = dict(config or {})
-        self.n_levels = int(n_levels if n_levels is not None else values.get("n_levels", 3))
-        self.codebook_size = int(
-            codebook_size if codebook_size is not None else values.get("codebook_size", 1024)
-        )
-        self.dimension = int(
-            dimension if dimension is not None else values.get("dimension", 128)
-        )
-        self.random_state = int(
-            random_state if random_state is not None else values.get("random_state", 42)
-        )
-        self.n_init = int(n_init if n_init is not None else values.get("n_init", 5))
-        self.max_iter = int(max_iter if max_iter is not None else values.get("max_iter", 20))
-        self.tolerance = float(
-            tolerance if tolerance is not None else values.get("tol", 1e-4)
-        )
+        self.n_levels = _config_int(n_levels, values, "n_levels", 3)
+        self.codebook_size = _config_int(codebook_size, values, "codebook_size", 1024)
+        self.dimension = _config_int(dimension, values, "dimension", 128)
+        self.random_state = _config_int(random_state, values, "random_state", 42)
+        self.n_init = _config_int(n_init, values, "n_init", 5)
+        self.max_iter = _config_int(max_iter, values, "max_iter", 20)
+        self.tolerance = _config_float(tolerance, values, "tol", 1e-4)
         if self.n_levels <= 0 or self.codebook_size <= 0 or self.dimension <= 0:
             raise ContractError("RQ levels, codebook size, and dimension must be positive")
         if self.n_init <= 0 or self.max_iter <= 0 or self.tolerance < 0:
             raise ContractError("RQ fitting parameters are invalid")
-        self.artifact_metadata = {}
+        self.artifact_metadata: Dict[str, object] = {}
         self.register_buffer("codebooks", torch.empty(0, dtype=torch.float32))
 
     @property
@@ -65,9 +87,7 @@ class ResidualQuantizer(torch.nn.Module):
             raise ContractError("RQ vectors must have shape [N, D] or [B, L, D]")
         if vectors.shape[-1] != self.dimension:
             raise ContractError(
-                "RQ vector dimension {} does not match {}".format(
-                    vectors.shape[-1], self.dimension
-                )
+                "RQ vector dimension {} does not match {}".format(vectors.shape[-1], self.dimension)
             )
         if not torch.is_floating_point(vectors):
             raise ContractError("RQ vectors must use a floating dtype")
@@ -93,7 +113,7 @@ class ResidualQuantizer(torch.nn.Module):
             raise ContractError("RQ fitting requires at least codebook_size samples")
         if not np.isfinite(values).all():
             raise ContractError("RQ fitting data must contain only finite values")
-        from sklearn.cluster import KMeans
+        from sklearn.cluster import KMeans  # type: ignore[import-untyped]
 
         residual = values.copy()
         fitted = []

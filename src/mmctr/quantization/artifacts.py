@@ -136,15 +136,11 @@ def load_quantization_artifact(
                 raise QuantizationArtifactError("unsupported quantization artifact format")
             if manifest.get("version") != ARTIFACT_VERSION:
                 raise QuantizationArtifactError(
-                    "unsupported quantization artifact version: {}".format(
-                        manifest.get("version")
-                    )
+                    "unsupported quantization artifact version: {}".format(manifest.get("version"))
                 )
             if manifest.get("kind") != expected_kind:
                 raise QuantizationArtifactError(
-                    "expected {!r} artifact, found {!r}".format(
-                        expected_kind, manifest.get("kind")
-                    )
+                    "expected {!r} artifact, found {!r}".format(expected_kind, manifest.get("kind"))
                 )
             declared = manifest.get("arrays")
             if not isinstance(declared, dict):

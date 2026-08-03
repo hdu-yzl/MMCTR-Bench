@@ -7,106 +7,34 @@ import torch
 from mmctr.core import Batch, ContractError, ModelOutput
 from mmctr.models.base import BaseSeqModel, HistoryCapability
 from mmctr.models.baselines.layers import FeatureEmbedding, MultiLayerPerceptron
-from mmctr.models.components import NamedFeatureProjector, feature_presence
+from mmctr.models.components import (
+    ConcatenateFusion,
+    LowRankFusion,
+    MAFFusion,
+    MTFNFusion,
+    MeanFusion,
+    ModalityFusion,
+    NamedFeatureProjector,
+    SumFusion,
+    feature_presence,
+)
 
 
-class _ConcatFusion(torch.nn.Module):
-    def __init__(self, features: Sequence[str], dimension: int) -> None:
-        super().__init__()
-        self.features = tuple(features)
-        self.output_dim = dimension * len(self.features)
-
-    def forward(self, values: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        return torch.cat([values[name] for name in self.features], dim=-1)
+_ConcatFusion = ConcatenateFusion
 
 
-class _ReduceFusion(torch.nn.Module):
-    def __init__(self, features: Sequence[str], dimension: int, reduction: str) -> None:
-        super().__init__()
-        self.features = tuple(features)
-        self.output_dim = dimension
-        self.reduction = reduction
-
-    def forward(self, values: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        stacked = torch.stack([values[name] for name in self.features], dim=0)
-        return stacked.mean(dim=0) if self.reduction == "mean" else stacked.sum(dim=0)
+def _ReduceFusion(features: Sequence[str], dimension: int, reduction: str) -> ModalityFusion:
+    fusion_class = MeanFusion if reduction == "mean" else SumFusion
+    return fusion_class(features, dimension)
 
 
-class _MAFFusion(torch.nn.Module):
-    def __init__(self, features: Sequence[str], dimension: int) -> None:
-        super().__init__()
-        self.features = tuple(features)
-        self.output_dim = dimension
-        self.weights = torch.nn.ParameterDict(
-            {name: torch.nn.Parameter(torch.empty(dimension, dimension)) for name in features}
-        )
-        self.biases = torch.nn.ParameterDict(
-            {name: torch.nn.Parameter(torch.zeros(dimension)) for name in features}
-        )
-        for weight in self.weights.values():
-            torch.nn.init.xavier_uniform_(weight)
-
-    def forward(self, values: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        return torch.stack(
-            [
-                torch.tanh(values[name] @ self.weights[name] + self.biases[name])
-                for name in self.features
-            ],
-            dim=0,
-        ).sum(dim=0)
+_MAFFusion = MAFFusion
 
 
-class _LowRankFusion(torch.nn.Module):
-    def __init__(
-        self, features: Sequence[str], dimension: int, rank: int, output_dim: int
-    ) -> None:
-        super().__init__()
-        self.features = tuple(features)
-        self.output_dim = output_dim
-        self.factors = torch.nn.ParameterList(
-            [torch.nn.Parameter(torch.empty(rank, dimension + 1, output_dim)) for _ in features]
-        )
-        self.fusion_weights = torch.nn.Parameter(torch.empty(1, rank))
-        self.fusion_bias = torch.nn.Parameter(torch.zeros(1, output_dim))
-        for factor in self.factors:
-            torch.nn.init.xavier_normal_(factor)
-        torch.nn.init.xavier_normal_(self.fusion_weights)
-
-    def forward(self, values: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        terms = []
-        for name, factor in zip(self.features, self.factors):
-            value = values[name]
-            ones = torch.ones(*value.shape[:-1], 1, dtype=value.dtype, device=value.device)
-            terms.append(torch.einsum("rdo,...d->...ro", factor, torch.cat([ones, value], dim=-1)))
-        product = torch.stack(terms, dim=0).prod(dim=0)
-        return (product * self.fusion_weights.unsqueeze(-1)).sum(dim=-2) + self.fusion_bias
+_LowRankFusion = LowRankFusion
 
 
-class _MTFNFusion(torch.nn.Module):
-    def __init__(self, features: Sequence[str], dimension: int, rank: int) -> None:
-        super().__init__()
-        self.features = tuple(features)
-        self.output_dim = dimension
-        self.heads = torch.nn.ModuleDict(
-            {
-                name: torch.nn.ModuleList(
-                    [torch.nn.Linear(dimension, dimension, bias=False) for _ in range(rank)]
-                )
-                for name in features
-            }
-        )
-        self.compress = torch.nn.Linear(dimension, dimension)
-        self.rank = rank
-
-    def forward(self, values: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        rank_outputs = []
-        for rank_index in range(self.rank):
-            modal_values = [self.heads[name][rank_index](values[name]) for name in self.features]
-            fused = modal_values[0]
-            for value in modal_values[1:]:
-                fused = fused * value
-            rank_outputs.append(fused)
-        return self.compress(torch.stack(rank_outputs, dim=0).sum(dim=0))
+_MTFNFusion = MTFNFusion
 
 
 def _build_fusion(
@@ -115,7 +43,7 @@ def _build_fusion(
     dimension: int,
     rank: int = 5,
     output_dim: int = 16,
-) -> torch.nn.Module:
+) -> ModalityFusion:
     method = str(method).lower()
     if not features:
         raise ContractError("multimodal fusion requires at least one feature")
@@ -130,9 +58,7 @@ def _build_fusion(
     if method == "mtfn":
         return _MTFNFusion(features, dimension, rank)
     raise ContractError(
-        "simple canonical models support cat/add/mean/maf/lmf/mtfn fusion; got {!r}".format(
-            method
-        )
+        "simple canonical models support cat/add/mean/maf/lmf/mtfn fusion; got {!r}".format(method)
     )
 
 
@@ -183,14 +109,10 @@ class _PooledMultimodalModel(BaseSeqModel):
 
     def project_target(self, batch: Batch) -> Dict[str, torch.Tensor]:
         try:
-            target_ids = torch.cat(
-                [batch.user_features["id"], batch.item_features["id"]], dim=1
-            )
+            target_ids = torch.cat([batch.user_features["id"], batch.item_features["id"]], dim=1)
         except KeyError as error:
             raise ContractError("pooled multimodal models require user/item IDs") from error
-        encoded = {
-            "id": self.embedding(target_ids).flatten(start_dim=1)
-        }
+        encoded = {"id": self.embedding(target_ids).flatten(start_dim=1)}
         presence = {}
         for name in self.feature_names:
             if name == "id":
@@ -250,12 +172,12 @@ class DNN_mm(_PooledMultimodalModel):
         self.dnn, self.out_put = self.make_predictor(input_dim)
 
     def forward_batch(self, batch: Batch) -> ModelOutput:
-        target = self.target_fusion(self.project_target(batch))
+        target = self.target_fusion(self.project_target(batch)).fused
         pooled = {
             name: self.masked_pool(values, batch.history_mask)
             for name, values in self.project_history(batch).items()
         }
-        history = self.history_fusion(pooled)
+        history = self.history_fusion(pooled).fused
         return ModelOutput(self.out_put(self.dnn(torch.cat([target, history], dim=-1))))
 
 
@@ -273,8 +195,8 @@ class LMF(_PooledMultimodalModel):
         self.dnn, self.out_put = self.make_predictor(output_dim * 2)
 
     def forward_batch(self, batch: Batch) -> ModelOutput:
-        target = self.target_fusion(self.project_target(batch))
-        history_tokens = self.history_fusion(self.project_history(batch))
+        target = self.target_fusion(self.project_target(batch)).fused
+        history_tokens = self.history_fusion(self.project_history(batch)).fused
         history = self.masked_pool(history_tokens, batch.history_mask)
         return ModelOutput(self.out_put(self.dnn(torch.cat([target, history], dim=-1))))
 
@@ -284,14 +206,12 @@ class MTFN(_PooledMultimodalModel):
         super().__init__(model_config, data_config)
         rank = int(model_config.get("rank", 20))
         self.target_fusion = _MTFNFusion(self.feature_names, self.projection_dim, rank)
-        self.history_fusion = _MTFNFusion(
-            self.history_feature_names, self.projection_dim, rank
-        )
+        self.history_fusion = _MTFNFusion(self.history_feature_names, self.projection_dim, rank)
         self.dnn, self.out_put = self.make_predictor(self.projection_dim * 2)
 
     def forward_batch(self, batch: Batch) -> ModelOutput:
-        target = self.target_fusion(self.project_target(batch))
-        history_tokens = self.history_fusion(self.project_history(batch))
+        target = self.target_fusion(self.project_target(batch)).fused
+        history_tokens = self.history_fusion(self.project_history(batch)).fused
         history = self.masked_pool(history_tokens, batch.history_mask)
         return ModelOutput(self.out_put(self.dnn(torch.cat([target, history], dim=-1))))
 
@@ -391,9 +311,7 @@ class _MultiLevelExpert(torch.nn.Module):
                 )
             )
             self.dropouts.append(
-                torch.nn.ModuleList(
-                    [torch.nn.Dropout(value) for value in dropouts]
-                )
+                torch.nn.ModuleList([torch.nn.Dropout(value) for value in dropouts])
             )
 
     def forward(self, values: torch.Tensor) -> torch.Tensor:
@@ -401,9 +319,7 @@ class _MultiLevelExpert(torch.nn.Module):
             experts = layer(values, residual=index > 0)
             transformed = [
                 dropout(torch.relu(norm(expert)))
-                for expert, norm, dropout in zip(
-                    experts, self.norms[index], self.dropouts[index]
-                )
+                for expert, norm, dropout in zip(experts, self.norms[index], self.dropouts[index])
             ]
             values = torch.cat(transformed, dim=-1)
         return values
@@ -459,8 +375,7 @@ class SimCEN(_PooledMultimodalModel):
         positive = ((ego * view1).sum(dim=-1) + (ego * view2).sum(dim=-1)) * 0.5
         all_pairs = torch.matmul(view1, view2.transpose(0, 1))
         return -(
-            positive / self.temperature
-            - torch.logsumexp(all_pairs / self.temperature, dim=-1)
+            positive / self.temperature - torch.logsumexp(all_pairs / self.temperature, dim=-1)
         ).mean()
 
     def forward_batch(self, batch: Batch) -> ModelOutput:

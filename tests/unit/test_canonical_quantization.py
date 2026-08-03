@@ -63,9 +63,9 @@ def initialized_psrq():
         for module in model.modules():
             if hasattr(module, "initted") and hasattr(module, "embedding"):
                 module.embedding.weight.copy_(
-                    torch.arange(
-                        module.embedding.weight.numel(), dtype=torch.float32
-                    ).reshape_as(module.embedding.weight)
+                    torch.arange(module.embedding.weight.numel(), dtype=torch.float32).reshape_as(
+                        module.embedding.weight
+                    )
                     / 20.0
                 )
                 module.initted.fill_(True)
@@ -110,9 +110,7 @@ class QuantizationArtifactTests(unittest.TestCase):
         self.assertTrue(torch.equal(expected_values, quantizer.decode(expected_codes)))
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "image-rq"
-            saved = quantizer.save(
-                path, metadata={"dataset": "fixture", "modality": "image"}
-            )
+            saved = quantizer.save(path, metadata={"dataset": "fixture", "modality": "image"})
             loaded = ResidualQuantizer.from_artifact(saved)
             actual_codes, actual_values = loaded.encode(values)
         self.assertTrue(torch.equal(expected_codes, actual_codes))
@@ -191,9 +189,7 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
             with self.subTest(name=name):
                 model = self._model(name)
                 self.assertIsInstance(model, BaseSeqModel)
-                self.assertEqual(
-                    HistoryCapability.SEQUENCE_TOKENS, model.history_capability
-                )
+                self.assertEqual(HistoryCapability.SEQUENCE_TOKENS, model.history_capability)
                 output = model(make_batch())
                 self.assertEqual((2,), tuple(output.logits.shape))
                 output.logits.sum().backward()
@@ -215,12 +211,8 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
                     metadata={"dataset": "fixture", "modality": modality},
                 )
             initialized_psrq().save(psrq_artifact_path(root, "fixture"))
-            qarm = create_model_from_artifacts(
-                "qarm", model_config, data_config, root
-            )
-            mcca = create_model_from_artifacts(
-                "mcca", model_config, data_config, root
-            )
+            qarm = create_model_from_artifacts("qarm", model_config, data_config, root)
+            mcca = create_model_from_artifacts("mcca", model_config, data_config, root)
             self.assertEqual((2,), tuple(qarm(make_batch()).logits.shape))
             self.assertEqual((2,), tuple(mcca(make_batch()).logits.shape))
 
@@ -242,9 +234,7 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
                 model = self._model(name)
                 model.eval()
                 clean_history = model(clean).representations["history_quantized"]
-                contaminated_history = model(contaminated).representations[
-                    "history_quantized"
-                ]
+                contaminated_history = model(contaminated).representations["history_quantized"]
                 self.assertTrue(torch.equal(clean_history, contaminated_history))
 
     def test_mcca_keeps_frozen_psrq_in_evaluation_mode(self):
@@ -266,9 +256,7 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
             history_mask=original.history_mask,
             labels=original.labels,
         )
-        qarm_target = self._model("qarm")(missing).representations[
-            "target_quantized"
-        ]
+        qarm_target = self._model("qarm")(missing).representations["target_quantized"]
         self.assertTrue(torch.equal(qarm_target[:, 4:], torch.zeros_like(qarm_target[:, 4:])))
         mcca_joint = self._model("mcca")(missing).representations["joint_quantized"]
         self.assertTrue(torch.equal(mcca_joint, torch.zeros_like(mcca_joint)))

@@ -22,9 +22,7 @@ def _non_id_modalities(data_config: Mapping):
     return tuple(name for name in data_config.get("use_mm_features", ()) if name != "id")
 
 
-def _load_qarm_dependencies(
-    model_config: Mapping, data_config: Mapping, artifact_root: Path
-):
+def _load_qarm_dependencies(model_config: Mapping, data_config: Mapping, artifact_root: Path):
     config = _effective_config(model_config, data_config)
     dataset = str(data_config.get("name", "")).lower()
     modalities = _non_id_modalities(data_config)
@@ -46,9 +44,7 @@ def _load_qarm_dependencies(
         )
         if actual != expected:
             raise ContractError(
-                "QARM {!r} RQ structure {} does not match {}".format(
-                    modality, actual, expected
-                )
+                "QARM {!r} RQ structure {} does not match {}".format(modality, actual, expected)
             )
         metadata = quantizer.artifact_metadata
         if metadata.get("dataset", dataset) != dataset:
@@ -59,9 +55,7 @@ def _load_qarm_dependencies(
     return {"quantizers": quantizers}
 
 
-def _load_mcca_dependencies(
-    model_config: Mapping, data_config: Mapping, artifact_root: Path
-):
+def _load_mcca_dependencies(model_config: Mapping, data_config: Mapping, artifact_root: Path):
     config = _effective_config(model_config, data_config)
     dataset = str(data_config.get("name", "")).lower()
     quantizer = PSRQPretrainer.from_artifact(psrq_artifact_path(artifact_root, dataset))
@@ -92,9 +86,7 @@ def _load_mcca_dependencies(
     )
     if actual_structure != expected_structure:
         raise ContractError(
-            "MCCA PSRQ structure {} does not match {}".format(
-                actual_structure, expected_structure
-            )
+            "MCCA PSRQ structure {} does not match {}".format(actual_structure, expected_structure)
         )
     quantizer.eval()
     quantizer.requires_grad_(False)

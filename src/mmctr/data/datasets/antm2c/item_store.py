@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -72,9 +72,7 @@ class FeatureStoreAudit:
     missing_by_feature: Mapping[str, Tuple[Any, ...]]
 
     def __post_init__(self) -> None:
-        values = {
-            name: tuple(missing) for name, missing in self.missing_by_feature.items()
-        }
+        values = {name: tuple(missing) for name, missing in self.missing_by_feature.items()}
         object.__setattr__(self, "missing_by_feature", MappingProxyType(values))
 
 
@@ -101,7 +99,7 @@ class ItemFeatureStore:
             copied[name] = array
         object.__setattr__(self, "features", MappingProxyType(copied))
 
-    def gather(self, feature: str, item_indices: Sequence[int]) -> np.ndarray:
+    def gather(self, feature: str, item_indices: Union[Sequence[int], np.ndarray]) -> np.ndarray:
         try:
             values = self.features[feature]
         except KeyError as error:

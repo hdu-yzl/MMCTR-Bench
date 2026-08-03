@@ -48,29 +48,22 @@ class _SequenceMultimodalModel(BaseSeqModel):
         dimensions["id"] = self.latent_dim
         user_dimensions["id"] = self.latent_dim
         missing = [name for name in self.feature_names if name not in dimensions]
-        missing.extend(
-            name for name in self.user_feature_names if name not in user_dimensions
-        )
+        missing.extend(name for name in self.user_feature_names if name not in user_dimensions)
         if missing:
             raise ContractError("missing sequence multimodal dimensions: {}".format(missing))
         selected_dimensions = [
             ("item.{}".format(name), dimensions[name]) for name in self.feature_names
         ]
         selected_dimensions.extend(
-            ("user.{}".format(name), user_dimensions[name])
-            for name in self.user_feature_names
+            ("user.{}".format(name), user_dimensions[name]) for name in self.user_feature_names
         )
         invalid = {
-            name: int(dimension)
-            for name, dimension in selected_dimensions
-            if int(dimension) <= 0
+            name: int(dimension) for name, dimension in selected_dimensions if int(dimension) <= 0
         }
         if invalid:
             raise ContractError("sequence feature dimensions must be positive: {}".format(invalid))
 
-        self.embedding = FeatureEmbedding(
-            int(data_config["id_feature_num"]) + 1, self.latent_dim
-        )
+        self.embedding = FeatureEmbedding(int(data_config["id_feature_num"]) + 1, self.latent_dim)
         self.projectors = NamedFeatureProjector(
             {name: int(dimensions[name]) for name in self.feature_names},
             self.projection_dim,
@@ -130,9 +123,7 @@ class _SequenceMultimodalModel(BaseSeqModel):
                 presence[name] = feature_presence(values)
             encoded[name] = values
         projected = self.user_projectors(encoded, presence)
-        return torch.cat(
-            [projected[name] for name in self.user_feature_names], dim=-1
-        )
+        return torch.cat([projected[name] for name in self.user_feature_names], dim=-1)
 
 
 class DNN_mm_seq(_SequenceMultimodalModel):
@@ -168,16 +159,14 @@ class DNN_mm_seq(_SequenceMultimodalModel):
         )
 
     def forward_batch(self, batch: Batch) -> ModelOutput:
-        target = self.target_fusion(self.project_target(batch))
+        target = self.target_fusion(self.project_target(batch)).fused
         pooled = {
             name: self.masked_pool(values, batch.history_mask)
             for name, values in self.project_history(batch).items()
         }
-        history = self.history_fusion(pooled)
+        history = self.history_fusion(pooled).fused
         user = self.project_user(batch)
-        return ModelOutput(
-            self.out_put(self.dnn(torch.cat([target, history, user], dim=-1)))
-        )
+        return ModelOutput(self.out_put(self.dnn(torch.cat([target, history, user], dim=-1))))
 
 
 class _MaskedUserEncoder(AttentionPooling):
@@ -194,8 +183,8 @@ class NAML(_SequenceMultimodalModel):
         self.user_encoder = _MaskedUserEncoder(self.projection_dim)
 
     def forward_batch(self, batch: Batch) -> ModelOutput:
-        target = self.modal_fusion(self.project_target(batch))
-        history = self.modal_fusion(self.project_history(batch))
+        target = self.modal_fusion(self.project_target(batch)).fused
+        history = self.modal_fusion(self.project_history(batch)).fused
         history = apply_sequence_mask(history, batch.history_mask)
         interest = self.user_encoder(history, batch.history_mask)
         user = self.user_linear(self.project_user(batch)) + interest
@@ -207,9 +196,7 @@ class NAML(_SequenceMultimodalModel):
 
 
 class _SimilarityTiers(torch.nn.Module):
-    def __init__(
-        self, tier_count: int, minimum: float = -1.0, maximum: float = 1.0
-    ) -> None:
+    def __init__(self, tier_count: int, minimum: float = -1.0, maximum: float = 1.0) -> None:
         super().__init__()
         if tier_count <= 0 or minimum >= maximum:
             raise ContractError("similarity tiers require a positive count and valid range")
@@ -237,9 +224,7 @@ class MAKE(_SequenceMultimodalModel):
         self.modal_fusion = _build_fusion(
             method, self.feature_names, self.projection_dim, rank, fusion_dim
         )
-        self.attention = DinAttention(
-            self.modal_fusion.output_dim, self.mlp_dims, self.dropout
-        )
+        self.attention = DinAttention(self.modal_fusion.output_dim, self.mlp_dims, self.dropout)
         predictor_dim = (
             self.modal_fusion.output_dim * 2
             + self.projection_dim * len(self.user_feature_names)
@@ -261,18 +246,14 @@ class MAKE(_SequenceMultimodalModel):
         )
 
     def forward_batch(self, batch: Batch) -> ModelOutput:
-        target = self.modal_fusion(self.project_target(batch))
-        history = self.modal_fusion(self.project_history(batch))
+        target = self.modal_fusion(self.project_target(batch)).fused
+        history = self.modal_fusion(self.project_history(batch)).fused
         history = apply_sequence_mask(history, batch.history_mask)
-        similarities = torch.nn.functional.cosine_similarity(
-            target.unsqueeze(1), history, dim=-1
-        )
-        pooled = self.attention(target, history, batch.history_mask)
+        similarities = torch.nn.functional.cosine_similarity(target.unsqueeze(1), history, dim=-1)
+        pooled = self.attention(history, batch.history_mask, target)
         tiers = self.similarity_tiers(similarities, batch.history_mask)
         user = self.project_user(batch)
-        logits = self.out_put(
-            self.dnn(torch.cat([user, pooled, target, tiers], dim=-1))
-        )
+        logits = self.out_put(self.dnn(torch.cat([user, pooled, target, tiers], dim=-1)))
         return ModelOutput(
             logits,
             representations={"similarities": similarities, "similarity_tiers": tiers},
@@ -280,9 +261,7 @@ class MAKE(_SequenceMultimodalModel):
 
 
 class _SimilarityDiscretizer(torch.nn.Module):
-    def __init__(
-        self, bucket_count: int, minimum: float = -1.0, maximum: float = 1.0
-    ) -> None:
+    def __init__(self, bucket_count: int, minimum: float = -1.0, maximum: float = 1.0) -> None:
         super().__init__()
         if bucket_count <= 0 or minimum >= maximum:
             raise ContractError("similarity discretizer requires a valid bucket range")
@@ -316,7 +295,7 @@ class _DecoupledTargetAttention(torch.nn.Module):
         self.similarity_key = FeatureEmbedding(bucket_count, attention_dim)
         self.similarity_value = FeatureEmbedding(bucket_count, attention_dim)
         self.dropout = torch.nn.Dropout(dropout)
-        self.scale = attention_dim ** 0.5
+        self.scale = attention_dim**0.5
 
     def forward(
         self,
@@ -337,9 +316,7 @@ class _DecoupledTargetAttention(torch.nn.Module):
 class DMF(_SequenceMultimodalModel):
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
-        self.non_id_features = tuple(
-            name for name in self.feature_names if name != "id"
-        )
+        self.non_id_features = tuple(name for name in self.feature_names if name != "id")
         if not self.non_id_features:
             raise ContractError("DMF requires at least one non-ID modality")
         self.tier_count = int(model_config.get("tier_num", 10))
@@ -372,9 +349,7 @@ class DMF(_SequenceMultimodalModel):
             self.dropout,
             batch_norm=self.batch_norm,
         )
-        predictor_dim = (
-            self.projection_dim * len(self.user_feature_names) + self.mlp_dims[-1]
-        )
+        predictor_dim = self.projection_dim * len(self.user_feature_names) + self.mlp_dims[-1]
         self.dnn = MultiLayerPerceptron(
             predictor_dim,
             self.mlp_dims,
@@ -394,10 +369,10 @@ class DMF(_SequenceMultimodalModel):
         history_features = self.project_history(batch)
         target_center = self.modal_fusion(
             {name: target_features[name] for name in self.non_id_features}
-        )
+        ).fused
         history_center = self.modal_fusion(
             {name: history_features[name] for name in self.non_id_features}
-        )
+        ).fused
         history_center = apply_sequence_mask(history_center, batch.history_mask)
         similarities = torch.nn.functional.cosine_similarity(
             target_center.unsqueeze(1), history_center, dim=-1
@@ -452,12 +427,8 @@ class _ModalitySplit(torch.nn.Module):
     def forward(
         self, features: Mapping[str, torch.Tensor]
     ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
-        specific = {
-            name: self.specific[name](features[name]) for name in self.feature_names
-        }
-        invariant = {
-            name: self.invariant(features[name]) for name in self.feature_names
-        }
+        specific = {name: self.specific[name](features[name]) for name in self.feature_names}
+        invariant = {name: self.invariant(features[name]) for name in self.feature_names}
         return specific, invariant
 
 
@@ -479,9 +450,7 @@ class _AdversarialModalityEncoder(torch.nn.Module):
     def _weighted(
         self, features: Mapping[str, torch.Tensor]
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        stacked = torch.stack(
-            [features[name] for name in self.feature_names], dim=1
-        )
+        stacked = torch.stack([features[name] for name in self.feature_names], dim=1)
         batch_size, feature_count, dimension = stacked.shape
         flattened = stacked.reshape(batch_size * feature_count, dimension)
         labels = torch.arange(feature_count, device=stacked.device).repeat(batch_size)
@@ -503,9 +472,7 @@ class _AdversarialModalityEncoder(torch.nn.Module):
         domain_loss = torch.nn.functional.cross_entropy(logits, labels)
         reversed_values = _reverse_gradient(weighted.reshape(-1, dimension))
         adversarial_logits = self.adversarial_classifier(reversed_values)
-        adversarial_loss = torch.nn.functional.cross_entropy(
-            adversarial_logits, labels
-        )
+        adversarial_loss = torch.nn.functional.cross_entropy(adversarial_logits, labels)
         return domain_loss, adversarial_loss, weighted.max(dim=1).values
 
 
@@ -521,16 +488,10 @@ class _ModalitySpecificClassifier(torch.nn.Module):
         )
 
     def forward(self, features: Mapping[str, torch.Tensor]) -> torch.Tensor:
-        stacked = torch.stack(
-            [features[name].detach() for name in self.feature_names], dim=1
-        )
+        stacked = torch.stack([features[name].detach() for name in self.feature_names], dim=1)
         logits = self.classifier(stacked)
-        labels = torch.arange(self.feature_count, device=stacked.device).repeat(
-            stacked.shape[0]
-        )
-        return torch.nn.functional.cross_entropy(
-            logits.reshape(-1, self.feature_count), labels
-        )
+        labels = torch.arange(self.feature_count, device=stacked.device).repeat(stacked.shape[0])
+        return torch.nn.functional.cross_entropy(logits.reshape(-1, self.feature_count), labels)
 
 
 class MARN(_SequenceMultimodalModel):
@@ -541,18 +502,12 @@ class MARN(_SequenceMultimodalModel):
             raise ContractError("MARN lambda0 must be non-negative")
         self.split = _ModalitySplit(self.projection_dim, self.feature_names)
         self.private_fusion = _MAFFusion(self.feature_names, self.projection_dim)
-        self.adversarial = _AdversarialModalityEncoder(
-            self.projection_dim, self.feature_names
-        )
+        self.adversarial = _AdversarialModalityEncoder(self.projection_dim, self.feature_names)
         self.specific_classifier = _ModalitySpecificClassifier(
             self.projection_dim, self.feature_names
         )
-        self.attention = DinAttention(
-            self.projection_dim, self.mlp_dims, self.dropout
-        )
-        predictor_dim = self.projection_dim * (
-            2 + len(self.user_feature_names)
-        )
+        self.attention = DinAttention(self.projection_dim, self.mlp_dims, self.dropout)
+        predictor_dim = self.projection_dim * (2 + len(self.user_feature_names))
         self.dnn = MultiLayerPerceptron(
             predictor_dim,
             self.mlp_dims,
@@ -571,22 +526,16 @@ class MARN(_SequenceMultimodalModel):
     def _apply_mask(
         features: Mapping[str, torch.Tensor], mask: torch.Tensor
     ) -> Dict[str, torch.Tensor]:
-        return {
-            name: apply_sequence_mask(values, mask)
-            for name, values in features.items()
-        }
+        return {name: apply_sequence_mask(values, mask) for name, values in features.items()}
 
     def _history_invariant(
         self, features: Mapping[str, torch.Tensor], batch: Batch
     ) -> torch.Tensor:
         flattened = {
-            name: values.reshape(-1, self.projection_dim)
-            for name, values in features.items()
+            name: values.reshape(-1, self.projection_dim) for name, values in features.items()
         }
         invariant = self.adversarial.representation(flattened)
-        invariant = invariant.reshape(
-            batch.batch_size, batch.sequence_length, self.projection_dim
-        )
+        invariant = invariant.reshape(batch.batch_size, batch.sequence_length, self.projection_dim)
         return apply_sequence_mask(invariant, batch.history_mask)
 
     def forward_batch(self, batch: Batch) -> ModelOutput:
@@ -597,40 +546,30 @@ class MARN(_SequenceMultimodalModel):
         history_specific = self._apply_mask(history_specific, batch.history_mask)
         history_invariant = self._apply_mask(history_invariant, batch.history_mask)
 
-        target_private = self.private_fusion(target_specific)
-        history_private = self.private_fusion(history_specific)
+        target_private = self.private_fusion(target_specific).fused
+        history_private = self.private_fusion(history_specific).fused
         history_private = apply_sequence_mask(history_private, batch.history_mask)
-        domain_loss, adversarial_loss, invariant_target = self.adversarial(
-            target_invariant
-        )
+        domain_loss, adversarial_loss, invariant_target = self.adversarial(target_invariant)
         specific_loss = self.specific_classifier(target_specific)
         invariant_history = self._history_invariant(history_invariant, batch)
 
         target_representation = invariant_target + target_private
         history_representation = invariant_history + history_private
-        history_representation = apply_sequence_mask(
-            history_representation, batch.history_mask
-        )
+        history_representation = apply_sequence_mask(history_representation, batch.history_mask)
         history_interest = self.attention(
-            target_representation,
             history_representation,
             batch.history_mask,
+            target_representation,
         )
         user = self.project_user(batch)
         logits = self.output(
-            self.dnn(
-                torch.cat(
-                    [user, history_interest, target_representation], dim=-1
-                )
-            )
+            self.dnn(torch.cat([user, history_interest, target_representation], dim=-1))
         )
         return ModelOutput(
             logits,
             auxiliary_losses={
                 "marn_domain_classifier": domain_loss,
-                "marn_adversarial_invariance": (
-                    adversarial_loss * self.auxiliary_weight
-                ),
+                "marn_adversarial_invariance": (adversarial_loss * self.auxiliary_weight),
                 "marn_specific_classifier": specific_loss * self.auxiliary_weight,
             },
             representations={

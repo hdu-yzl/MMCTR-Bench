@@ -65,5 +65,28 @@ dimension, mask shape, device, and target compatibility before model operations.
 
 `BaseSeqModel.masked_pool`, the existing `DinAttention` compatibility name, and NAML's private
 encoder now delegate to state-key-compatible public implementations. Model-private attention is
-left unchanged when it represents a different paper formula. Fusion, auxiliary losses, and modal
-pipeline topology remain separate follow-up contracts.
+left unchanged when it represents a different paper formula.
+
+## Fusion
+
+Public fusion consumes an exact mapping of configured modality names. Every modality must have the
+same rank (2 or 3), prefix shape, floating dtype, device, and final input dimension. An optional
+presence mapping must contain the same names and boolean prefix shapes. Missing values are masked
+before fusion, including after MAF's learned bias, so absent fields cannot silently become learned
+bias vectors.
+
+The lazy `FUSION_REGISTRY` exposes `concatenate`, `sum`, `mean`, `maf`, `lmf`, and `mtfn`.
+Compatibility aliases are `cat`, `add`, and `average`. Registry metadata and each immutable
+`FusionCapability` declare supported ranks, modality-count bounds, presence support, output
+dimension rules, and stable auxiliary-loss names.
+
+Every call returns `FusionOutput(fused, auxiliary_losses)`. The representation keeps the input
+prefix and changes only its final dimension. Auxiliary losses must be named floating scalar tensors
+on the same device; the six initial compatibility algorithms currently return an empty mapping.
+Concatenation reports `modalities * input_dim`, LMF reports its configured output dimension, and the
+other initial algorithms preserve the common input dimension.
+
+The DNN-MM, DNN-MM-Seq, NAML, DMF, MARN, LMF, and MTFN compatibility presets now delegate to these
+public implementations while retaining parameter names for learned MAF/LMF/MTFN state. Other
+paper-private fusion formulas remain local until their equations and checkpoint keys have explicit
+regression coverage. Branch topology and configurable pipeline composition remain `PIPE-001` work.

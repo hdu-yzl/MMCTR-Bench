@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Dict, Iterable, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional, Tuple
 
 import numpy as np
 import torch
@@ -16,6 +16,7 @@ from .item_store import ItemFeatureStore, ItemIndex
 
 
 ARRAY_STORE_SCHEMA_VERSION = 1
+MMapMode = Optional[Literal["r+", "r", "w+", "c"]]
 
 
 @dataclass(frozen=True)
@@ -102,7 +103,7 @@ def write_array_store(
     if manifest.sequence_length <= 0:
         raise ContractError("manifest sequence length must be positive")
 
-    all_event_ids = []
+    all_event_ids: List[str] = []
     for split_name, table in sorted(splits.items()):
         if split_name not in {"train", "val", "test"}:
             raise ContractError("unknown split: {!r}".format(split_name))
@@ -129,12 +130,10 @@ def write_array_store(
     for name, values in item_store.features.items():
         expected_dimension = manifest.feature_dimensions.get(name)
         if expected_dimension is not None and values.shape[1] != expected_dimension:
-            raise ContractError(
-                "item feature {!r} dimension does not match manifest".format(name)
-            )
+            raise ContractError("item feature {!r} dimension does not match manifest".format(name))
 
     staging.mkdir(parents=True)
-    layout = {
+    layout: Dict[str, Any] = {
         "schema_version": ARRAY_STORE_SCHEMA_VERSION,
         "format": "named-npy-candidate-v1",
         "splits": {},
@@ -183,7 +182,7 @@ def _load_manifest(path: Path) -> DatasetManifest:
 
 def load_array_store(
     input_dir: Path,
-    mmap_mode: Optional[str] = "r",
+    mmap_mode: MMapMode = "r",
 ) -> Tuple[DatasetManifest, Mapping[str, InteractionTable], ItemFeatureStore]:
     """Read the candidate format using its layout metadata rather than fixed slices."""
 
@@ -205,9 +204,7 @@ def load_array_store(
             ),
             user_indices=np.load(split_dir / "user_index.npy", mmap_mode=mmap_mode),
             item_indices=np.load(split_dir / "item_index.npy", mmap_mode=mmap_mode),
-            history_item_indices=np.load(
-                split_dir / "history_item_index.npy", mmap_mode=mmap_mode
-            ),
+            history_item_indices=np.load(split_dir / "history_item_index.npy", mmap_mode=mmap_mode),
             labels=np.load(split_dir / "labels.npy", mmap_mode=mmap_mode),
             context_features=contexts,
         )
@@ -221,9 +218,7 @@ def load_array_store(
         oov_id=item_layout.get("oov_id"),
     )
     item_features = {
-        name: np.load(
-            input_dir / "items" / "features" / (name + ".npy"), mmap_mode=mmap_mode
-        )
+        name: np.load(input_dir / "items" / "features" / (name + ".npy"), mmap_mode=mmap_mode)
         for name in layout["item_features"]
     }
     return manifest, MappingProxyType(splits), ItemFeatureStore(item_index, item_features)
@@ -250,7 +245,7 @@ class AntM2CArrayLoader:
 
     @classmethod
     def from_directory(
-        cls, input_dir: Path, batch_size: int, mmap_mode: Optional[str] = "r"
+        cls, input_dir: Path, batch_size: int, mmap_mode: MMapMode = "r"
     ) -> "AntM2CArrayLoader":
         manifest, splits, item_store = load_array_store(input_dir, mmap_mode=mmap_mode)
         return cls(manifest, splits, item_store, batch_size)
@@ -302,9 +297,13 @@ class AntM2CArrayLoader:
                 history_mask=torch.as_tensor(
                     history_indices != self.manifest.padding_id, dtype=torch.bool
                 ),
-                labels=torch.as_tensor(table.labels[start:stop], dtype=torch.float32),
+                labels=torch.as_tensor(
+                    np.array(table.labels[start:stop], copy=True), dtype=torch.float32
+                ),
                 context_features={
-                    name: torch.as_tensor(values[start:stop], dtype=torch.float32)
+                    name: torch.as_tensor(
+                        np.array(values[start:stop], copy=True), dtype=torch.float32
+                    )
                     for name, values in table.context_features.items()
                 },
                 metadata={

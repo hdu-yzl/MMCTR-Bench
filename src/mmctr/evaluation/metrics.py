@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Dict
 
 import numpy as np
-from sklearn import metrics
+from sklearn import metrics  # type: ignore[import-untyped]
 
 from mmctr.core import ContractError
 
@@ -41,7 +41,7 @@ def binary_classification_metrics(labels: np.ndarray, probabilities: np.ndarray)
         raise ContractError("CTR evaluation requires both binary label classes")
     if np.any(probabilities < 0.0) or np.any(probabilities > 1.0):
         raise ContractError("probabilities must be within [0, 1]")
-    epsilon = np.finfo(np.float64).eps
+    epsilon: float = float(np.finfo(np.float64).eps)
     clipped = np.clip(probabilities.astype(np.float64), epsilon, 1.0 - epsilon)
     return BinaryMetrics(
         auc=float(metrics.roc_auc_score(labels, clipped)),

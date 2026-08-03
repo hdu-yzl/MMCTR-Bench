@@ -10,9 +10,7 @@ def make_batch():
     return Batch(
         user_features={"id": torch.tensor([[1], [2], [3], [4]])},
         item_features={"id": torch.tensor([[5], [6], [7], [8]])},
-        history_features={
-            "id": torch.tensor([[5, 0, 0], [6, 5, 0], [7, 6, 5], [8, 7, 6]])
-        },
+        history_features={"id": torch.tensor([[5, 0, 0], [6, 5, 0], [7, 6, 5], [8, 7, 6]])},
         history_mask=torch.tensor(
             [
                 [True, False, False],
@@ -51,9 +49,7 @@ class CanonicalBaselineTests(unittest.TestCase):
                     output.logits, make_batch().labels
                 )
                 loss.backward()
-                self.assertTrue(
-                    any(parameter.grad is not None for parameter in model.parameters())
-                )
+                self.assertTrue(any(parameter.grad is not None for parameter in model.parameters()))
 
     def test_batch_size_one_keeps_logit_rank(self):
         model_config, data_config = self.configs("dnn")

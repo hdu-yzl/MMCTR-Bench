@@ -37,9 +37,7 @@ class PoolingRegistryTests(unittest.TestCase):
             self.assertTrue(metadata["mask_required"])
             self.assertEqual("preserves", metadata["output_dim_rule"])
         self.assertTrue(pooling_capabilities("din")["target_required"])
-        self.assertTrue(
-            pooling_capabilities("cross_attention")["target_required"]
-        )
+        self.assertTrue(pooling_capabilities("cross_attention")["target_required"])
 
     def test_registry_constructs_every_pooling_component(self):
         for name in POOLING_REGISTRY.names():
@@ -77,9 +75,7 @@ class PoolingBehaviorTests(unittest.TestCase):
             self.assertTrue(torch.equal(output[1], torch.zeros(4)))
             output.sum().backward()
             self.assertIsNotNone(sequence.grad)
-            trainable = [
-                parameter for parameter in pooling.parameters() if parameter.requires_grad
-            ]
+            trainable = [parameter for parameter in pooling.parameters() if parameter.requires_grad]
             self.assertTrue(trainable)
             self.assertTrue(any(parameter.grad is not None for parameter in trainable))
 

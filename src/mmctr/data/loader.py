@@ -23,8 +23,7 @@ class DataLoaderProtocol(Protocol):
     dataset_name: str
     manifest: DatasetManifest
 
-    def iter_batches(self, split: str) -> Iterable[Batch]:
-        ...
+    def iter_batches(self, split: str) -> Iterable[Batch]: ...
 
 
 def _normalise_split(split: str) -> str:
@@ -75,9 +74,7 @@ class CanonicalDataLoader:
     def iter_batches(self, split: str) -> Iterator[Batch]:
         canonical_split = _normalise_split(split)
         method_name = (
-            "get_data_seq"
-            if self.history_mode == HistoryMode.SEQUENCE_TOKENS
-            else "get_data"
+            "get_data_seq" if self.history_mode == HistoryMode.SEQUENCE_TOKENS else "get_data"
         )
         try:
             load_split = getattr(self.source, method_name)

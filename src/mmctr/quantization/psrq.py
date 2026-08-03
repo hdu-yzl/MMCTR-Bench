@@ -47,7 +47,7 @@ class _VectorQuantizer(torch.nn.Module):
     def _initialize(self, values: torch.Tensor) -> None:
         if values.shape[0] < self.codebook_size:
             raise ContractError("PSRQ initialization requires at least codebook_size samples")
-        from sklearn.cluster import KMeans
+        from sklearn.cluster import KMeans  # type: ignore[import-untyped]
 
         source = values.detach().cpu().numpy()
         estimator = KMeans(
@@ -173,9 +173,7 @@ class _PSRQAutoEncoder(torch.nn.Module):
         )
         self.quantization_weight = float(quantization_weight)
 
-    def forward(
-        self, values: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, values: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         encoded = self.encoder(values)
         quantized, quantization_loss, codes = self.quantizer(encoded)
         reconstruction = self.decoder(quantized)
@@ -207,9 +205,7 @@ class PSRQPretrainer(torch.nn.Module):
         missing = [name for name in self.modalities if name not in dimensions]
         if missing:
             raise ContractError("PSRQ modality dimensions are missing: {}".format(missing))
-        self.modality_dimensions = {
-            name: int(dimensions[name]) for name in self.modalities
-        }
+        self.modality_dimensions = {name: int(dimensions[name]) for name in self.modalities}
         if any(value <= 0 for value in self.modality_dimensions.values()):
             raise ContractError("PSRQ modality dimensions must be positive")
 
@@ -246,10 +242,7 @@ class PSRQPretrainer(torch.nn.Module):
             )
 
         self.modality_models = torch.nn.ModuleDict(
-            {
-                name: build_autoencoder(self.modality_dimensions[name])
-                for name in self.modalities
-            }
+            {name: build_autoencoder(self.modality_dimensions[name]) for name in self.modalities}
         )
         self.joint_model = build_autoencoder(sum(self.modality_dimensions.values()))
 
@@ -299,16 +292,13 @@ class PSRQPretrainer(torch.nn.Module):
     ) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
         self._validate_features(features, 2)
         codes = {
-            name: self._modality_model(name).encode(features[name])
-            for name in self.modalities
+            name: self._modality_model(name).encode(features[name]) for name in self.modalities
         }
         joint = torch.cat([features[name] for name in self.modalities], dim=-1)
         return codes, self.joint_model.encode(joint)
 
     @torch.no_grad()
-    def encode_history(
-        self, features: Mapping[str, torch.Tensor]
-    ) -> Dict[str, torch.Tensor]:
+    def encode_history(self, features: Mapping[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         self._validate_features(features, 3)
         first = features[self.modalities[0]]
         batch_size, sequence_length = first.shape[:2]
@@ -318,8 +308,10 @@ class PSRQPretrainer(torch.nn.Module):
             if values.shape[:2] != (batch_size, sequence_length):
                 raise ContractError("PSRQ history modalities must share [B, L]")
             flattened = values.reshape(-1, values.shape[-1])
-            result[name] = self._modality_model(name).encode(flattened).reshape(
-                batch_size, sequence_length, self.n_levels
+            result[name] = (
+                self._modality_model(name)
+                .encode(flattened)
+                .reshape(batch_size, sequence_length, self.n_levels)
             )
         return result
 

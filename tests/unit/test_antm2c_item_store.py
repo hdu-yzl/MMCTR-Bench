@@ -14,9 +14,7 @@ class AntM2CItemStoreTests(unittest.TestCase):
             {"title_text": 2},
         )
         target = store.gather("title_text", [index.encode("item-a")])
-        history = store.gather(
-            "title_text", [0, index.encode("item-b"), index.encode("item-a")]
-        )
+        history = store.gather("title_text", [0, index.encode("item-b"), index.encode("item-a")])
         self.assertTrue(np.array_equal(target[0], history[2]))
         self.assertTrue(np.array_equal(history[0], np.zeros(2)))
         self.assertEqual(("item-b",), audit.missing_by_feature["title_text"])

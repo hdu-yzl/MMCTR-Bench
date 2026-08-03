@@ -1,5 +1,22 @@
 """Public model components with strict tensor contracts."""
 
+from mmctr.models.components.fusion import (
+    ConcatenateFusion,
+    FusionCapability,
+    FusionOutput,
+    LowRankFusion,
+    MAFFusion,
+    MTFNFusion,
+    MeanFusion,
+    ModalityFusion,
+    SumFusion,
+)
+from mmctr.models.components.fusion_registry import (
+    FUSION_REGISTRY,
+    available_fusion,
+    create_fusion,
+    fusion_capabilities,
+)
 from mmctr.models.components.masking import (
     apply_feature_mask,
     apply_sequence_mask,
@@ -27,8 +44,17 @@ from mmctr.models.components.projection import DimensionAdapter, NamedFeaturePro
 
 
 __all__ = [
+    "ConcatenateFusion",
     "DimensionAdapter",
+    "FUSION_REGISTRY",
+    "FusionCapability",
+    "FusionOutput",
+    "LowRankFusion",
+    "MAFFusion",
+    "MTFNFusion",
     "NamedFeatureProjector",
+    "MeanFusion",
+    "ModalityFusion",
     "AttentionPooling",
     "CrossAttentionPooling",
     "DinPooling",
@@ -38,12 +64,16 @@ __all__ = [
     "PoolingCapability",
     "SequencePooling",
     "SumPooling",
+    "SumFusion",
     "apply_feature_mask",
     "apply_sequence_mask",
     "available_pooling",
+    "available_fusion",
+    "create_fusion",
     "create_pooling",
     "feature_presence",
     "masked_softmax",
+    "fusion_capabilities",
     "pooling_capabilities",
     "validate_sequence_mask",
 ]

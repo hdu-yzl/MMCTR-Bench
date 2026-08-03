@@ -22,9 +22,7 @@ def make_batch():
                     [[3.0, 2.0, 1.0], [1.0, 2.0, 3.0]],
                 ]
             ),
-            "image": torch.tensor(
-                [[[1.0, 0.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 0.0]]]
-            ),
+            "image": torch.tensor([[[1.0, 0.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 0.0]]]),
         },
         history_mask=torch.tensor([[True, False], [True, True]]),
         labels=torch.tensor([1.0, 0.0]),

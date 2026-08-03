@@ -46,9 +46,7 @@ class ModelBaseTests(unittest.TestCase):
         batch = make_batch()
         original_items = batch.item_features["id"].clone()
         original_history = batch.history_features["id"].clone()
-        adapter = LegacyModelAdapter(
-            MutatingLegacyModel(), HistoryCapability.POOLED_HISTORY
-        )
+        adapter = LegacyModelAdapter(MutatingLegacyModel(), HistoryCapability.POOLED_HISTORY)
         output = adapter(batch)
         self.assertEqual((2,), tuple(output.logits.shape))
         self.assertTrue(torch.equal(batch.item_features["id"], original_items))
@@ -64,9 +62,7 @@ class ModelBaseTests(unittest.TestCase):
             labels=source.labels,
             context_features={"query_text": torch.ones(2, 3)},
         )
-        adapter = LegacyModelAdapter(
-            ContextLegacyModel(), HistoryCapability.POOLED_HISTORY
-        )
+        adapter = LegacyModelAdapter(ContextLegacyModel(), HistoryCapability.POOLED_HISTORY)
         self.assertTrue(torch.equal(adapter(batch).logits, torch.tensor([3.0, 3.0])))
 
 

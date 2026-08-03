@@ -96,19 +96,12 @@ class CanonicalSpecializedTests(unittest.TestCase):
                 model_config, data_config = configs()
                 model = create_model(name, model_config, data_config)
                 self.assertIsInstance(model, BaseSeqModel)
-                self.assertEqual(
-                    expected_capabilities[name], model.history_capability
-                )
+                self.assertEqual(expected_capabilities[name], model.history_capability)
                 output = model(make_batch())
                 self.assertEqual((2,), tuple(output.logits.shape))
                 objective = output.logits.sum() + output.auxiliary_loss()
                 objective.backward()
-                self.assertTrue(
-                    any(
-                        parameter.grad is not None
-                        for parameter in model.parameters()
-                    )
-                )
+                self.assertTrue(any(parameter.grad is not None for parameter in model.parameters()))
 
     def test_named_auxiliary_losses_are_finite_scalars(self):
         expected = {
@@ -137,9 +130,7 @@ class CanonicalSpecializedTests(unittest.TestCase):
         for name in MODEL_NAMES:
             with self.subTest(name=name):
                 model_config, data_config = configs()
-                output = create_model(name, model_config, data_config)(
-                    make_batch(all_padding=True)
-                )
+                output = create_model(name, model_config, data_config)(make_batch(all_padding=True))
                 self.assertTrue(torch.isfinite(output.logits).all())
                 self.assertTrue(torch.isfinite(output.auxiliary_loss()))
                 if name in {"mmmlp", "m3srec"}:
@@ -167,9 +158,7 @@ class CanonicalSpecializedTests(unittest.TestCase):
         for name in MODEL_NAMES:
             with self.subTest(name=name):
                 model_config, data_config = configs()
-                output = create_model(name, model_config, data_config)(
-                    make_batch(batch_size=1)
-                )
+                output = create_model(name, model_config, data_config)(make_batch(batch_size=1))
                 self.assertEqual((1,), tuple(output.logits.shape))
                 self.assertEqual(0, output.auxiliary_loss().ndim)
 
@@ -226,9 +215,7 @@ class CanonicalSpecializedTests(unittest.TestCase):
         for name, symbol in expected.items():
             specification = model_spec(name)
             self.assertEqual("mmctr.models.specialized", specification.module)
-            self.assertEqual(
-                "models.mm_ctr_models", specification.metadata["legacy_module"]
-            )
+            self.assertEqual("models.mm_ctr_models", specification.metadata["legacy_module"])
             self.assertEqual(symbol, specification.metadata["legacy_symbol"])
 
 

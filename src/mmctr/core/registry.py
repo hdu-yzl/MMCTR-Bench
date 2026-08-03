@@ -4,7 +4,7 @@ import importlib
 import re
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterable, Mapping, Tuple
 
 
 _CANONICAL_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -60,9 +60,7 @@ class ComponentRegistry:
 
     def register(self, spec: ComponentSpec) -> None:
         claimed = (spec.name,) + spec.aliases
-        collisions = [
-            name for name in claimed if name in self._specs or name in self._aliases
-        ]
+        collisions = [name for name in claimed if name in self._specs or name in self._aliases]
         if collisions:
             raise RegistryError(
                 "duplicate {} registry names: {}".format(self.kind, sorted(collisions))

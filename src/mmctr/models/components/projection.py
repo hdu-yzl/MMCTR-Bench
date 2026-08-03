@@ -90,9 +90,7 @@ class _FeatureProjection(torch.nn.Linear):
             raise ContractError("projection input must use a floating dtype")
         if values.ndim not in self.allowed_ranks:
             raise ContractError(
-                "projection input rank {} is not in {}".format(
-                    values.ndim, self.allowed_ranks
-                )
+                "projection input rank {} is not in {}".format(values.ndim, self.allowed_ranks)
             )
         if values.shape[-1] != self.in_features:
             raise ContractError(
@@ -136,9 +134,7 @@ class NamedFeatureProjector(torch.nn.ModuleDict):
         if checked <= 0:
             raise ContractError("replacement projection dimension must be positive")
         self._input_dimensions[name] = checked
-        self[name] = _FeatureProjection(
-            checked, self.output_dim, bias, self.allowed_ranks
-        )
+        self[name] = _FeatureProjection(checked, self.output_dim, bias, self.allowed_ranks)
 
     def __getitem__(self, name: str) -> _FeatureProjection:
         try:

@@ -73,22 +73,16 @@ class NamedFeatureProjectorTests(unittest.TestCase):
 
     def test_state_keys_match_the_previous_module_dict_layout(self):
         projector = NamedFeatureProjector({"image": 3}, 2)
-        self.assertEqual(
-            {"image.weight", "image.bias"}, set(projector.state_dict())
-        )
+        self.assertEqual({"image.weight", "image.bias"}, set(projector.state_dict()))
         projector.replace("image", 4)
         self.assertEqual(4, projector.input_dimensions["image"])
-        self.assertEqual(
-            {"image.weight", "image.bias"}, set(projector.state_dict())
-        )
+        self.assertEqual({"image.weight", "image.bias"}, set(projector.state_dict()))
 
 
 class MaskingTests(unittest.TestCase):
     def test_sequence_and_feature_masks_are_explicit(self):
         sequence = torch.ones(2, 3, 4)
-        sequence_mask = torch.tensor(
-            [[True, False, True], [False, False, False]], dtype=torch.bool
-        )
+        sequence_mask = torch.tensor([[True, False, True], [False, False, False]], dtype=torch.bool)
         masked = apply_sequence_mask(sequence, sequence_mask)
         self.assertEqual(8.0, masked.sum().item())
         self.assertEqual(24.0, sequence.sum().item())
