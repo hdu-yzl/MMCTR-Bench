@@ -7,6 +7,12 @@ import torch
 from mmctr.core import Batch, ContractError, ModelOutput
 from mmctr.models.base import BaseSeqModel, HistoryCapability
 from mmctr.models.baselines.layers import DinAttention, FeatureEmbedding, MultiLayerPerceptron
+from mmctr.models.components import (
+    AttentionPooling,
+    NamedFeatureProjector,
+    apply_sequence_mask,
+    feature_presence,
+)
 from mmctr.models.multimodal import _MAFFusion, _build_fusion
 
 
@@ -65,17 +71,13 @@ class _SequenceMultimodalModel(BaseSeqModel):
         self.embedding = FeatureEmbedding(
             int(data_config["id_feature_num"]) + 1, self.latent_dim
         )
-        self.projectors = torch.nn.ModuleDict(
-            {
-                name: torch.nn.Linear(int(dimensions[name]), self.projection_dim)
-                for name in self.feature_names
-            }
+        self.projectors = NamedFeatureProjector(
+            {name: int(dimensions[name]) for name in self.feature_names},
+            self.projection_dim,
         )
-        self.user_projectors = torch.nn.ModuleDict(
-            {
-                name: torch.nn.Linear(int(user_dimensions[name]), self.projection_dim)
-                for name in self.user_feature_names
-            }
+        self.user_projectors = NamedFeatureProjector(
+            {name: int(user_dimensions[name]) for name in self.user_feature_names},
+            self.projection_dim,
         )
 
     @staticmethod
@@ -87,17 +89,20 @@ class _SequenceMultimodalModel(BaseSeqModel):
         raise ContractError("item/context feature {!r} is missing".format(name))
 
     def project_target(self, batch: Batch) -> Dict[str, torch.Tensor]:
-        projected: Dict[str, torch.Tensor] = {}
+        encoded: Dict[str, torch.Tensor] = {}
+        presence: Dict[str, torch.Tensor] = {}
         for name in self.feature_names:
             values = self._target_feature(batch, name)
             if name == "id":
                 values = self.embedding(values).squeeze(1)
-            projected[name] = self.projectors[name](values)
-        return projected
+            else:
+                presence[name] = feature_presence(values)
+            encoded[name] = values
+        return self.projectors(encoded, presence)
 
     def project_history(self, batch: Batch) -> Dict[str, torch.Tensor]:
-        projected: Dict[str, torch.Tensor] = {}
-        mask = batch.history_mask.unsqueeze(-1)
+        encoded: Dict[str, torch.Tensor] = {}
+        presence: Dict[str, torch.Tensor] = {}
         for name in self.feature_names:
             try:
                 values = batch.history_features[name]
@@ -105,11 +110,15 @@ class _SequenceMultimodalModel(BaseSeqModel):
                 raise ContractError("history feature {!r} is missing".format(name)) from error
             if name == "id":
                 values = self.embedding(values)
-            projected[name] = self.projectors[name](values) * mask
-        return projected
+                presence[name] = batch.history_mask
+            else:
+                presence[name] = feature_presence(values) & batch.history_mask
+            encoded[name] = values
+        return self.projectors(encoded, presence)
 
     def project_user(self, batch: Batch) -> torch.Tensor:
-        projected = []
+        encoded: Dict[str, torch.Tensor] = {}
+        presence: Dict[str, torch.Tensor] = {}
         for name in self.user_feature_names:
             try:
                 values = batch.user_features[name]
@@ -117,8 +126,13 @@ class _SequenceMultimodalModel(BaseSeqModel):
                 raise ContractError("user feature {!r} is missing".format(name)) from error
             if name == "id":
                 values = self.embedding(values).squeeze(1)
-            projected.append(self.user_projectors[name](values))
-        return torch.cat(projected, dim=-1)
+            else:
+                presence[name] = feature_presence(values)
+            encoded[name] = values
+        projected = self.user_projectors(encoded, presence)
+        return torch.cat(
+            [projected[name] for name in self.user_feature_names], dim=-1
+        )
 
 
 class DNN_mm_seq(_SequenceMultimodalModel):
@@ -166,18 +180,8 @@ class DNN_mm_seq(_SequenceMultimodalModel):
         )
 
 
-class _MaskedUserEncoder(torch.nn.Module):
-    def __init__(self, dimension: int) -> None:
-        super().__init__()
-        self.projection = torch.nn.Linear(dimension, dimension, bias=True)
-        self.bias = torch.nn.Parameter(torch.randn(dimension))
-        self.query = torch.nn.Parameter(torch.randn(dimension))
-
-    def forward(self, sequence: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        transformed = torch.tanh(self.projection(sequence) + self.bias)
-        scores = torch.einsum("d,bld->bl", self.query, transformed)
-        weights = BaseSeqModel.masked_softmax(scores, mask)
-        return torch.sum(weights.unsqueeze(-1) * sequence, dim=1)
+class _MaskedUserEncoder(AttentionPooling):
+    """State-compatible name retained for the NAML default preset."""
 
 
 class NAML(_SequenceMultimodalModel):
@@ -192,7 +196,7 @@ class NAML(_SequenceMultimodalModel):
     def forward_batch(self, batch: Batch) -> ModelOutput:
         target = self.modal_fusion(self.project_target(batch))
         history = self.modal_fusion(self.project_history(batch))
-        history = history * batch.history_mask.unsqueeze(-1)
+        history = apply_sequence_mask(history, batch.history_mask)
         interest = self.user_encoder(history, batch.history_mask)
         user = self.user_linear(self.project_user(batch)) + interest
         logits = torch.einsum("bd,bd->b", target, user)
@@ -259,7 +263,7 @@ class MAKE(_SequenceMultimodalModel):
     def forward_batch(self, batch: Batch) -> ModelOutput:
         target = self.modal_fusion(self.project_target(batch))
         history = self.modal_fusion(self.project_history(batch))
-        history = history * batch.history_mask.unsqueeze(-1)
+        history = apply_sequence_mask(history, batch.history_mask)
         similarities = torch.nn.functional.cosine_similarity(
             target.unsqueeze(1), history, dim=-1
         )
@@ -394,7 +398,7 @@ class DMF(_SequenceMultimodalModel):
         history_center = self.modal_fusion(
             {name: history_features[name] for name in self.non_id_features}
         )
-        history_center = history_center * batch.history_mask.unsqueeze(-1)
+        history_center = apply_sequence_mask(history_center, batch.history_mask)
         similarities = torch.nn.functional.cosine_similarity(
             target_center.unsqueeze(1), history_center, dim=-1
         )
@@ -567,8 +571,10 @@ class MARN(_SequenceMultimodalModel):
     def _apply_mask(
         features: Mapping[str, torch.Tensor], mask: torch.Tensor
     ) -> Dict[str, torch.Tensor]:
-        expanded = mask.unsqueeze(-1)
-        return {name: values * expanded for name, values in features.items()}
+        return {
+            name: apply_sequence_mask(values, mask)
+            for name, values in features.items()
+        }
 
     def _history_invariant(
         self, features: Mapping[str, torch.Tensor], batch: Batch
@@ -581,7 +587,7 @@ class MARN(_SequenceMultimodalModel):
         invariant = invariant.reshape(
             batch.batch_size, batch.sequence_length, self.projection_dim
         )
-        return invariant * batch.history_mask.unsqueeze(-1)
+        return apply_sequence_mask(invariant, batch.history_mask)
 
     def forward_batch(self, batch: Batch) -> ModelOutput:
         target = self.project_target(batch)
@@ -593,7 +599,7 @@ class MARN(_SequenceMultimodalModel):
 
         target_private = self.private_fusion(target_specific)
         history_private = self.private_fusion(history_specific)
-        history_private = history_private * batch.history_mask.unsqueeze(-1)
+        history_private = apply_sequence_mask(history_private, batch.history_mask)
         domain_loss, adversarial_loss, invariant_target = self.adversarial(
             target_invariant
         )
@@ -602,7 +608,9 @@ class MARN(_SequenceMultimodalModel):
 
         target_representation = invariant_target + target_private
         history_representation = invariant_history + history_private
-        history_representation = history_representation * batch.history_mask.unsqueeze(-1)
+        history_representation = apply_sequence_mask(
+            history_representation, batch.history_mask
+        )
         history_interest = self.attention(
             target_representation,
             history_representation,

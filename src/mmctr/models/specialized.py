@@ -8,6 +8,7 @@ import torch
 
 from mmctr.core import Batch, ContractError, ModelOutput
 from mmctr.models.baselines.layers import MultiLayerPerceptron
+from mmctr.models.components import apply_sequence_mask
 from mmctr.models.multimodal import _PooledMultimodalModel
 from mmctr.models.sequence import _SequenceMultimodalModel
 
@@ -497,14 +498,13 @@ class _MixerBlock(torch.nn.Module):
         )
 
     def forward(self, values: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        expanded_mask = mask.unsqueeze(-1)
-        values = values * expanded_mask
+        values = apply_sequence_mask(values, mask)
         mixed_tokens = self.token_mlp(
             self.token_norm(values).transpose(1, 2)
         ).transpose(1, 2)
-        values = (values + mixed_tokens) * expanded_mask
+        values = apply_sequence_mask(values + mixed_tokens, mask)
         values = values + self.channel_mlp(self.channel_norm(values))
-        return values * expanded_mask
+        return apply_sequence_mask(values, mask)
 
 
 class _MixerModule(torch.nn.Module):
@@ -535,7 +535,7 @@ class _MixerModule(torch.nn.Module):
     def forward(self, values: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         for layer in self.layers:
             values = layer(values, mask)
-        return self.final_norm(values) * mask.unsqueeze(-1)
+        return apply_sequence_mask(self.final_norm(values), mask)
 
 
 def _last_valid_token(values: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:

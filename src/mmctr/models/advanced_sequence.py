@@ -7,6 +7,7 @@ import torch
 
 from mmctr.core import Batch, ContractError, ModelOutput
 from mmctr.models.baselines.layers import CrossNetwork, DinAttention, MultiLayerPerceptron
+from mmctr.models.components import apply_sequence_mask
 from mmctr.models.sequence import _SequenceMultimodalModel
 
 
@@ -163,7 +164,7 @@ class EM3(_SequenceMultimodalModel):
         history_fusion = self.fq_former(flat_history).reshape(
             batch.batch_size, batch.sequence_length, -1
         )
-        history_fusion = history_fusion * batch.history_mask.unsqueeze(-1)
+        history_fusion = apply_sequence_mask(history_fusion, batch.history_mask)
         history_interest = self.attention(
             target_fusion, history_fusion, batch.history_mask
         )

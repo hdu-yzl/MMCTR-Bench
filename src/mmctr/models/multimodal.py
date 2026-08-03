@@ -7,6 +7,7 @@ import torch
 from mmctr.core import Batch, ContractError, ModelOutput
 from mmctr.models.base import BaseSeqModel, HistoryCapability
 from mmctr.models.baselines.layers import FeatureEmbedding, MultiLayerPerceptron
+from mmctr.models.components import NamedFeatureProjector, feature_presence
 
 
 class _ConcatFusion(torch.nn.Module):
@@ -163,15 +164,13 @@ class _PooledMultimodalModel(BaseSeqModel):
 
     def _make_projectors(
         self, names: Sequence[str], dimensions: Mapping[str, int]
-    ) -> torch.nn.ModuleDict:
+    ) -> NamedFeatureProjector:
         missing = [name for name in names if name not in dimensions]
         if missing:
             raise ContractError("missing feature dimensions: {}".format(missing))
-        return torch.nn.ModuleDict(
-            {
-                name: torch.nn.Linear(int(dimensions[name]), self.projection_dim)
-                for name in names
-            }
+        return NamedFeatureProjector(
+            {name: int(dimensions[name]) for name in names},
+            self.projection_dim,
         )
 
     @staticmethod
@@ -189,22 +188,21 @@ class _PooledMultimodalModel(BaseSeqModel):
             )
         except KeyError as error:
             raise ContractError("pooled multimodal models require user/item IDs") from error
-        projected = {
-            "id": self.target_projectors["id"](
-                self.embedding(target_ids).flatten(start_dim=1)
-            )
+        encoded = {
+            "id": self.embedding(target_ids).flatten(start_dim=1)
         }
-        projected.update(
-            {
-                name: self.target_projectors[name](self._target_feature(batch, name))
-                for name in self.feature_names
-                if name != "id"
-            }
-        )
-        return projected
+        presence = {}
+        for name in self.feature_names:
+            if name == "id":
+                continue
+            values = self._target_feature(batch, name)
+            encoded[name] = values
+            presence[name] = feature_presence(values)
+        return self.target_projectors(encoded, presence)
 
     def project_history(self, batch: Batch) -> Dict[str, torch.Tensor]:
-        projected: Dict[str, torch.Tensor] = {}
+        encoded: Dict[str, torch.Tensor] = {}
+        presence: Dict[str, torch.Tensor] = {}
         for name in self.history_feature_names:
             try:
                 values = batch.history_features[name]
@@ -212,9 +210,11 @@ class _PooledMultimodalModel(BaseSeqModel):
                 raise ContractError("history feature {!r} is missing".format(name)) from error
             if name == "id":
                 values = self.embedding(values)
-            encoded = self.history_projectors[name](values)
-            projected[name] = encoded * batch.history_mask.unsqueeze(-1)
-        return projected
+                presence[name] = batch.history_mask
+            else:
+                presence[name] = feature_presence(values) & batch.history_mask
+            encoded[name] = values
+        return self.history_projectors(encoded, presence)
 
     def make_predictor(self, input_dim: int) -> Tuple[torch.nn.Module, torch.nn.Module]:
         hidden = MultiLayerPerceptron(

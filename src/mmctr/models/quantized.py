@@ -11,6 +11,11 @@ from mmctr.models.baselines.layers import (
     FeatureEmbedding,
     MultiLayerPerceptron,
 )
+from mmctr.models.components import (
+    apply_feature_mask,
+    apply_sequence_mask,
+    feature_presence,
+)
 from mmctr.models.sequence import _SequenceMultimodalModel
 from mmctr.quantization import PSRQPretrainer, ResidualQuantizer
 
@@ -46,9 +51,7 @@ class _QuantizedSequenceModel(_SequenceMultimodalModel):
             }
         )
         for name in self.quantized_modalities:
-            self.projectors[name] = torch.nn.Linear(
-                self.n_levels * self.latent_dim, self.projection_dim
-            )
+            self.projectors.replace(name, self.n_levels * self.latent_dim)
 
     def _embed_codes(self, name: str, codes: torch.Tensor) -> torch.Tensor:
         if codes.dtype != torch.long or codes.shape[-1] != self.n_levels:
@@ -63,7 +66,7 @@ class _QuantizedSequenceModel(_SequenceMultimodalModel):
 
     @staticmethod
     def _present(values: torch.Tensor) -> torch.Tensor:
-        return values.abs().sum(dim=-1).ne(0)
+        return feature_presence(values)
 
 
 class QARM(_QuantizedSequenceModel):
@@ -131,26 +134,26 @@ class QARM(_QuantizedSequenceModel):
         return embedded * self._present(values).unsqueeze(-1)
 
     def _project_quantized_target(self, batch: Batch):
-        projected = {}
-        projected["id"] = self.projectors["id"](
-            self.embedding(self._target_feature(batch, "id")).squeeze(1)
-        )
+        encoded = {
+            "id": self.embedding(self._target_feature(batch, "id")).squeeze(1)
+        }
+        presence = {}
         for name in self.quantized_modalities:
             values = self._target_feature(batch, name)
-            projected[name] = self.projectors[name](self._encode(name, values))
-            projected[name] = projected[name] * self._present(values).unsqueeze(-1)
-        return projected
+            encoded[name] = self._encode(name, values)
+            presence[name] = self._present(values)
+        return self.projectors(encoded, presence)
 
     def _project_quantized_history(self, batch: Batch):
-        projected = {
-            "id": self.projectors["id"](self.embedding(batch.history_features["id"]))
+        encoded = {
+            "id": self.embedding(batch.history_features["id"])
         }
+        presence = {"id": batch.history_mask}
         for name in self.quantized_modalities:
             values = batch.history_features[name]
-            projected[name] = self.projectors[name](self._encode(name, values))
-            projected[name] = projected[name] * self._present(values).unsqueeze(-1)
-        mask = batch.history_mask.unsqueeze(-1)
-        return {name: values * mask for name, values in projected.items()}
+            encoded[name] = self._encode(name, values)
+            presence[name] = self._present(values) & batch.history_mask
+        return self.projectors(encoded, presence)
 
     def forward_batch(self, batch: Batch) -> ModelOutput:
         target_fields = self._project_quantized_target(batch)
@@ -312,7 +315,7 @@ class MCCA(_QuantizedSequenceModel):
             target[name] = target[name] * self._present(raw_target[name]).unsqueeze(-1)
             history[name] = history[name] * self._present(raw_history[name]).unsqueeze(-1)
         history = {
-            name: values * batch.history_mask.unsqueeze(-1)
+            name: apply_sequence_mask(values, batch.history_mask)
             for name, values in history.items()
         }
 
@@ -323,8 +326,8 @@ class MCCA(_QuantizedSequenceModel):
         joint_present = torch.stack(
             [self._present(raw_target[name]) for name in self.quantized_modalities], dim=-1
         ).any(dim=-1)
-        joint = self.joint_projector(joint * joint_present.unsqueeze(-1))
-        joint = joint * joint_present.unsqueeze(-1)
+        joint = self.joint_projector(apply_feature_mask(joint, joint_present))
+        joint = apply_feature_mask(joint, joint_present)
 
         pooled = {}
         for name in self.feature_names:

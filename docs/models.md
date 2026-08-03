@@ -1,5 +1,9 @@
 # Model contract and migration
 
+The shared projection, dimension, sequence-mask, and missing-modality rules are specified in
+[`model-components.md`](model-components.md). Canonical backbones consume those public components;
+pooling and fusion remain separate staged interfaces.
+
 The only public model base is `mmctr.models.BaseSeqModel`. Despite the name, it supports both
 non-sequential models that consume pooled history and models that retain sequence tokens. Each
 model declares exactly one `HistoryCapability`:

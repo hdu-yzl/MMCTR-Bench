@@ -3,6 +3,7 @@ import unittest
 
 from mmctr.core.registry import ComponentRegistry, ComponentSpec, RegistryError
 from mmctr.data.registry import DATASET_REGISTRY
+from mmctr.models.components.pooling_registry import POOLING_REGISTRY
 from mmctr.models.registry import MODEL_REGISTRY
 from mmctr.quantization.registry import QUANTIZER_REGISTRY
 
@@ -12,6 +13,7 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(3, len(DATASET_REGISTRY.names()))
         self.assertEqual(23, len(MODEL_REGISTRY.names()))
         self.assertEqual(2, len(QUANTIZER_REGISTRY.names()))
+        self.assertEqual(6, len(POOLING_REGISTRY.names()))
         self.assertEqual(len(set(MODEL_REGISTRY.names())), len(MODEL_REGISTRY.names()))
         self.assertEqual(
             len(set(QUANTIZER_REGISTRY.names())), len(QUANTIZER_REGISTRY.names())

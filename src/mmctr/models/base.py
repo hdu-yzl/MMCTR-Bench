@@ -6,6 +6,11 @@ from enum import Enum
 import torch
 
 from mmctr.core import Batch, ContractError, ModelOutput, ensure_model_output
+from mmctr.models.components.masking import (
+    masked_softmax as component_masked_softmax,
+    validate_sequence_mask,
+)
+from mmctr.models.components.pooling import masked_reduce
 
 
 class HistoryCapability(str, Enum):
@@ -41,36 +46,18 @@ class BaseSeqModel(torch.nn.Module, ABC):
 
         if sequence.ndim != 3:
             raise ContractError("sequence must have shape [B, L, D]")
-        if mask.dtype != torch.bool or mask.ndim != 2:
-            raise ContractError("mask must be a bool tensor with shape [B, L]")
-        if sequence.shape[:2] != mask.shape:
-            raise ContractError("sequence and mask dimensions do not match")
-        expanded_mask = mask.unsqueeze(-1)
-        if reduction == "sum":
-            return (sequence * expanded_mask).sum(dim=1)
-        if reduction == "mean":
-            counts = expanded_mask.sum(dim=1).clamp_min(1)
-            return (sequence * expanded_mask).sum(dim=1) / counts
-        if reduction == "max":
-            minimum = torch.finfo(sequence.dtype).min
-            pooled = sequence.masked_fill(~expanded_mask, minimum).max(dim=1).values
-            empty_rows = ~mask.any(dim=1)
-            return pooled.masked_fill(empty_rows.unsqueeze(-1), 0.0)
-        raise ContractError("unsupported history pooling: {!r}".format(reduction))
+        if not sequence.is_floating_point():
+            raise ContractError("sequence must use a floating dtype")
+        validate_sequence_mask(mask, sequence)
+        return masked_reduce(sequence, mask, reduction)
 
     @staticmethod
     def masked_softmax(scores: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """Softmax over `[B, L]` scores with all-padding rows mapped to zero."""
 
-        if scores.ndim != 2 or mask.ndim != 2 or scores.shape != mask.shape:
+        if scores.ndim != 2 or mask.ndim != 2:
             raise ContractError("scores and mask must have matching shape [B, L]")
-        if mask.dtype != torch.bool:
-            raise ContractError("mask must use torch.bool")
-        masked_scores = scores.masked_fill(~mask, torch.finfo(scores.dtype).min)
-        weights = torch.softmax(masked_scores, dim=-1)
-        weights = weights * mask.to(dtype=weights.dtype)
-        denominator = weights.sum(dim=-1, keepdim=True).clamp_min(torch.finfo(weights.dtype).eps)
-        return weights / denominator
+        return component_masked_softmax(scores, mask, dim=-1)
 
     def parameter_counts(self):
         total = sum(parameter.numel() for parameter in self.parameters())

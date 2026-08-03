@@ -6,6 +6,7 @@ import torch
 
 from mmctr.core import Batch, ContractError, ModelOutput
 from mmctr.models.base import BaseSeqModel, HistoryCapability
+from mmctr.models.components import NamedFeatureProjector
 
 from .layers import (
     CrossNetwork,
@@ -27,11 +28,11 @@ class _PooledIdBaseline(BaseSeqModel):
         )
         self.dropout = float(model_config.get("dropout", 0.5))
         self.batch_norm = bool(model_config.get("batch_norm", False))
-        self.mm_projector = torch.nn.ModuleDict(
-            {"id": torch.nn.Linear(self.latent_dim * 2, self.projection_dim)}
+        self.mm_projector = NamedFeatureProjector(
+            {"id": self.latent_dim * 2}, self.projection_dim
         )
-        self.mm_seq_projector = torch.nn.ModuleDict(
-            {"id": torch.nn.Linear(self.latent_dim, self.projection_dim)}
+        self.mm_seq_projector = NamedFeatureProjector(
+            {"id": self.latent_dim}, self.projection_dim
         )
         self.embedding = FeatureEmbedding(
             int(data_config["id_feature_num"]) + 1, self.latent_dim
@@ -147,11 +148,11 @@ class DIN(BaseSeqModel):
         mlp_dims = tuple(
             int(value) for value in model_config.get("mlp_dims", [1024, 512, 256])
         )
-        self.mm_projector = torch.nn.ModuleDict(
-            {"id": torch.nn.Linear(latent_dim, projection_dim)}
+        self.mm_projector = NamedFeatureProjector(
+            {"id": latent_dim}, projection_dim
         )
-        self.user_projector = torch.nn.ModuleDict(
-            {"id": torch.nn.Linear(latent_dim, projection_dim)}
+        self.user_projector = NamedFeatureProjector(
+            {"id": latent_dim}, projection_dim
         )
         self.embedding = FeatureEmbedding(int(data_config["id_feature_num"]) + 1, latent_dim)
         self.attention_pooling = DinAttention(

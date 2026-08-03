@@ -5,6 +5,8 @@ from typing import Iterable, Optional
 import torch
 import torch.nn.functional as functional
 
+from mmctr.models.components.pooling import DinPooling
+
 
 class FeatureEmbedding(torch.nn.Module):
     def __init__(self, feature_count: int, embedding_dim: int) -> None:
@@ -106,31 +108,11 @@ class MultiHeadSelfAttention(torch.nn.Module):
         return torch.relu(output)
 
 
-class Dice(torch.nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.alpha = torch.nn.Parameter(torch.zeros(1))
-        self.epsilon = 1e-9
+class DinAttention(DinPooling):
+    """Compatibility signature for canonical models migrated before POOL-001."""
 
-    def forward(self, values: torch.Tensor) -> torch.Tensor:
-        mean = values.mean(dim=0)
-        variance = values.var(dim=0, unbiased=False)
-        probability = torch.sigmoid((values - mean) / torch.sqrt(variance + self.epsilon))
-        return self.alpha * values * (1 - probability) + values * probability
-
-
-class DinAttention(torch.nn.Module):
     def __init__(self, embedding_dim: int, hidden_dims, dropout: float) -> None:
-        super().__init__()
-        layers = []
-        input_dim = embedding_dim * 4
-        for hidden_dim in hidden_dims:
-            layers.extend(
-                [torch.nn.Linear(input_dim, hidden_dim), Dice(), torch.nn.Dropout(dropout)]
-            )
-            input_dim = hidden_dim
-        layers.append(torch.nn.Linear(input_dim, 1))
-        self.network = torch.nn.Sequential(*layers)
+        super().__init__(embedding_dim, hidden_dims, dropout)
 
     def forward(
         self,
@@ -138,15 +120,7 @@ class DinAttention(torch.nn.Module):
         history: torch.Tensor,
         mask: torch.Tensor,
     ) -> torch.Tensor:
-        targets = target.unsqueeze(1).expand(-1, history.shape[1], -1)
-        inputs = torch.cat([targets, history, targets - history, targets * history], dim=-1)
-        scores = self.network(inputs).squeeze(-1)
-        scores = scores.masked_fill(~mask, torch.finfo(scores.dtype).min)
-        weights = torch.softmax(scores, dim=-1) * mask.to(dtype=scores.dtype)
-        weights = weights / weights.sum(dim=-1, keepdim=True).clamp_min(
-            torch.finfo(weights.dtype).eps
-        )
-        return (weights.unsqueeze(-1) * history).sum(dim=1)
+        return super().forward(history, mask, target)
 
 
 __all__ = [
