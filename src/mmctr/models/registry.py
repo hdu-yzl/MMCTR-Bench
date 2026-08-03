@@ -179,16 +179,46 @@ MODEL_REGISTRY.register_many(
         ComponentSpec(
             "mcca", "models.mm_ctr_models", "MCCA", metadata={"history": "sequence_tokens"}
         ),
-        ComponentSpec("mb", "models.mm_ctr_models", "MB", metadata={"history": "pooled"}),
-        ComponentSpec("pamd", "models.mm_ctr_models", "PAMD", metadata={"history": "pooled"}),
         ComponentSpec(
-            "mmmlp", "models.mm_ctr_models", "MMMLP", metadata={"history": "sequence_tokens"}
+            "mb",
+            "mmctr.models.specialized",
+            "MB",
+            metadata={
+                "history": "pooled",
+                "forward_uses_labels": True,
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "MB",
+            },
+        ),
+        ComponentSpec(
+            "pamd",
+            "mmctr.models.specialized",
+            "PAMD",
+            metadata={
+                "history": "pooled",
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "PAMD",
+            },
+        ),
+        ComponentSpec(
+            "mmmlp",
+            "mmctr.models.specialized",
+            "MMMLP",
+            metadata={
+                "history": "sequence_tokens",
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "MMMLP",
+            },
         ),
         ComponentSpec(
             "m3srec",
-            "models.mm_ctr_models",
+            "mmctr.models.specialized",
             "M3SRec",
-            metadata={"history": "sequence_tokens"},
+            metadata={
+                "history": "sequence_tokens",
+                "legacy_module": "models.mm_ctr_models",
+                "legacy_symbol": "M3SRec",
+            },
         ),
         ComponentSpec(
             "rq",

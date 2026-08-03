@@ -90,3 +90,23 @@ Its former aggregate `au_loss` is exposed as the weighted scalar terms `diff_msi
 legacy-only because its algorithm couples three optimizers with an alternating GAN schedule. It
 must migrate together with an explicit multi-optimizer training-engine protocol, not as an
 incomplete forward-only model.
+
+## Migrated specialized model family
+
+`mb`, `pamd`, `mmmlp`, and `m3srec` are implemented in
+`mmctr.models.specialized`. MB keeps its ID and modality scoring branches,
+attention fusion, and training-only PGD modality-balancing objective. The weighted
+objective is exposed as `mb_modality_balance`, while modality weights and branch
+scores are available through `ModelOutput.representations`.
+
+PAMD keeps pairwise common/specific decomposition, cross reconstruction,
+orthogonality and ranking terms for both target and pooled history. Their weighted
+sum is exposed as `pamd_disentanglement`. MMMLP retains modality-specific and fused
+MLP-Mixer stacks. M3SRec retains shared self-attention, modality-specific MoE,
+cross-modal attention/MoE, positional/modality embeddings, and attention fusion.
+
+All four models consume the canonical `Batch` without mutation. Pooled models use
+explicit masked history means; token models mask padded tokens throughout their
+sequence path and locate the last valid token from mask positions, including
+left-padded histories. The legacy implementations remain available only through
+registry regression metadata.
