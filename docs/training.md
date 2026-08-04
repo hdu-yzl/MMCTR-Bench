@@ -36,3 +36,29 @@ Every formal registry entry resolves to a canonical `Batch -> ModelOutput` model
 model-owned `fit`, misspelled `evalate`, `save`, and `load` interfaces and their compatibility
 imports have been physically removed; numerical regression is retained through self-contained
 fixtures rather than a second runtime implementation.
+
+## One-click launchers
+
+The repository-level Bash scripts are thin orchestration wrappers; they do not implement a second
+Trainer. Activate the validated environment, resolve its interpreter, and preview a command before
+launching it:
+
+```bash
+export MMCTR_PYTHON="$(command -v python)"
+
+scripts/train_model.sh --dataset antm2c --model dnn_mm_seq --gpu 0 --dry-run
+scripts/train_model.sh --dataset antm2c --model dnn_mm_seq --gpu 0
+```
+
+`train_all_models.sh` creates one sequential worker per unique GPU and assigns models round-robin.
+The default set contains the 21 models that do not require quantization artifacts:
+
+```bash
+scripts/train_all_models.sh --dataset antm2c --gpus 0,1,2,3,4,5,6,7 --dry-run
+scripts/train_all_models.sh --dataset antm2c --gpus 0,1,2,3,4,5,6,7
+```
+
+Use `--models dnn,dcn,deepfm` for a subset. QARM/MCCA require
+`scripts/pretrain_quantizers.sh` and the explicit `--include-quantized` option. All launchers
+validate registry names, accept `--use-local-data`, propagate worker failures, and resolve paths
+relative to the repository rather than the caller's current directory.

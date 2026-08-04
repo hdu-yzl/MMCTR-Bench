@@ -79,6 +79,8 @@ class CheckpointManager:
         optimizer: Optional[torch.optim.Optimizer] = None,
         map_location: Optional[torch.device] = None,
     ) -> CheckpointState:
+        """Restore a supported checkpoint and optionally its optimizer state."""
+
         path = self._path(name)
         if not path.is_file():
             raise FileNotFoundError("checkpoint not found: {}".format(path))

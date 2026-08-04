@@ -150,6 +150,8 @@ class EfficiencyProtocol:
 
 
 def save_efficiency_report(path: Path, report: EfficiencyReport) -> Path:
+    """Atomically persist a versioned report with an outer integrity fingerprint."""
+
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     report_payload = report.to_dict()

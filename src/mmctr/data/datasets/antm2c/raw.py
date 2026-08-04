@@ -45,6 +45,8 @@ class RawEvent:
 
 @dataclass(frozen=True)
 class RawReplay:
+    """Auditable raw-to-index-to-causal-history replay result."""
+
     events: Tuple[Interaction, ...]
     histories: Tuple[InteractionHistory, ...]
     item_index: ItemIndex
@@ -63,7 +65,7 @@ def split_for_timestamp(timestamp: datetime) -> str:
 def iter_raw_events(
     event_parts: Sequence[Path], limit_per_part: Optional[int] = None
 ) -> Iterator[RawEvent]:
-    """Stream raw CSV parts and assign stable source-file/row event identities."""
+    """Scan each CSV once, deriving stable IDs from source filename and physical row."""
 
     if not event_parts:
         raise ContractError("at least one AntM2C raw event part is required")

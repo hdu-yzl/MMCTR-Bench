@@ -13,6 +13,7 @@ BASELINE_PATH = Path(__file__).parents[1] / "baselines" / "legacy_dnn_cpu_v1.jso
 
 class CanonicalDnnRegressionTest(unittest.TestCase):
     def test_migration_preserves_frozen_logits_loss_and_parameter_count(self) -> None:
+        """Recreate legacy weights from the seed; this is not a paper-metric baseline."""
         baseline = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
         torch.manual_seed(int(baseline["train_config"]["seed"]))
         model = create_model("dnn", baseline["model_config"], baseline["data_config"])

@@ -137,6 +137,8 @@ def _write_splits(
         "val": val_boundary - train_count,
         "test": sample_count - val_boundary,
     }
+    # Split complete source rows, including their already-built histories; rebuilding a
+    # user history after random assignment would leak interactions across these splits.
     assignments = np.concatenate(
         [np.full(counts[name], index, dtype=np.uint8) for index, name in enumerate(SPLIT_NAMES)]
     )

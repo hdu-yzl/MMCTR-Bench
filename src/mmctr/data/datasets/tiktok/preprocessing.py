@@ -177,6 +177,8 @@ def _write_splits(
             split_users.add(user_id)
             history = histories.setdefault(user_id, [])
             for positive_item in splits[split_name][user_id]:
+                # Snapshot before append: each target sees only earlier official events,
+                # while state intentionally carries forward from train to val to test.
                 history_values = _left_padded_history(history, sequence_length, item_id_offset)
                 negatives = _sample_negatives(
                     random_state,

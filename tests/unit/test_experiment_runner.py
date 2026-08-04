@@ -89,6 +89,7 @@ class ExperimentRunnerTests(unittest.TestCase):
         self.assertEqual(completed.run_id, resumed_seed_one.run_id)
 
     def test_device_is_returned_if_run_context_creation_fails(self):
+        """Return the queue token on setup failure to prevent later workers deadlocking."""
         task = ExperimentTask(
             task_id="context-failure",
             dataset="antm2c",

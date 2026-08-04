@@ -23,9 +23,12 @@ htmlcov/
 venv/
 env/
 
-# Editors and operating-system metadata
+# Editors, local AI-assistant context, and operating-system metadata
 .vscode/
 .idea/
+.codebuddy/
+/AGENTS.md
+/REFACTORING_PLAN.md
 *.swp
 *.swo
 .DS_Store
@@ -53,9 +56,10 @@ data/processed/**
 !data/processed/**/README.md
 !data/processed/**/manifest.*
 
-# Experiment, tuning, log, and checkpoint output
+# Experiment, tuning, log, checkpoint, and generated report output
 outputs/**
 !outputs/.gitkeep
+reports/figures/
 checkpoints/
 runs/
 wandb/

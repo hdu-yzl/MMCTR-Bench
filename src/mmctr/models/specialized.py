@@ -30,7 +30,11 @@ class _ModalityAttentionFusion(torch.nn.Module):
 
 
 class MB(_PooledMultimodalModel):
-    """Modality-balanced recommendation with adversarial sensitive-modal samples."""
+    """Modality-balanced recommendation with adversarial sensitive-modal samples.
+
+    The PGD-based balance objective is emitted only in training mode and only
+    when both configured modalities and both label classes are available.
+    """
 
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
@@ -319,7 +323,12 @@ class _PAMDDisentangleBlock(torch.nn.Module):
 
 
 class PAMD(_PooledMultimodalModel):
-    """Pairwise adaptive modality disentanglement over target and history."""
+    """Pairwise adaptive modality disentanglement over target and history.
+
+    Each modality pair is decomposed into common and residual components; the
+    auxiliary loss aligns common components, discourages residual correlation,
+    and ranks cross-reconstruction quality.
+    """
 
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
@@ -484,7 +493,12 @@ def _last_valid_token(values: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
 
 
 class MMMLP(_SequenceMultimodalModel):
-    """Mask-aware MLP-Mixer over modality-specific and fused history tokens."""
+    """Mask-aware MLP-Mixer over modality-specific and fused history tokens.
+
+    Token-mixing weights are tied to configured ``seq_len``; batches with a
+    different padded length are rejected. Fully padded rows produce a zero
+    history vector rather than selecting an arbitrary token.
+    """
 
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
@@ -676,7 +690,12 @@ class _VectorAttentionFusion(torch.nn.Module):
 
 
 class M3SRec(_SequenceMultimodalModel):
-    """Shared-attention and mixture-of-experts multimodal sequential model."""
+    """Shared-attention and mixture-of-experts multimodal sequential model.
+
+    Modality sequences are concatenated along the token axis for shared
+    attention, then split back into ``[batch, length, projection_dim]`` chunks.
+    All-padding rows are made attention-safe and reduce to zero history tokens.
+    """
 
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)

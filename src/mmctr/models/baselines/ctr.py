@@ -63,6 +63,8 @@ class _PooledIdBaseline(BaseSeqModel):
 
 
 class DNN(_PooledIdBaseline):
+    """Predict CTR from projected user/item IDs and mean-pooled history IDs."""
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         self.dnn = self.make_mlp(self.projection_dim * 2)
@@ -75,6 +77,8 @@ class DNN(_PooledIdBaseline):
 
 
 class DCN(_PooledIdBaseline):
+    """Combine explicit bounded-degree crosses with a deep ID representation."""
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         input_dim = self.projection_dim * 2
@@ -90,6 +94,8 @@ class DCN(_PooledIdBaseline):
 
 
 class DeepFM(_PooledIdBaseline):
+    """Add second-order target/history interactions to a deep CTR score."""
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         self.fm = FactorizationMachine()
@@ -104,6 +110,8 @@ class DeepFM(_PooledIdBaseline):
 
 
 class AutoInt(_PooledIdBaseline):
+    """Learn explicit target/history field interactions with self-attention."""
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         layer_count = int(model_config.get("attn_layers", 3))
@@ -131,6 +139,12 @@ class AutoInt(_PooledIdBaseline):
 
 
 class DIN(BaseSeqModel):
+    """Pool ID history with target-item-conditioned attention before prediction.
+
+    History IDs are encoded as ``[batch, length, projection_dim]`` and padded
+    positions are excluded by ``history_mask``.
+    """
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(HistoryCapability.SEQUENCE_TOKENS)
         latent_dim = int(model_config.get("latent_dim", 128))

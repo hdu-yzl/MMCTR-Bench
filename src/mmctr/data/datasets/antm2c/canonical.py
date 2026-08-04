@@ -482,6 +482,8 @@ def convert_legacy_to_canonical(
             raise ContractError("existing AntM2C canonical dataset has a different source")
         return CanonicalConversionStatus(True, output_dir, 0, manifest)
 
+    # The incomplete sibling is durable recovery state; only the final rename exposes
+    # a directory that canonical loaders may treat as complete.
     stage = output_dir.with_name(output_dir.name + ".incomplete")
     stage.mkdir(parents=True, exist_ok=True)
     state_path = stage / "conversion_state.json"

@@ -7,6 +7,11 @@ mmctr --help
 python -m mmctr.cli --help
 ```
 
+For repository checkouts, `scripts/train_model.sh`, `scripts/train_all_models.sh`, and
+`scripts/pretrain_quantizers.sh` provide validated one-click wrappers around these canonical
+module entry points. They contain no alternate model or training implementation; see the root
+README and [training.md](training.md).
+
 Current subcommands:
 
 ```text

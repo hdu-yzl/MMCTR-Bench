@@ -82,6 +82,8 @@ def _cosine_weighted_pool(
     mask: torch.Tensor,
     epsilon: float = 1e-8,
 ) -> torch.Tensor:
+    """Pool valid tokens with non-negative, row-normalized target affinity."""
+
     scores = torch.sum(target.unsqueeze(1) * sequence, dim=-1)
     scores = scores.masked_fill(~mask, 0.0)
     denominator = scores.sum(dim=-1, keepdim=True)
@@ -91,7 +93,12 @@ def _cosine_weighted_pool(
 
 
 class GMMF(_SequenceMultimodalModel):
-    """DSN/CGAN multimodal fusion with explicit external alternating phases."""
+    """DSN/CGAN multimodal fusion with explicit external alternating phases.
+
+    ``forward_batch`` owns the recommendation and reconstruction objectives;
+    trainers must call ``discriminator_loss`` and ``generator_loss`` in their
+    own optimizer phases using the disjoint parameter groups exposed here.
+    """
 
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
@@ -284,6 +291,8 @@ class GMMF(_SequenceMultimodalModel):
         )
 
     def discriminator_loss(self, batch: Batch) -> torch.Tensor:
+        """Return the real/fake objective for a discriminator-only update phase."""
+
         (
             target,
             history,
@@ -314,6 +323,8 @@ class GMMF(_SequenceMultimodalModel):
         return total
 
     def generator_loss(self, batch: Batch) -> torch.Tensor:
+        """Return the fooling objective for a generator-only update phase."""
+
         (
             target,
             history,

@@ -5,16 +5,13 @@ must preserve research behavior while the engineering interfaces are replaced in
 
 ## Before making changes
 
-1. Read `REFACTORING_PLAN.md` completely, especially the red lines, environment boundary, task
-   dependencies, and Definition of Done.
-2. Select a task whose dependencies are satisfied.
-3. In the task table, set a single owner, change the status to `IN_PROGRESS`, list the expected
-   files, and state the planned validation evidence.
-4. Record a decision before changing package layout, public interfaces, configuration hierarchy,
+1. Open an issue or agree on a clearly scoped task before implementation.
+2. Confirm its dependencies, expected files, owner, and validation evidence.
+3. Record the rationale before changing package layout, public interfaces, configuration hierarchy,
    metric semantics, data splits, or experiment protocols.
 
-Do not combine unrelated cleanup with a task. Public metadata, registries, schemas, root configs,
-and the refactoring plan are high-conflict files and require explicit task registration.
+Do not combine unrelated cleanup with a task. Public metadata, registries, schemas, and root
+configuration files are high-conflict areas and require explicit coordination.
 
 ## Environment boundary
 
@@ -90,8 +87,8 @@ report a skipped command as passing.
 - Documentation and migration notes match the implementation.
 - Public-interface changes include compatibility or migration guidance.
 - Experimental changes include configuration, seed, data-version, and metric evidence.
-- `REFACTORING_PLAN.md` contains the final status, validation commands/results, date, and follow-up
-  risks.
+- The issue or review description records final status, validation commands/results, date, and
+  follow-up risks.
 
 Use this handoff structure in the task notes or review description:
 

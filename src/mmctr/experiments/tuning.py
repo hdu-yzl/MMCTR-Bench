@@ -126,7 +126,11 @@ class ValidationOnlyTuner:
                 )
 
     def freeze(self, trials: Sequence[TuningTrial]) -> FrozenSelection:
-        """Write complete trial history and atomically freeze the best validation trial."""
+        """Write all trials and atomically freeze the best validation-only candidate.
+
+        Failed trials remain in history but cannot win. Selection uses strictly greater
+        validation AUC, so ties retain the first candidate and never consult test data.
+        """
 
         trial_tuple = tuple(trials)
         if not trial_tuple or any(not isinstance(trial, TuningTrial) for trial in trial_tuple):

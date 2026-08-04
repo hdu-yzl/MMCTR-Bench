@@ -36,7 +36,11 @@ def _resolve_path(value: Any, key: str, project_root: Path, issues: List[str]) -
 
 @dataclass(frozen=True)
 class TrainingConfig:
-    """Validated training configuration consumed by runtime code."""
+    """Validated, frozen training configuration consumed by runtime code.
+
+    Relative paths are resolved once against the explicit project root; runtime code
+    receives stable absolute paths and cannot mutate this configuration in place.
+    """
 
     max_epochs: int
     lr: float

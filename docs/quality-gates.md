@@ -88,8 +88,7 @@ required or inferred.
 ## Current release rehearsal: 2026-08-04
 
 Using the absolute `bm` interpreter recorded in the server evidence (Python 3.8.20), the cumulative
-refactor passes
-`pip check`, Ruff format for 142 files, Ruff lint, mypy for 86 source files, 198 unit/smoke tests,
-and 213 complete tests with 84.90% coverage. The no-isolation source/wheel build and
-repository-external wheel CLI rehearsal also pass. Artifact hashes and remaining non-engineering
-blockers are recorded in [`release-checklist.md`](release-checklist.md).
+refactor passes `pip check`, Ruff format for 143 files, Ruff lint, mypy for 86 source files, 200
+unit/smoke tests, and 220 complete tests with 84.90% coverage. Bash syntax, repository-external
+launcher dry-runs, and the no-isolation source/wheel build also pass. Artifact hashes and remaining
+non-engineering blockers are recorded in [`release-checklist.md`](release-checklist.md).

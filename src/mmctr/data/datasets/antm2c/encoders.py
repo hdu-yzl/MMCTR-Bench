@@ -23,6 +23,8 @@ def _sha256_file(path: Path) -> str:
 
 @dataclass(frozen=True)
 class CheckpointIdentity:
+    """Content identity for a local encoder checkpoint, independent of its path."""
+
     root: str
     sha256: str
     files: Mapping[str, str]

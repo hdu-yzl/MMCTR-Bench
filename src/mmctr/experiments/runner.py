@@ -277,7 +277,11 @@ class ExperimentRunner:
         tasks: Sequence[ExperimentTask],
         resume: bool = True,
     ) -> Tuple[RunResult, ...]:
-        """Execute pending tasks and return results in the caller's task order."""
+        """Execute pending tasks and return results in the caller's task order.
+
+        Resume reuses only a completed result whose immutable task identity matches.
+        Failed or absent tasks receive fresh run directories and are executed again.
+        """
 
         task_tuple = tuple(tasks)
         if not task_tuple or any(not isinstance(task, ExperimentTask) for task in task_tuple):

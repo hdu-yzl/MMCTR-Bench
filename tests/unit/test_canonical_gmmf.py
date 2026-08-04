@@ -171,6 +171,7 @@ class CanonicalGMMFTests(unittest.TestCase):
         self.assertTrue(torch.isfinite(model.generator_loss(all_padding)))
 
     def test_alternating_training_starts_at_configured_epoch(self):
+        """Keep adversarial phases disabled before N and active from epoch N onward."""
         model_config, data_config = configs()
         model = create_model("gmmf", model_config, data_config)
         optimizer = build_phased_adam(

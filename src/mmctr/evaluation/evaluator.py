@@ -18,6 +18,8 @@ class BinaryClassificationEvaluator:
 
     @torch.no_grad()
     def evaluate(self, model: torch.nn.Module, batches: Iterable[Batch]) -> BinaryMetrics:
+        """Collect sigmoid probabilities for one full split under ``no_grad``."""
+
         model.eval()
         probabilities: List[np.ndarray] = []
         labels: List[np.ndarray] = []

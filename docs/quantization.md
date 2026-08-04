@@ -42,9 +42,17 @@ On the authoritative Linux server, activate `bm`, record `command -v python`, an
 use that absolute interpreter for these modules:
 
 ```bash
+scripts/pretrain_quantizers.sh --dataset antm2c --gpu 0 --dry-run
+scripts/pretrain_quantizers.sh --dataset antm2c --gpu 0
+
+# Equivalent canonical module entry points:
 <SERVER_ENV>/bin/python -m mmctr.quantization.rq_entrypoint --dataset-name antm2c --use-local-data
 <SERVER_ENV>/bin/python -m mmctr.quantization.psrq_entrypoint --dataset-name antm2c --cuda 0 --use-local-data
 ```
+
+After both artifact families exist, `scripts/train_all_models.sh --include-quantized` adds QARM and
+MCCA to the normal multi-GPU model queue. Without this explicit opt-in, batch training excludes
+them so a missing or incompatible artifact cannot fail an otherwise standard model sweep.
 
 RQ L2-normalizes each non-ID item modality before fitting and stores the actual
 raw modality dimension in each artifact. PSRQ trains the configured modality and

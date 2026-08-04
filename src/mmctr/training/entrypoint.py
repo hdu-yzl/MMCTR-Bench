@@ -181,6 +181,12 @@ class Trainer(object):
             raise
 
     def run(self):
+        """Fit on train/validation, restore the best checkpoint, then evaluate test once.
+
+        Test metrics are produced only after validation-based model selection has
+        completed. Any failure finalizes the run as failed before it is re-raised.
+        """
+
         try:
             fit_result = self.engine.fit(
                 self.dataloader,

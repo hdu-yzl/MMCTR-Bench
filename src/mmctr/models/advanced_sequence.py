@@ -93,6 +93,13 @@ class _FQFormer(torch.nn.Module):
 
 
 class EM3(_SequenceMultimodalModel):
+    """Compress modality tokens with learned queries and align content to IDs.
+
+    The FQ-Former maps ``[batch, modalities, projection_dim]`` to a flattened
+    query representation; its symmetric in-batch contrastive loss treats the
+    matching content/ID row as the positive pair.
+    """
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         self.query_count = int(model_config.get("query_num", 5))
@@ -197,6 +204,8 @@ class _CrossModalAttention(torch.nn.Module):
 
 
 class _StochasticReverseFusion(torch.nn.Module):
+    """Iteratively denoise each modality from evidence supplied by the others."""
+
     def __init__(self, dimension: int, feature_names: Sequence[str], steps: int) -> None:
         super().__init__()
         if steps <= 0 or len(feature_names) < 2:
@@ -259,6 +268,8 @@ class _StochasticReverseFusion(torch.nn.Module):
         prediction = self.attention[target_name](target, aggregated)
         alpha = self.alphas[step]
         alpha_bar = self.alpha_bars[step + 1]
+        # This DDPM-style update removes the predicted cross-modal noise while
+        # epsilon clamps keep the early reverse steps numerically well-defined.
         denominator = torch.sqrt(torch.clamp(alpha, min=self.epsilon))
         factor = (1.0 - alpha) / torch.sqrt(torch.clamp(1.0 - alpha_bar, min=self.epsilon))
         return (target - factor * prediction) / denominator
@@ -317,6 +328,13 @@ def _hinge_cosine(first: torch.Tensor, second: torch.Tensor, labels: torch.Tenso
 
 
 class Diff_MSIN(_SequenceMultimodalModel):
+    """Mix shared/specific experts with stochastic reverse modal synthesis.
+
+    The contrastive term separates modality-specific experts while aligning
+    shared experts; the synthesis hinge uses batch labels to relate target and
+    history synthesis vectors.
+    """
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         self.synthesis_weight = float(model_config.get("lambda1", 0.1))

@@ -27,6 +27,8 @@ def _configure_threads(num_threads: int) -> None:
 
 
 def _run_train(arguments) -> int:
+    """Configure process-wide threads before importing the heavy training runtime."""
+
     _configure_threads(arguments.num_threads)
     from mmctr.training.entrypoint import Trainer
 

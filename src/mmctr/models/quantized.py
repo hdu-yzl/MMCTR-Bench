@@ -52,6 +52,8 @@ class _QuantizedSequenceModel(_SequenceMultimodalModel):
             self.projectors.replace(name, self.n_levels * self.latent_dim)
 
     def _embed_codes(self, name: str, codes: torch.Tensor) -> torch.Tensor:
+        """Map ``[..., n_levels]`` integer codes to concatenated level embeddings."""
+
         if codes.dtype != torch.long or codes.shape[-1] != self.n_levels:
             raise ContractError("quantizer returned incompatible codes for {!r}".format(name))
         return torch.cat(
@@ -68,7 +70,12 @@ class _QuantizedSequenceModel(_SequenceMultimodalModel):
 
 
 class QARM(_QuantizedSequenceModel):
-    """Residual-codebook recommendation model with pure injected RQ dependencies."""
+    """Residual-codebook recommendation model with injected fitted quantizers.
+
+    One quantizer is required per non-ID modality. Codes have shape
+    ``[..., n_levels]`` and are embedded level-wise before projection; the
+    injected quantizers remain registered modules so checkpoints are complete.
+    """
 
     def __init__(
         self,
@@ -194,7 +201,12 @@ class _MaskedCrossAttentionPool(torch.nn.Module):
 
 
 class MCCA(_QuantizedSequenceModel):
-    """PSRQ code alignment model with mask-aware cross-attention histories."""
+    """PSRQ code alignment model with mask-aware cross-attention histories.
+
+    The injected PSRQ module is frozen permanently, including when the parent
+    model enters training mode. Modality codes encode each branch separately;
+    joint codes provide the shared target query for non-ID history modalities.
+    """
 
     def __init__(
         self,
@@ -265,6 +277,8 @@ class MCCA(_QuantizedSequenceModel):
         )
 
     def train(self, mode: bool = True):
+        """Change model mode while keeping the pretrained quantizer frozen in eval."""
+
         super().train(mode)
         self.quantizer.eval()
         return self

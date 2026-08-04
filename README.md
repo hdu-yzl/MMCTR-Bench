@@ -1,163 +1,233 @@
 # MMCTR-Bench
 
-MMCTR-Bench is a research benchmark for click-through-rate recommendation with multimodal and
-sequential features. The repository includes conventional CTR baselines, multimodal fusion
-models, quantization-oriented models, dataset adapters, tuning scripts, and analysis workflows.
+[![Linux CI](https://github.com/hdu-yzl/MMCTR-Bench/actions/workflows/linux-ci.yml/badge.svg)](https://github.com/hdu-yzl/MMCTR-Bench/actions/workflows/linux-ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.8-blue.svg)](pyproject.toml)
 
-> **Project status:** release candidate. The public package, CLI, canonical model/data/training
-> internals, CI, Linux quality gates, and Apache-2.0 software licensing are complete. See
-> [REFACTORING_PLAN.md](REFACTORING_PLAN.md) for authoritative status and validation evidence.
+MMCTR-Bench is a reproducible benchmark for click-through-rate prediction with ID, sequential,
+text, image, and audio features. It provides one canonical Python package, strict dataset and
+training contracts, isolated experiment outputs, and one-click scripts for single-model and
+multi-GPU training.
 
-## Scope
+This project was refactored with the assistance of AI.
 
-Current dataset adapters:
+## What is included
 
-- AntM2C
-- MicroLens
-- TikTok
+- Three dataset adapters: **AntM2C**, **MicroLens**, and **TikTok**.
+- 23 canonical CTR models: `autoint`, `dcn`, `deepfm`, `diff_msin`, `din`, `dmf`, `dnn`,
+  `dnn_mm`, `dnn_mm_seq`, `em3`, `gmmf`, `lmf`, `m3srec`, `make`, `marn`, `mb`, `mcca`,
+  `mmmlp`, `mtfn`, `naml`, `pamd`, `qarm`, and `simcen`.
+- RQ and PSRQ as separate quantization pretraining components for QARM and MCCA.
+- Canonical training, validation-only selection, experiment planning, robustness/alignment/
+  cold-start analysis, plotting, and versioned result protocols.
+- Apache-2.0 licensed repository code and documentation. Third-party datasets and checkpoints are
+  not redistributed or relicensed.
 
-The registry exposes 23 canonical CTR models, including DNN, DCN, DeepFM, DIN, AutoInt, LMF,
-Diff-MSIN, MARN, MTFN, DMF, SimCEN, NAML, MAKE, EM3, GMMF, QARM, MCCA, MB, PAMD, MMMLP, and
-M3SRec. RQ and PSRQ are separate quantization pretraining components.
+The public runtime namespace is only `mmctr`; the former duplicate model, trainer, processor, and
+analysis trees have been removed.
 
-The public package namespace is `mmctr`; model classes, factories, and training components are
-published only through that namespace. Import migration details are documented in
-[docs/migration.md](docs/migration.md). Typed data/model contracts and shared analysis protocols
-are the only formal runtime paths.
+## Installation
 
-Strict training configuration validation and layer precedence are documented in
-[docs/configuration.md](docs/configuration.md).
-RQ/PSRQ artifact layout and the QARM/MCCA composition boundary are documented in
-[docs/quantization.md](docs/quantization.md).
-Machine-specific dataset and output paths are configured as described in
-[docs/local-paths.md](docs/local-paths.md); real server paths remain untracked.
-
-## Requirements
-
-- Linux is the authority for dependency resolution, CUDA, training, performance, and formal
-  regression results.
-- Python 3.8.5 is the initial experiment compatibility baseline. Package metadata currently
-  declares Python `>=3.8,<3.9` until Linux and CI validation justify a wider range.
-- All subsequent editing, static checks, tests, dependency validation, and CUDA work run on the
-  Linux server in the maintainer-provided `bm` environment.
-- Real datasets, checkpoints, local path files, and experiment outputs are not included.
-
-Environment roles and known framework compatibility risks are documented in
-[docs/environment.md](docs/environment.md).
-
-## Quick start
-
-The commands below describe the current Linux bootstrap. Replace placeholders with actual
-absolute paths and record them in validation evidence.
+Linux and Python 3.8 are the validated environment. Select the server-compatible PyTorch/CUDA
+build first; the optional dependencies intentionally do not choose a GPU build for you.
 
 ```bash
 git clone https://github.com/hdu-yzl/MMCTR-Bench.git
 cd MMCTR-Bench
 
-<CONDA_EXE> env create --prefix <SERVER_ENV> --file environment.yml
-<SERVER_ENV>/bin/python -m pip install --editable \
-  '.[training,data,multimodal,analysis,tuning]'
-<SERVER_ENV>/bin/python -m pip check
-<SERVER_ENV>/bin/python -c "import mmctr; print(mmctr.__version__)"
+conda env create -n bm -f environment.yml
+conda activate bm
+python -m pip install --editable '.[training,data,multimodal,analysis,tuning]'
+python -m pip check
+
+# Keep the interpreter explicit for every launcher.
+export MMCTR_PYTHON="$(command -v python)"
+"$MMCTR_PYTHON" -m mmctr.cli --version
 ```
 
-Install the server-approved PyTorch/CUDA build from its official channel before the editable
-installation. The dependency groups do not select a GPU build automatically.
+Maintainers of the validated experiment server should activate the existing `bm` environment; do
+not create or replace it. See [docs/environment.md](docs/environment.md) for the tested dependency
+matrix.
 
-A public CLI surface is now available for help, registry listing, strict config validation, and an
-isolated canonical training entry point:
+## Prepare the data
 
-```bash
-<SERVER_ENV>/bin/python -m mmctr.cli --help
-<SERVER_ENV>/bin/python -m mmctr.cli list-models
-<SERVER_ENV>/bin/python -m mmctr.cli list-quantizers
-<SERVER_ENV>/bin/python -m mmctr.cli validate-config \
-  --config configs/training/default.yaml
-```
-
-See [docs/cli.md](docs/cli.md) and [docs/run-layout.md](docs/run-layout.md). Linux framework, real
-canonical data, CPU, and CUDA gates pass. A dependency-light test baseline covers pooling behavior
-and an ID-only DNN CPU forward/loss/backward step with synthetic tensors:
-
-```bash
-<SERVER_ENV>/bin/python -m pytest tests/unit tests/smoke
-```
-
-These CPU checks do not use real data or by themselves prove that full CUDA training is
-reproducible; GPU and real-data gates are run explicitly on the same Linux server.
-
-## Data layout
-
-Repository configs use these portable defaults:
+MMCTR-Bench does not download or publish third-party data. Obtain each dataset from its provider,
+review its terms, record local provenance and SHA-256 values, and place the inputs under:
 
 ```text
-data/raw/
-├─ antm2c/       # user downloads from the provider
-├─ microlens/    # user downloads from the provider
-└─ tiktok/       # user downloads from an authorized upstream source
-
-data/processed/
-├─ antm2c/
-├─ microlens/
-└─ tiktok/
+data/raw/antm2c/
+data/raw/microlens/
+data/raw/tiktok/
 ```
 
-Private data stays outside version control. Exact user-supplied filenames are documented in the
-tracked README inside each `data/raw/<dataset>/` directory. Dataset sources, acquisition
-boundaries, current license findings, local placement, and provenance requirements are documented
-in [data/README.md](data/README.md); schemas and manifests are documented in
-[docs/data.md](docs/data.md). Do not infer permission to redistribute a dataset merely because an
-adapter exists in this repository.
+The exact required files are documented in:
 
-## Research protocol
+- [data/raw/antm2c/README.md](data/raw/antm2c/README.md): event shards, image archive, BERT and
+  ChineseCLIP checkpoints;
+- [data/raw/microlens/README.md](data/raw/microlens/README.md): interaction and item-feature
+  Parquet files;
+- [data/raw/tiktok/README.md](data/raw/tiktok/README.md): official JSON splits and upstream text,
+  image, and audio arrays.
 
-The benchmark follows these non-negotiable rules:
+Canonical processors write ignored payloads to:
 
-- training data is used for fitting;
-- validation data is used for early stopping, model selection, and hyperparameter search;
-- test data is evaluated only after configuration freeze;
-- test metrics must never be written back as best-parameter selections;
-- every seed keeps an independent result, with aggregate reporting as mean and standard
-  deviation;
-- runs must not share checkpoint, log, or result paths.
+```text
+data/processed/antm2c/canonical-v1/
+data/processed/microlens/canonical-v1/
+data/processed/tiktok/canonical-v1/
+```
 
-The full protocol and refactor red lines are defined in
-[REFACTORING_PLAN.md](REFACTORING_PLAN.md).
+Tracked manifests describe the data version, schema, split statistics, fingerprints, and source
+hashes without publishing the payload. For data stored elsewhere, copy
+`configs/local/paths.example.yaml` to ignored `configs/local/paths.yaml` and use the
+`--use-local-data` launcher option. See [data/README.md](data/README.md) and
+[docs/data.md](docs/data.md) for acquisition and format details.
+
+## One-click training
+
+All launchers resolve the repository root themselves, validate dataset/model names, and delegate
+to the canonical `mmctr` entry points. Use `--dry-run` first to inspect a command without loading
+data or starting training.
+
+### Train one model
+
+```bash
+scripts/train_model.sh \
+  --dataset antm2c \
+  --model dnn_mm_seq \
+  --gpu 0 \
+  --dry-run
+
+scripts/train_model.sh --dataset antm2c --model dnn_mm_seq --gpu 0
+```
+
+Useful overrides:
+
+```bash
+scripts/train_model.sh \
+  --dataset microlens \
+  --model deepfm \
+  --gpu 1 \
+  --num-threads 8 \
+  --output-root outputs
+```
+
+Run `scripts/train_model.sh --help` for every option. Training hyperparameters come from
+`configs/training/default.yaml`; model and dataset definitions come from the two catalog files
+under `configs/models/` and `configs/datasets/`.
+
+### Train all standard models on multiple GPUs
+
+```bash
+# Preview 21 commands and their GPU assignment.
+scripts/train_all_models.sh --dataset antm2c --gpus 0,1,2,3,4,5,6,7 --dry-run
+
+# One sequential worker per GPU; a worker takes its next model after the previous one finishes.
+scripts/train_all_models.sh --dataset antm2c --gpus 0,1,2,3,4,5,6,7
+```
+
+The default batch intentionally excludes `qarm` and `mcca` because they require pretrained RQ and
+PSRQ artifacts. Train a selected subset with:
+
+```bash
+scripts/train_all_models.sh \
+  --dataset tiktok \
+  --gpus 0,1 \
+  --models dnn,dcn,deepfm,din,autoint
+```
+
+Each GPU has at most one worker, duplicate GPU indices are rejected, and any failed worker makes
+the launcher return a non-zero exit code.
+
+### Pretrain quantizers and include QARM/MCCA
+
+```bash
+scripts/pretrain_quantizers.sh --dataset tiktok --gpu 0 --dry-run
+scripts/pretrain_quantizers.sh --dataset tiktok --gpu 0
+
+scripts/train_all_models.sh \
+  --dataset tiktok \
+  --gpus 0,1,2,3 \
+  --include-quantized
+```
+
+RQ artifacts are written to `outputs/quantization/artifacts/rq/<dataset>/`; PSRQ is written to
+`outputs/quantization/artifacts/psrq/<dataset>/`. Their lifecycle and compatibility checks are
+described in [docs/quantization.md](docs/quantization.md).
+
+## Runs and results
+
+Every invocation creates an isolated directory:
+
+```text
+outputs/training/<dataset>/<model>/<run_id>/
+├── resolved_config.yaml
+├── run_metadata.json
+├── metrics.jsonl
+├── run.log
+├── summary.json
+└── checkpoints/
+    ├── best.pt
+    └── last.pt
+```
+
+The run ID contains a timestamp, configuration hash, and random entropy. Runs never share logs or
+checkpoints. Validation controls early stopping and model selection; test evaluation occurs only
+after the selected checkpoint is frozen. See [docs/run-layout.md](docs/run-layout.md) and
+[docs/training.md](docs/training.md).
+
+## CLI
+
+The scripts are convenience wrappers around the public CLI:
+
+```bash
+"$MMCTR_PYTHON" -m mmctr.cli --help
+"$MMCTR_PYTHON" -m mmctr.cli list-models
+"$MMCTR_PYTHON" -m mmctr.cli list-datasets
+"$MMCTR_PYTHON" -m mmctr.cli list-quantizers
+"$MMCTR_PYTHON" -m mmctr.cli validate-config --config configs/training/default.yaml
+"$MMCTR_PYTHON" -m mmctr.cli train --dataset-name antm2c --model-name dnn --cuda 0
+```
+
+Analysis matrix and plotting commands are documented in [docs/cli.md](docs/cli.md) and
+[docs/experiments.md](docs/experiments.md).
 
 ## Repository layout
 
 ```text
-configs/          Dataset/model catalogs, training defaults, experiments, and local-path example
-data/raw/         User-downloaded inputs; only placement README files are tracked
-data/processed/   Generated canonical datasets; payload arrays are ignored
-src/mmctr/        Canonical core, data, models, training, analysis, and utilities
-reports/figures/  Versioned final research figures
-outputs/          Ignored runs, checkpoints, logs, quantization artifacts, and analyses
-docs/             Architecture and usage documentation
+configs/          Dataset/model catalogs, training defaults, experiment examples, local template
+data/raw/         Provider inputs supplied by the user; payloads are ignored
+data/processed/   Versioned canonical stores; payloads are ignored, small manifests are tracked
+scripts/          One-click single-model, multi-GPU, and quantization launchers
+src/mmctr/        The only runtime package: data, models, training, analysis, CLI, and utilities
+outputs/          Ignored runs, checkpoints, logs, quantization artifacts, figures, and results
+tests/            Unit, integration, regression, and smoke gates
+docs/             Architecture, protocols, configuration, data, and release documentation
 ```
 
-## Development
+## Development and validation
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and claim a task in
-[REFACTORING_PLAN.md](REFACTORING_PLAN.md) before modifying shared interfaces. Local Python
-commands in this workspace must use the configured absolute interpreter path; server validation
-records must likewise use the real absolute server interpreter.
+```bash
+"$MMCTR_PYTHON" -m ruff format --check src/mmctr tests
+"$MMCTR_PYTHON" -m ruff check src/mmctr tests
+"$MMCTR_PYTHON" -m mypy src/mmctr
+"$MMCTR_PYTHON" -m pytest -q tests/unit tests/smoke
+"$MMCTR_PYTHON" -m pytest --cov=mmctr --cov-report=term-missing --cov-fail-under=80
+"$MMCTR_PYTHON" -m build --no-isolation
+```
 
-The staged Linux lint, formatting, typing, test, coverage, and package-build commands are
-documented in [docs/quality-gates.md](docs/quality-gates.md). The final source/privacy,
-distribution-rehearsal, and publication gates are in
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing public contracts. The exact Linux gates
+and release audit are in [docs/quality-gates.md](docs/quality-gates.md) and
 [docs/release-checklist.md](docs/release-checklist.md).
 
-## Citation
+## Citation and references
 
-Citation metadata is provided in [CITATION.cff](CITATION.cff). The dataset papers and all 23 model
-registry entries are mapped in [docs/references.md](docs/references.md), including explicit labels
-for benchmark-only variants and adapted methods.
+Use [CITATION.cff](CITATION.cff) when citing MMCTR-Bench. Dataset provenance and the mapping for
+all 23 model registry entries are documented in [docs/references.md](docs/references.md).
 
 ## License
 
 Repository-owned source code, configuration, and documentation are licensed under the
-[Apache License 2.0](LICENSE) (`Apache-2.0`). Third-party datasets and checkpoints are not covered
-by this software license and are not redistributed by the repository; review their providers'
-terms before obtaining, using, or sharing them. See [data/README.md](data/README.md) for the
-dataset-specific boundaries.
+[Apache License 2.0](LICENSE). Third-party datasets and checkpoints are not covered by this
+software license; the same exclusion applies to third-party media and derived arrays. None of
+these payloads are redistributed by this repository.

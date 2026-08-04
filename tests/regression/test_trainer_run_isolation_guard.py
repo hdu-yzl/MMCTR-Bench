@@ -9,6 +9,7 @@ TRAINER_PATH = REPOSITORY_ROOT / "src" / "mmctr" / "training" / "entrypoint.py"
 
 class TrainerRunIsolationGuardTest(unittest.TestCase):
     def test_primary_trainer_creates_run_context_before_runtime_objects(self):
+        """Ensure loader or model setup failures still belong to an isolated run record."""
         source = TRAINER_PATH.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(TRAINER_PATH))
         calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]

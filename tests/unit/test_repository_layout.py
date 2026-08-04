@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 
@@ -27,8 +28,30 @@ def test_dataset_filesystem_interface_is_tracked_as_documentation() -> None:
             assert (PROJECT_ROOT / "data" / area / dataset / "README.md").is_file()
 
 
-def test_source_tree_contains_runtime_only_and_figures_live_in_reports() -> None:
+def test_public_markdown_is_english_only() -> None:
+    failures = []
+    for path in PROJECT_ROOT.rglob("*.md"):
+        relative = path.relative_to(PROJECT_ROOT)
+        if "outputs" in relative.parts or any(part.startswith(".") for part in relative.parts):
+            continue
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if any("\u3400" <= character <= "\u9fff" for character in line):
+                failures.append("{}:{}".format(relative.as_posix(), line_number))
+    assert failures == []
+
+
+def test_source_tree_and_repository_exclude_generated_research_artifacts() -> None:
     assert not (PROJECT_ROOT / "src" / "analysis").exists()
-    figures = tuple((PROJECT_ROOT / "reports" / "figures").glob("*"))
-    assert len(figures) == 19
-    assert all(path.suffix.lower() in {".pdf", ".png"} for path in figures)
+    assert not (PROJECT_ROOT / "reports" / "figures").exists()
+
+
+def test_one_click_launchers_are_executable_release_sources() -> None:
+    """Keep launchers executable in the source tree and included in source distributions."""
+    scripts = PROJECT_ROOT / "scripts"
+    for name in ("train_model.sh", "train_all_models.sh", "pretrain_quantizers.sh"):
+        path = scripts / name
+        assert path.is_file()
+        assert os.access(path, os.X_OK)
+
+    manifest = (PROJECT_ROOT / "MANIFEST.in").read_text(encoding="utf-8")
+    assert "recursive-include scripts *.sh" in manifest

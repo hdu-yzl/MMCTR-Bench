@@ -11,6 +11,8 @@ from mmctr.core import ContractError
 
 @dataclass(frozen=True)
 class Interaction:
+    """One versioned event whose identity disambiguates repeated item interactions."""
+
     event_id: str
     user_id: Any
     item_index: int
@@ -55,6 +57,7 @@ def build_histories(
     event_ids = [record.event_id for record in records]
     if len(event_ids) != len(set(event_ids)):
         raise ContractError("event_id values must be unique")
+    # The stable event ID is the final tie-breaker for equal-timestamp repeats.
     records.sort(key=lambda record: (str(record.user_id), record.timestamp, record.event_id))
 
     histories: Dict[Any, Deque[int]] = {}

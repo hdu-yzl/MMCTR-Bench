@@ -13,6 +13,7 @@ class FormalTuningTests(unittest.TestCase):
         return RunResult(run_id=run_id, status="completed", metrics=metrics)
 
     def test_selection_rejects_test_metrics_and_freezes_provenance_before_final_test(self):
+        """Prevent test leakage by sealing validation provenance before final evaluation."""
         with tempfile.TemporaryDirectory() as directory:
             tuner = ValidationOnlyTuner(
                 output_root=Path(directory),

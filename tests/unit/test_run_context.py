@@ -101,6 +101,7 @@ class RunContextTest(unittest.TestCase):
                 create_run_context(**arguments)
 
     def test_path_traversal_component_is_rejected(self):
+        """Keep untrusted registry labels inside the configured output root."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             with self.assertRaises(ValueError):
                 create_run_context(

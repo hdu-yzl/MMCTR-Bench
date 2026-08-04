@@ -50,6 +50,8 @@ def _file_sha256(path: Path) -> str:
 
 @dataclass(frozen=True)
 class ColdStartAudit:
+    """Immutable evidence that one cold-start partition passed its protocol checks."""
+
     target: str
     regime: str
     target_count: int

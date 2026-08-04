@@ -161,9 +161,9 @@ rendering, and provenance in one operation:
 `render_metric_figure` accepts only completed `result-v1` inputs, groups by model/dataset/task/seed,
 uses the arithmetic mean for repeated runs, writes PNG/PDF/SVG atomically, and always emits a
 sibling provenance manifest containing the plotted values and source hashes. The 11 legacy Python
-scripts with embedded tables were removed; the 19 already-versioned final PDF/PNG research
-artifacts remain under `reports/figures/` as historical outputs. Runtime source under `src/`
-contains no static research artifacts.
+scripts with embedded tables and the previously versioned generated figures were removed. Generated
+figures belong under ignored `outputs/figures/`; runtime source under `src/` contains no static
+research artifacts.
 
 ## Fusion studies
 

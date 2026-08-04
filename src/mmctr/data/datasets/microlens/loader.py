@@ -4,6 +4,8 @@ from mmctr.data.datasets.arrays import NamedArrayDatasetLoader
 
 
 class MicroLensLoader(NamedArrayDatasetLoader):
+    """Load the versioned row-level split without recomputing upstream histories."""
+
     dataset_name = "microlens"
 
 

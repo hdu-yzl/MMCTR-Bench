@@ -17,6 +17,8 @@ from mmctr.experiments.runner import RESULT_SCHEMA_VERSION
 
 @dataclass(frozen=True)
 class StandardResult:
+    """One completed result-v1 artifact accepted by downstream analysis."""
+
     path: Path
     run_id: str
     task_id: str

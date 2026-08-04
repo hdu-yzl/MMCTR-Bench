@@ -187,7 +187,12 @@ class TrainingEngine:
         artifact_dir: Optional[Path] = None,
         start_epoch: int = 0,
     ) -> RunResult:
-        """Fit using train/validation only and restore the best checkpoint."""
+        """Fit using train/validation only and restore the best checkpoint.
+
+        Validation AUC alone drives early stopping. ``last.pt`` captures resume state
+        after every validation pass, while ``best.pt`` changes only on improvement.
+        No test split is accessed here.
+        """
 
         if max_epochs <= 0:
             raise ValueError("max_epochs must be positive")

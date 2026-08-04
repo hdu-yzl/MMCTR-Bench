@@ -34,18 +34,18 @@ def get_logger(
     fmt: str = LOG_FMT,
     filename: Optional[str] = None,
 ) -> logging.Logger:
-    """
-    单例 logger：多次调用同名 name 不会重复加 handler；filename 可固定日志文件名。
+    """Return a per-name logger without attaching duplicate handlers.
+
+    ``filename`` optionally fixes the log filename instead of deriving it from ``name``.
     """
     logger = logging.getLogger(name)
 
-    # 已实例化过直接返回
+    # Reuse the configured singleton instead of duplicating console and file output.
     if logger.handlers:
         return logger
 
     logger.setLevel(level)
 
-    # 控制台
     console = logging.StreamHandler(sys.stdout)
     console.setFormatter(logging.Formatter(fmt, datefmt=DATE_FMT))
     logger.addHandler(console)
@@ -58,6 +58,6 @@ def get_logger(
         file_handler.setFormatter(logging.Formatter(fmt, datefmt=DATE_FMT))
         logger.addHandler(file_handler)
 
-    # 禁止向上层(父 logger)传递，避免重复打印
+    # Prevent parent handlers from emitting each record a second time.
     logger.propagate = False
     return logger

@@ -157,6 +157,12 @@ class _PooledMultimodalModel(BaseSeqModel):
 
 
 class DNN_mm(_PooledMultimodalModel):
+    """Fuse target and pooled-history modalities before scalar CTR prediction.
+
+    Every configured modality is projected to ``projection_dim`` first; the
+    selected fusion determines each branch's final width.
+    """
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         method = model_config.get("modal_fusion_method", "cat")
@@ -182,6 +188,8 @@ class DNN_mm(_PooledMultimodalModel):
 
 
 class LMF(_PooledMultimodalModel):
+    """Apply low-rank tensor fusion before pooling history token outputs."""
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         rank = int(model_config.get("rank", 5))
@@ -202,6 +210,8 @@ class LMF(_PooledMultimodalModel):
 
 
 class MTFN(_PooledMultimodalModel):
+    """Fuse target and history modalities through factorized tensor interactions."""
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         rank = int(model_config.get("rank", 20))
@@ -326,7 +336,12 @@ class _MultiLevelExpert(torch.nn.Module):
 
 
 class SimCEN(_PooledMultimodalModel):
-    """Canonical SimCEN with a named, scalar contrastive auxiliary loss."""
+    """Segment field interactions into ego and two contrastive expert views.
+
+    The bilinear field matrix is split into upper/lower triangular views. The
+    returned ``simcen_contrastive`` value is already scaled by ``alpha`` and is
+    a scalar suitable for direct addition to the primary objective.
+    """
 
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)

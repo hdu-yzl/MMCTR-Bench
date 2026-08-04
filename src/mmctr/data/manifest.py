@@ -116,6 +116,8 @@ class DatasetManifest:
 
     @property
     def fingerprint(self) -> str:
+        """Hash the complete manifest contract, distinct from its raw-source fingerprint."""
+
         payload = json.dumps(
             self.to_dict(include_fingerprint=False),
             ensure_ascii=False,

@@ -55,7 +55,11 @@ def _split_legacy_ids(values: Sequence[Any]) -> Sequence[Any]:
 
 
 class CanonicalDataLoader:
-    """Expose a legacy dataset loader through the canonical `Batch` contract."""
+    """Translate legacy tuples to ``Batch`` without claiming canonical storage provenance.
+
+    The supplied manifest describes the compatibility boundary. Unlike a native canonical
+    loader, this adapter cannot audit the legacy files behind that description.
+    """
 
     def __init__(
         self,

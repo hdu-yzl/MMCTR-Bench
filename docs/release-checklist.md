@@ -48,8 +48,8 @@ The final line is the absolute-interpreter equivalent of `python -m build --no-i
 <BM_PYTHON> -m build --no-isolation
 ```
 
-- [x] all commands pass on Linux and the exact counts/tool versions are recorded in
-  `REFACTORING_PLAN.md`.
+- [x] all commands pass on Linux and the exact counts/tool versions are recorded in the release
+  evidence.
 - [x] required real-data CPU/CUDA smoke evidence still matches the canonical dataset fingerprints.
 
 ## Distribution rehearsal
@@ -57,8 +57,9 @@ The final line is the absolute-interpreter equivalent of `python -m build --no-i
 - [x] Record the source archive and wheel byte sizes and SHA-256 digests.
 - [x] Inspect both archive member lists; the wheel contains no data tree, while the sdist may
   contain only tracked data placement README files and small canonical manifests—never payload
-  arrays. Neither artifact may contain outputs, checkpoints, local config, the deleted
-  `models`/`scripts` packages, or `mmctr/models/compat.py`.
+  arrays. Neither artifact may contain outputs, checkpoints, local config, the deleted legacy
+  `src/models`/`src/scripts` runtime packages, or `mmctr/models/compat.py`; the sdist intentionally
+  includes the three thin executable launchers under the root `scripts/` directory.
 - [x] Install the wheel with `--no-deps --target` into an ignored project-local temporary directory.
 - [x] From a repository-external working directory, import `mmctr`, print its installed path/version,
   run `python -m mmctr.cli --help`, `list-models`, `list-datasets`, and `list-quantizers`.
@@ -69,16 +70,16 @@ The final line is the absolute-interpreter equivalent of `python -m build --no-i
 
 - interpreter: the absolute `bm` interpreter recorded in the private server evidence
   (Python 3.8.20);
-- `pip check`, Ruff format (142 files), Ruff lint, and mypy (86 source files): passed;
-- unit + smoke: 198 passed; full coverage gate: 213 passed, 84.90%;
-- Apache-2.0 metadata contract: 5 passed; CFF YAML parsing passed;
-- final wheel/sdist sizes, member counts, and SHA-256 values are recorded in the release-task
-  evidence in `REFACTORING_PLAN.md`;
+- `pip check`, Ruff format (143 files), Ruff lint, mypy (86 source files), and Bash syntax: passed;
+- unit + smoke: 200 passed; full coverage gate: 220 passed, 84.90%;
+- one-click launcher integration contract: 5 passed; Apache-2.0 metadata/CFF parsing passed;
+- final wheel/sdist sizes, member counts, and SHA-256 values are recorded in the private release
+  evidence;
 - each artifact contains exactly one `LICENSE`; installed metadata exposes the Apache classifier and
-  license text (the plan remains excluded from the sdist to avoid a self-referential hash);
+  license text;
 - archive forbidden-member audit: zero payload findings; sdist contains citation, contribution,
-  data terms/placement README files, reference, release, config, and test material through
-  `MANIFEST.in`;
+  data terms/placement README files, reference, release, config, executable root launchers, and test
+  material through `MANIFEST.in`;
 - repository-external wheel import resolved below `.tmp/release-install`, reported version `0.1.0`,
   canonical Trainer/RQ/PSRQ help passed, and all CLI catalog commands returned 23/3/2 entries.
 

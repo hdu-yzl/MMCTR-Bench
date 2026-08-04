@@ -30,6 +30,25 @@ def test_public_readme_links_provenance_documents() -> None:
     assert "docs/references.md" in readme
 
 
+def test_final_readme_documents_one_click_training() -> None:
+    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+
+    for required in (
+        "scripts/train_model.sh",
+        "scripts/train_all_models.sh",
+        "scripts/pretrain_quantizers.sh",
+        "data/raw/antm2c",
+        "data/raw/microlens",
+        "data/raw/tiktok",
+        "outputs/",
+        "23 canonical CTR models",
+    ):
+        assert required in readme
+
+    assert "release candidate" not in readme.lower()
+    assert "refactored with the assistance of AI" in readme
+
+
 def test_release_checklist_keeps_known_blockers_explicit() -> None:
     checklist = (PROJECT_ROOT / "docs" / "release-checklist.md").read_text(encoding="utf-8")
 
@@ -61,6 +80,7 @@ def test_source_distribution_includes_public_provenance_files() -> None:
 
 
 def test_apache_license_metadata_is_public_and_excludes_third_party_data() -> None:
+    """Keep the software license consistent while excluding third-party data and checkpoints."""
     license_text = (PROJECT_ROOT / "LICENSE").read_text(encoding="utf-8")
     pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")

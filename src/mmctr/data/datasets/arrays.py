@@ -39,6 +39,8 @@ def aggregate_file_digest(files: Mapping[str, Path]) -> str:
 
 
 def save_manifest(manifest: DatasetManifest, path: Path) -> None:
+    """Serialize a manifest together with its self-verifying contract fingerprint."""
+
     Path(path).write_text(
         json.dumps(manifest.to_dict(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

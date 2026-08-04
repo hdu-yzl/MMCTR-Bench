@@ -36,6 +36,12 @@ _UniqueKeyLoader.add_constructor(
 
 
 def load_yaml_mapping(path: PathLike) -> Dict[str, Any]:
+    """Safely load exactly one top-level YAML mapping with unique keys.
+
+    The loader never invokes arbitrary Python object constructors and rejects duplicate
+    keys rather than silently accepting the final occurrence.
+    """
+
     config_path = Path(path).expanduser().resolve()
     if not config_path.is_file():
         raise FileNotFoundError("config file not found: {}".format(config_path))

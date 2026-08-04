@@ -129,6 +129,12 @@ class _SequenceMultimodalModel(BaseSeqModel):
 
 
 class DNN_mm_seq(_SequenceMultimodalModel):
+    """Predict CTR after per-modality history pooling and branch-level fusion.
+
+    History tensors remain ``[batch, length, projection_dim]`` until masked
+    pooling, while target and user branches are rank-two representations.
+    """
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         method = model_config.get("modal_fusion_method", "add")
@@ -176,6 +182,8 @@ class _MaskedUserEncoder(AttentionPooling):
 
 
 class NAML(_SequenceMultimodalModel):
+    """Encode fused history tokens into an interest vector scored against target."""
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         self.modal_fusion = _MAFFusion(self.feature_names, self.projection_dim)
@@ -216,6 +224,12 @@ class _SimilarityTiers(torch.nn.Module):
 
 
 class MAKE(_SequenceMultimodalModel):
+    """Augment target-aware history attention with similarity-tier counts.
+
+    Cosine scores are discretized into a per-row ``[batch, tier_count]``
+    histogram; padded history positions contribute no counts.
+    """
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         self.tier_count = int(model_config.get("tier_num", 10))
@@ -316,6 +330,13 @@ class _DecoupledTargetAttention(torch.nn.Module):
 
 
 class DMF(_SequenceMultimodalModel):
+    """Decouple ID attention from multimodal similarity-center evidence.
+
+    Non-ID target/history similarity is bucketized to enrich ID attention and
+    counted into tiers for a parallel center branch. ``alpha`` interpolates the
+    two equal-width interest representations.
+    """
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         self.non_id_features = tuple(name for name in self.feature_names if name != "id")
@@ -497,6 +518,13 @@ class _ModalitySpecificClassifier(torch.nn.Module):
 
 
 class MARN(_SequenceMultimodalModel):
+    """Split modalities into private and adversarially invariant interests.
+
+    Gradient reversal trains invariant features to confuse modality identity,
+    while the detached domain classifier supplies uncertainty weights. Named
+    auxiliary losses remain scalar and are already weighted where applicable.
+    """
+
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(model_config, data_config)
         self.auxiliary_weight = float(model_config.get("lambda0", 0.05))

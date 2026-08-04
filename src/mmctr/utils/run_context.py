@@ -220,7 +220,12 @@ def create_run_context(
     repository_root: Optional[PathLike] = None,
     metadata: Optional[Mapping[str, Any]] = None,
 ) -> RunContext:
-    """Atomically create one run directory and its initial provenance files."""
+    """Claim a unique run directory and atomically write each provenance file.
+
+    Directory creation uses ``exist_ok=False`` to reject collisions. Each initial file is
+    independently replaced from a same-directory temporary file; callers own lifecycle
+    finalization if later runtime setup fails.
+    """
 
     experiment_component = _safe_component(experiment_name, "experiment_name")
     dataset_component = _safe_component(dataset, "dataset")

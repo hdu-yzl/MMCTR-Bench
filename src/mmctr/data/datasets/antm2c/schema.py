@@ -13,6 +13,8 @@ ANTM2C_SCHEMA_VERSION = 1
 
 
 class FeatureOwner(str, Enum):
+    """Declare whether a field may be shared through the item feature store."""
+
     INTERACTION_CONTEXT = "interaction_context"
     ITEM = "item"
     ITEM_CANDIDATE = "item_candidate"

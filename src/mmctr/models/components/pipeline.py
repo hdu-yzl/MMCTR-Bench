@@ -54,7 +54,13 @@ class ComponentConfig:
 
 @dataclass(frozen=True)
 class ModalPipelineConfig:
-    """Resolved configuration for one target, history, or user modal branch."""
+    """Resolved configuration for one target, history, or user modal branch.
+
+    History topology controls operation order: ``pool_then_fuse`` emits one
+    vector per row, ``fuse_then_pool`` pools fused tokens, and
+    ``sequence_fusion`` preserves the token axis. Target and user branches use
+    only rank-two ``feature_fusion``.
+    """
 
     branch: str
     topology: str
@@ -176,7 +182,11 @@ class ModalPipelineConfig:
 
 @dataclass(frozen=True)
 class ModalPipelineOutput:
-    """Final branch representation and named losses emitted while composing it."""
+    """Final branch representation, validity mask, and named fusion losses.
+
+    ``presence`` is ``[batch]`` for pooled/feature branches and
+    ``[batch, length]`` for sequence-preserving fusion.
+    """
 
     representation: torch.Tensor
     presence: torch.Tensor
@@ -196,7 +206,13 @@ class ModalPipelineOutput:
 
 
 class ModalPipeline(torch.nn.Module):
-    """Execute one validated modal branch without inspecting a canonical Batch."""
+    """Execute one validated modal branch without inspecting a canonical Batch.
+
+    Feature branches consume rank-two ``[batch, feature]`` values. History
+    branches consume rank-three ``[batch, length, feature]`` values plus a
+    boolean ``[batch, length]`` mask. Output presence always matches the
+    representation prefix, including the token axis for ``sequence_fusion``.
+    """
 
     def __init__(self, config: ModalPipelineConfig) -> None:
         super().__init__()
@@ -341,7 +357,11 @@ class ModalPipeline(torch.nn.Module):
 
 
 class ModalPipelineSet(torch.nn.ModuleDict):
-    """A strict named collection for separately configured model branches."""
+    """A strict named collection for separately configured model branches.
+
+    Branch keys are limited to ``target``, ``history``, and ``user`` and must
+    agree with each contained pipeline's immutable configuration.
+    """
 
     def __init__(self, pipelines: Mapping[str, ModalPipeline]) -> None:
         if not isinstance(pipelines, Mapping) or not pipelines:

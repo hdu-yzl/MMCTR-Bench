@@ -78,6 +78,8 @@ class FeatureStoreAudit:
 
 @dataclass(frozen=True)
 class ItemFeatureStore:
+    """Single item-indexed feature source shared by target and history gathers."""
+
     index: ItemIndex
     features: Mapping[str, np.ndarray]
 

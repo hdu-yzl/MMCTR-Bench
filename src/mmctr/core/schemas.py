@@ -291,7 +291,11 @@ def _tensor_map_allow_scalars(values: TensorMap, field_name: str) -> TensorMap:
 
 @dataclass(frozen=True)
 class RunResult:
-    """Structured outcome returned by training and experiment runners."""
+    """Frozen outcome shared by training, experiment, and analysis boundaries.
+
+    Status and finite metrics are normalized at construction, while metadata is exposed
+    through a read-only mapping so downstream consumers see a stable result contract.
+    """
 
     run_id: str
     status: str

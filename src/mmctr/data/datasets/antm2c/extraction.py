@@ -48,6 +48,8 @@ class ExtractionShard:
 
 @dataclass(frozen=True)
 class ExtractionManifest:
+    """Bind contiguous committed shards to one source and encoder-output contract."""
+
     field: str
     dimension: int
     source_fingerprint: str
