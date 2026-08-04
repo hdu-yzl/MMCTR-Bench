@@ -6,8 +6,8 @@ from pathlib import Path
 import torch
 
 from mmctr.core import Batch, ContractError
-from mmctr.models.base import BaseSeqModel, HistoryCapability
-from mmctr.models.registry import create_model, model_spec
+from mmctr.models.common.base import BaseSeqModel, HistoryCapability
+from mmctr.models.common.registry import create_model, model_spec
 from mmctr.training import (
     AlternatingPhase,
     CheckpointManager,
@@ -255,7 +255,7 @@ class CanonicalGMMFTests(unittest.TestCase):
     def test_registry_uses_canonical_gmmf(self):
         specification = model_spec("gmmf")
 
-        self.assertEqual("mmctr.models.gmmf", specification.module)
+        self.assertEqual("mmctr.models.mm_models.gmmf", specification.module)
         self.assertEqual("gmmf_gan", specification.metadata["alternating_optimization"])
 
 

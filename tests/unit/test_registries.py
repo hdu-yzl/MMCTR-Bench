@@ -3,9 +3,9 @@ import unittest
 
 from mmctr.core.registry import ComponentRegistry, ComponentSpec, RegistryError
 from mmctr.data.registry import DATASET_REGISTRY
-from mmctr.models.components.fusion_registry import FUSION_REGISTRY
-from mmctr.models.components.pooling_registry import POOLING_REGISTRY
-from mmctr.models.registry import MODEL_REGISTRY
+from mmctr.models.common.components.fusion_registry import FUSION_REGISTRY
+from mmctr.models.common.components.pooling_registry import POOLING_REGISTRY
+from mmctr.models.common.registry import MODEL_REGISTRY
 from mmctr.quantization.registry import QUANTIZER_REGISTRY
 
 
@@ -53,7 +53,7 @@ class RegistryTests(unittest.TestCase):
         self.assertNotIn("data.dataloaders", imported)
         self.assertNotIn("mmctr.quantization.residual", imported)
         self.assertNotIn("mmctr.quantization.psrq", imported)
-        self.assertNotIn("mmctr.models.components.fusion", imported)
+        self.assertNotIn("mmctr.models.common.components.fusion", imported)
 
     def test_duplicate_alias_is_rejected(self):
         registry = ComponentRegistry("fixture")

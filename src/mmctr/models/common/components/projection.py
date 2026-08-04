@@ -6,7 +6,7 @@ from typing import Dict, Mapping, Optional, Sequence, Tuple
 import torch
 
 from mmctr.core import ContractError
-from mmctr.models.components.masking import apply_feature_mask
+from mmctr.models.common.components.masking import apply_feature_mask
 
 
 def _normalise_ranks(allowed_ranks: Sequence[int]) -> Tuple[int, ...]:

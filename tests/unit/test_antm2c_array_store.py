@@ -13,7 +13,7 @@ from mmctr.data.datasets.antm2c.array_store import (
 )
 from mmctr.data.datasets.antm2c.item_store import build_feature_store, build_item_index
 from mmctr.data.manifest import DatasetManifest
-from mmctr.models.registry import create_model
+from mmctr.models.common.registry import create_model
 
 
 class AntM2CArrayStoreTests(unittest.TestCase):

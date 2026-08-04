@@ -5,7 +5,7 @@ from typing import Iterable, Optional
 import torch
 import torch.nn.functional as functional
 
-from mmctr.models.components.pooling import DinPooling
+from mmctr.models.common.components.pooling import DinPooling
 
 
 class FeatureEmbedding(torch.nn.Module):

@@ -3,8 +3,8 @@ import unittest
 import torch
 
 from mmctr.core import Batch, ContractError
-from mmctr.models.base import BaseSeqModel, HistoryCapability
-from mmctr.models.registry import create_model, model_spec
+from mmctr.models.common.base import BaseSeqModel, HistoryCapability
+from mmctr.models.common.registry import create_model, model_spec
 
 
 def make_batch(all_padding=False, batch_size=2):
@@ -149,10 +149,10 @@ class CanonicalAdvancedSequenceTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             create_model("diff_msin", model_config, data_config)
 
-    def test_registry_uses_canonical_advanced_sequence_module(self):
+    def test_registry_uses_individual_model_modules(self):
         for name in ("em3", "diff_msin"):
             specification = model_spec(name)
-            self.assertEqual("mmctr.models.advanced_sequence", specification.module)
+            self.assertEqual("mmctr.models.mm_models.{}".format(name), specification.module)
 
 
 if __name__ == "__main__":

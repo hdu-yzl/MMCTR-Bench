@@ -4,7 +4,7 @@ from typing import Any, Dict
 import torch
 
 from mmctr.core import ContractError, RegistryError
-from mmctr.models.components import (
+from mmctr.models.common.components import (
     ComponentConfig,
     ModalPipeline,
     ModalPipelineConfig,

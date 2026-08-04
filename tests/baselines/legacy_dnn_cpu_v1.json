@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_id": "legacy_dnn_id_cpu_v1",
   "scope": "Synthetic CPU behavior only; not a dataset or paper metric baseline.",
-  "entrypoint": "mmctr.models.registry.create_model",
+  "entrypoint": "mmctr.models.common.registry.create_model",
   "model_name": "dnn",
   "environment": {
     "os": "Windows",

@@ -6,7 +6,7 @@ from typing import Optional, Sequence
 import torch
 
 from mmctr.core import ContractError
-from mmctr.models.components.masking import (
+from mmctr.models.common.components.masking import (
     apply_feature_mask,
     apply_sequence_mask,
     masked_softmax,

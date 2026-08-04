@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from mmctr.models.registry import MODEL_REGISTRY
+from mmctr.models.common.registry import MODEL_REGISTRY
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

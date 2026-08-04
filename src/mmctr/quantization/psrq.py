@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as functional
 
 from mmctr.core import ContractError
-from mmctr.models.baselines.layers import MultiLayerPerceptron
+from mmctr.models.common.layers import MultiLayerPerceptron
 
 from .artifacts import (
     PathLike,

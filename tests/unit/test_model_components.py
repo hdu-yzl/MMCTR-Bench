@@ -3,7 +3,7 @@ import unittest
 import torch
 
 from mmctr.core import ContractError
-from mmctr.models.components import (
+from mmctr.models.common.components import (
     DimensionAdapter,
     NamedFeatureProjector,
     apply_feature_mask,

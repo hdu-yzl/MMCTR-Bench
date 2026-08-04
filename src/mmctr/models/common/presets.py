@@ -5,13 +5,13 @@ from types import MappingProxyType
 from typing import Any, Dict, Mapping, Optional, Tuple
 
 from mmctr.core import ContractError
-from mmctr.models.components.pipeline import (
+from mmctr.models.common.components.pipeline import (
     ComponentConfig,
     ModalPipeline,
     ModalPipelineConfig,
     ModalPipelineSet,
 )
-from mmctr.models.registry import MODEL_REGISTRY
+from mmctr.models.common.registry import MODEL_REGISTRY
 
 
 EXECUTABLE_PIPELINE_MODELS = frozenset(

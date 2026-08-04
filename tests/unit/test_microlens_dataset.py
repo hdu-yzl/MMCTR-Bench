@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 
 from mmctr.data.datasets.microlens import MicroLensLoader, prepare_microlens
-from mmctr.models.registry import create_model
+from mmctr.models.common.registry import create_model
 
 
 class MicroLensDatasetTests(unittest.TestCase):

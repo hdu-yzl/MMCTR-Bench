@@ -1,6 +1,6 @@
 # Model component contracts
 
-`mmctr.models.components` is the public boundary for projection, dimension adaptation, and masks.
+`mmctr.models.common.components` is the public boundary for projection, dimension adaptation, and masks.
 It operates on tensors that have already passed model-specific ID embedding, quantization, or
 paper-specific encoders. It does not inspect `Batch` or silently infer which field belongs to which
 branch.

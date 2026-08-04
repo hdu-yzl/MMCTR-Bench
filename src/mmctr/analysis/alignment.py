@@ -13,7 +13,7 @@ from mmctr.config import load_yaml_mapping
 from mmctr.core import ContractError, ModelOutput
 from mmctr.core.registry import RegistryError
 from mmctr.experiments import ExperimentTask, load_task_matrix, save_task_matrix
-from mmctr.models.registry import MODEL_REGISTRY
+from mmctr.models.common.registry import MODEL_REGISTRY
 
 
 ALIGNMENT_STUDY_MATRIX_SCHEMA = "alignment-study-matrix-v1"

@@ -3,8 +3,8 @@ import unittest
 import torch
 
 from mmctr.core import Batch, ContractError
-from mmctr.models.base import BaseSeqModel, HistoryCapability
-from mmctr.models.registry import create_model, model_spec
+from mmctr.models.common.base import BaseSeqModel, HistoryCapability
+from mmctr.models.common.registry import create_model, model_spec
 
 
 MODEL_NAMES = ("mb", "pamd", "mmmlp", "m3srec")
@@ -210,10 +210,10 @@ class CanonicalSpecializedTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             create_model("m3srec", model_config, data_config)
 
-    def test_registry_uses_canonical_specialized_module(self):
+    def test_registry_uses_individual_model_modules(self):
         for name in ("mb", "pamd", "mmmlp", "m3srec"):
             specification = model_spec(name)
-            self.assertEqual("mmctr.models.specialized", specification.module)
+            self.assertEqual("mmctr.models.mm_models.{}".format(name), specification.module)
 
 
 if __name__ == "__main__":

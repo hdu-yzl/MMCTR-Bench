@@ -7,12 +7,12 @@ from typing import Any, Dict, Mapping, Optional, Sequence, Tuple, Union
 import torch
 
 from mmctr.core import ContractError
-from mmctr.models.components.fusion import FusionOutput, ModalityFusion
-from mmctr.models.components.fusion_registry import create_fusion
-from mmctr.models.components.masking import apply_feature_mask, validate_sequence_mask
-from mmctr.models.components.pooling import SequencePooling
-from mmctr.models.components.pooling_registry import create_pooling
-from mmctr.models.components.projection import DimensionAdapter, NamedFeatureProjector
+from mmctr.models.common.components.fusion import FusionOutput, ModalityFusion
+from mmctr.models.common.components.fusion_registry import create_fusion
+from mmctr.models.common.components.masking import apply_feature_mask, validate_sequence_mask
+from mmctr.models.common.components.pooling import SequencePooling
+from mmctr.models.common.components.pooling_registry import create_pooling
+from mmctr.models.common.components.projection import DimensionAdapter, NamedFeatureProjector
 
 
 @dataclass(frozen=True)

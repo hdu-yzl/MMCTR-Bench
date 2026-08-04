@@ -5,7 +5,7 @@ from pathlib import Path
 import torch
 
 from mmctr.core import Batch
-from mmctr.models.registry import create_model
+from mmctr.models.common.registry import create_model
 
 
 BASELINE_PATH = Path(__file__).parents[1] / "baselines" / "legacy_dnn_cpu_v1.json"

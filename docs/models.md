@@ -66,23 +66,24 @@ of keeping a second executable model implementation in the wheel.
 
 ## Migrated baseline family
 
-The formal registry now resolves `dnn`, `dcn`, `deepfm`, `autoint`, and `din` to pure implementations
-under `mmctr.models.baselines`. DNN/DCN/DeepFM/AutoInt concatenate separate user and target-item IDs,
-then apply mask-aware mean history pooling before their original model-specific body. DIN retains
-history tokens and applies its target-aware attention with the explicit history mask. All five keep
-logits at `[B]`, including batch size one.
+The formal registry resolves `dnn`, `dcn`, `deepfm`, `autoint`, and `din` directly to
+`mmctr.models.<model_name>` modules. Shared baseline layers remain under `mmctr.models.common.baseline`.
+DNN/DCN/DeepFM/AutoInt concatenate separate user and target-item IDs, then apply mask-aware mean
+history pooling before their original model-specific body. DIN retains history tokens and applies
+its target-aware attention with the explicit history mask. All five keep logits at `[B]`, including
+batch size one.
 
-Callers construct models with `mmctr.models.registry.create_model(model_name, model_config,
+Callers construct models with `mmctr.models.common.registry.create_model(model_name, model_config,
 data_config)` and let `TrainingEngine` own optimizer, device, checkpoint, metrics, and run state.
 The DNN migration fixture still reproduces the pre-migration logits, loss, and 205-parameter count.
 
 ## Migrated simple multimodal family
 
-The formal registry resolves `dnn_mm`, `lmf`, and `mtfn` to pure canonical implementations in
-`mmctr.models.multimodal`, while `dnn_mm_seq` lives in `mmctr.models.sequence`. All project target
-and history features by name, zero projected padding tokens explicitly, and pool or attend with
-`Batch.history_mask`. `dnn_mm_seq` keeps user, target item, and history fields separate and never
-uses rank-destroying bare `squeeze()`.
+The formal registry resolves `dnn_mm`, `lmf`, `mtfn`, `simcen`, and `dnn_mm_seq` directly to their
+same-named modules under `mmctr.models`. Shared pooled projection and fusion support lives in the
+non-model `_multimodal_base` module. All project target and history features by name, zero projected
+padding tokens explicitly, and pool or attend with `Batch.history_mask`. `dnn_mm_seq` keeps user,
+target item, and history fields separate and never uses rank-destroying bare `squeeze()`.
 
 The currently required cat/add/mean/MAF/LMF/MTFN operations are private migration components, not
 the future public fusion registry. This preserves the `FUSE-001` boundary while allowing the four
@@ -95,10 +96,10 @@ The stable log-sum-exp formulation avoids the legacy exponentiation overflow pat
 
 ## Migrated sequence-token family
 
-`dnn_mm_seq`, `naml`, and `make` now share the pure encoding boundary in
-`mmctr.models.sequence`. The boundary projects user, target-item, and history fields by name,
-preserves `[B, L, D]` history tensors, applies the explicit boolean history mask after projection,
-and never mutates the input batch.
+`dnn_mm_seq`, `naml`, and `make` each live in a same-named model module and share the pure encoding
+boundary in the non-model `mmctr.models.common.sequence` module. The boundary projects user,
+target-item, and history fields by name, preserves `[B, L, D]` history tensors, applies the explicit
+boolean history mask after projection, and never mutates the input batch.
 
 NAML keeps its MAF target/history fusion and learned user-interest attention, but padded tokens are
 excluded with masked softmax and an all-padding row returns zero interest. MAKE keeps configurable
@@ -118,18 +119,18 @@ training state during import/construction.
 
 ## Migrated advanced sequence family
 
-`em3` and `diff_msin` live in `mmctr.models.advanced_sequence` and reuse the same named projection
-boundary. EM3 preserves its learned FQ-Former query tokens, target-aware DIN history pooling,
-content projection, and bidirectional content/item CIC objective. Fused padded history positions
-are explicitly zeroed before masked DIN pooling, and the weighted CIC term is exposed as
-`em3_content_item_contrastive`.
+`em3` and `diff_msin` live in `mmctr.models.mm_models.em3` and `mmctr.models.mm_models.diff_msin`, respectively, and
+reuse the shared named projection boundary. EM3 preserves its learned FQ-Former query tokens,
+target-aware DIN history pooling, content projection, and bidirectional content/item CIC objective.
+Fused padded history positions are explicitly zeroed before masked DIN pooling, and the weighted CIC
+term is exposed as `em3_content_item_contrastive`.
 
 Diff-MSIN preserves per-modality DIN pooling, specific/shared experts, modal gates, stochastic
 reverse cross-modal fusion, the final gate/cross network, and label-aware synthesis hinge loss.
 Its former aggregate `au_loss` is exposed as the weighted scalar terms `diff_msin_synthesis` and
 `diff_msin_contrastive`; labels come directly from `Batch.labels`.
 
-GMMF now lives in `mmctr.models.gmmf` as a pure canonical model. It preserves its modality
+GMMF now lives in `mmctr.models.mm_models.gmmf` as a pure canonical model. It preserves its modality
 autoencoders, conditional generators/discriminators, automatic difference modules, cosine-weighted
 history interests, user-conditioned gates, and weighted reconstruction objective. Reconstruction
 is exposed as `gmmf_reconstruction`; discriminator and generator objectives are explicit scalar
@@ -142,8 +143,8 @@ fusion component, so GMMF's modal-pipeline preset is still intentionally non-exe
 
 ## Migrated specialized model family
 
-`mb`, `pamd`, `mmmlp`, and `m3srec` are implemented in
-`mmctr.models.specialized`. MB keeps its ID and modality scoring branches,
+`mb`, `pamd`, `mmmlp`, and `m3srec` are implemented in their same-named modules under
+`mmctr.models.mm_models`. MB keeps its ID and modality scoring branches,
 attention fusion, and training-only PGD modality-balancing objective. The weighted
 objective is exposed as `mb_modality_balance`, while modality weights and branch
 scores are available through `ModelOutput.representations`.
@@ -170,8 +171,8 @@ RQ fits deterministic residual K-means codebooks and keeps the resulting
 autoencoders and returns a `PSRQOutput` containing reconstruction/quantization objectives and codes;
 it deliberately does not emit click logits or own an optimizer, device, checkpoint path, or training loop.
 
-QARM and the PSRQ CTR model are canonical sequence-token predictors in
-`mmctr.models.quantized`. Their constructors accept already-loaded RQ/PSRQ dependencies. They never
+QARM and the PSRQ CTR model are canonical sequence-token predictors in `mmctr.models.mm_models.qarm` and
+`mmctr.models.mm_models.psrq`. Their constructors accept already-loaded RQ/PSRQ dependencies. They never
 resolve paths, create directories, or load checkpoints.
 `create_model_from_artifacts` is the composition boundary used by the main
 Trainer: it loads the dataset-specific artifacts, validates modalities, raw

@@ -10,7 +10,7 @@ MODEL_REGISTRY.register_many(
     [
         ComponentSpec(
             "dnn",
-            "mmctr.models.baselines",
+            "mmctr.models.baseline.dnn",
             "DNN",
             metadata={
                 "history": "pooled",
@@ -18,7 +18,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "dnn_mm",
-            "mmctr.models.multimodal",
+            "mmctr.models.mm_models.dnn_mm",
             "DNN_mm",
             metadata={
                 "history": "pooled",
@@ -26,7 +26,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "dnn_mm_seq",
-            "mmctr.models.sequence",
+            "mmctr.models.mm_models.dnn_mm_seq",
             "DNN_mm_seq",
             aliases=("dnn_seq",),
             metadata={
@@ -35,7 +35,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "dcn",
-            "mmctr.models.baselines",
+            "mmctr.models.baseline.dcn",
             "DCN",
             metadata={
                 "history": "pooled",
@@ -43,7 +43,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "deepfm",
-            "mmctr.models.baselines",
+            "mmctr.models.baseline.deepfm",
             "DeepFM",
             metadata={
                 "history": "pooled",
@@ -51,7 +51,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "din",
-            "mmctr.models.baselines",
+            "mmctr.models.baseline.din",
             "DIN",
             metadata={
                 "history": "sequence_tokens",
@@ -59,7 +59,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "autoint",
-            "mmctr.models.baselines",
+            "mmctr.models.baseline.autoint",
             "AutoInt",
             metadata={
                 "history": "pooled",
@@ -67,7 +67,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "lmf",
-            "mmctr.models.multimodal",
+            "mmctr.models.mm_models.lmf",
             "LMF",
             metadata={
                 "history": "pooled",
@@ -75,7 +75,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "diff_msin",
-            "mmctr.models.advanced_sequence",
+            "mmctr.models.mm_models.diff_msin",
             "Diff_MSIN",
             metadata={
                 "history": "sequence_tokens",
@@ -84,7 +84,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "marn",
-            "mmctr.models.sequence",
+            "mmctr.models.mm_models.marn",
             "MARN",
             metadata={
                 "history": "sequence_tokens",
@@ -92,7 +92,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "mtfn",
-            "mmctr.models.multimodal",
+            "mmctr.models.mm_models.mtfn",
             "MTFN",
             metadata={
                 "history": "pooled",
@@ -100,7 +100,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "dmf",
-            "mmctr.models.sequence",
+            "mmctr.models.mm_models.dmf",
             "DMF",
             metadata={
                 "history": "sequence_tokens",
@@ -108,7 +108,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "simcen",
-            "mmctr.models.multimodal",
+            "mmctr.models.mm_models.simcen",
             "SimCEN",
             metadata={
                 "history": "pooled",
@@ -116,7 +116,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "naml",
-            "mmctr.models.sequence",
+            "mmctr.models.mm_models.naml",
             "NAML",
             metadata={
                 "history": "sequence_tokens",
@@ -124,7 +124,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "make",
-            "mmctr.models.sequence",
+            "mmctr.models.mm_models.make",
             "MAKE",
             metadata={
                 "history": "sequence_tokens",
@@ -132,7 +132,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "em3",
-            "mmctr.models.advanced_sequence",
+            "mmctr.models.mm_models.em3",
             "EM3",
             metadata={
                 "history": "sequence_tokens",
@@ -140,7 +140,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "gmmf",
-            "mmctr.models.gmmf",
+            "mmctr.models.mm_models.gmmf",
             "GMMF",
             metadata={
                 "history": "sequence_tokens",
@@ -149,7 +149,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "qarm",
-            "mmctr.models.quantized",
+            "mmctr.models.mm_models.qarm",
             "QARM",
             metadata={
                 "history": "sequence_tokens",
@@ -158,7 +158,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "psrq",
-            "mmctr.models.quantized",
+            "mmctr.models.mm_models.psrq",
             "MCCA",
             aliases=("mcca",),
             metadata={
@@ -168,7 +168,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "mb",
-            "mmctr.models.specialized",
+            "mmctr.models.mm_models.mb",
             "MB",
             metadata={
                 "history": "pooled",
@@ -177,7 +177,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "pamd",
-            "mmctr.models.specialized",
+            "mmctr.models.mm_models.pamd",
             "PAMD",
             metadata={
                 "history": "pooled",
@@ -185,7 +185,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "mmmlp",
-            "mmctr.models.specialized",
+            "mmctr.models.mm_models.mmmlp",
             "MMMLP",
             metadata={
                 "history": "sequence_tokens",
@@ -193,7 +193,7 @@ MODEL_REGISTRY.register_many(
         ),
         ComponentSpec(
             "m3srec",
-            "mmctr.models.specialized",
+            "mmctr.models.mm_models.m3srec",
             "M3SRec",
             metadata={
                 "history": "sequence_tokens",

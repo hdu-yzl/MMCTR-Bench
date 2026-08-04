@@ -15,7 +15,7 @@ been removed from the distribution. Replace deep imports with `mmctr.models` exp
 by stable registry name:
 
 ```python
-from mmctr.models.registry import create_model
+from mmctr.models import create_model
 
 model = create_model(model_name, model_config, data_config)
 ```

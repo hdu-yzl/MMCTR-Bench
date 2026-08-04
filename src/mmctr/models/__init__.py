@@ -2,7 +2,7 @@
 
 import importlib
 
-from .registry import (
+from .common.registry import (
     available_models,
     create_model,
     create_model_from_artifacts,
@@ -38,8 +38,8 @@ _MODEL_EXPORTS = {
 }
 
 _BASE_EXPORTS = {
-    "BaseSeqModel": ("mmctr.models.base", "BaseSeqModel"),
-    "HistoryCapability": ("mmctr.models.base", "HistoryCapability"),
+    "BaseSeqModel": ("mmctr.models.common.base", "BaseSeqModel"),
+    "HistoryCapability": ("mmctr.models.common.base", "HistoryCapability"),
 }
 
 _PRESET_EXPORTS = {
@@ -56,7 +56,7 @@ def get_model(*args, **kwargs):
 
 def __getattr__(name):
     if name in _PRESET_EXPORTS:
-        value = getattr(importlib.import_module("mmctr.models.presets"), name)
+        value = getattr(importlib.import_module("mmctr.models.common.presets"), name)
         globals()[name] = value
         return value
     if name in _BASE_EXPORTS:
@@ -78,6 +78,7 @@ __all__ = (
         "BaseSeqModel",
         "HistoryCapability",
         "available_models",
+        "create_model",
         "create_model_from_artifacts",
         "get_model",
     ]

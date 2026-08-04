@@ -7,8 +7,8 @@ import numpy as np
 import torch
 
 from mmctr.core import Batch, ContractError
-from mmctr.models.base import BaseSeqModel, HistoryCapability
-from mmctr.models.registry import create_model, create_model_from_artifacts, model_spec
+from mmctr.models.common.base import BaseSeqModel, HistoryCapability
+from mmctr.models.common.registry import create_model, create_model_from_artifacts, model_spec
 from mmctr.quantization import (
     PSRQPretrainer,
     QuantizationArtifactError,
@@ -307,8 +307,8 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
 
     def test_registry_separates_canonical_premodels(self):
         expected = {
-            "qarm": ("mmctr.models.quantized", "QARM"),
-            "psrq": ("mmctr.models.quantized", "MCCA"),
+            "qarm": ("mmctr.models.mm_models.qarm", "QARM"),
+            "psrq": ("mmctr.models.mm_models.psrq", "MCCA"),
         }
         for name, (module, symbol) in expected.items():
             specification = model_spec(name)

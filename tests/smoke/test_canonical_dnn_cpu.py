@@ -3,7 +3,7 @@ import unittest
 import torch
 
 from mmctr.core import Batch
-from mmctr.models.registry import create_model
+from mmctr.models.common.registry import create_model
 
 
 class CanonicalDnnCpuSmokeTest(unittest.TestCase):

@@ -3,7 +3,7 @@ import unittest
 import torch
 
 from mmctr.core import ContractError
-from mmctr.models.components.pooling_registry import (
+from mmctr.models.common.components.pooling_registry import (
     POOLING_REGISTRY,
     create_pooling,
     pooling_capabilities,

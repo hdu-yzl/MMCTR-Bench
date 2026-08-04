@@ -37,9 +37,9 @@ class ImportOrderRegressionTest(unittest.TestCase):
         self._run_in_clean_process(
             "from mmctr import __version__\n"
             "from mmctr.models import DNN\n"
-            "from mmctr.models.registry import resolve_model_class\n"
+            "from mmctr.models.common.registry import resolve_model_class\n"
             "assert __version__ == '0.1.0'\n"
-            "assert DNN.__module__.startswith('mmctr.models.baselines')\n"
+            "assert DNN.__module__ == 'mmctr.models.baseline.dnn'\n"
             "assert resolve_model_class('dnn') is DNN\n"
         )
 

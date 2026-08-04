@@ -7,9 +7,9 @@ from mmctr.config import load_yaml_mapping
 from mmctr.core import ContractError
 from mmctr.core.registry import RegistryError
 from mmctr.experiments import ExperimentTask, load_task_matrix, save_task_matrix
-from mmctr.models.components.fusion_registry import FUSION_REGISTRY
-from mmctr.models.presets import default_pipeline_preset
-from mmctr.models.registry import MODEL_REGISTRY
+from mmctr.models.common.components.fusion_registry import FUSION_REGISTRY
+from mmctr.models.common.presets import default_pipeline_preset
+from mmctr.models.common.registry import MODEL_REGISTRY
 
 
 FUSION_STUDY_MODELS = frozenset({"dnn_mm", "dnn_mm_seq", "dmf", "make"})

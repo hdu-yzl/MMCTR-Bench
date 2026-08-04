@@ -14,7 +14,7 @@ from mmctr.config import load_yaml_mapping
 from mmctr.core import ContractError
 from mmctr.core.registry import RegistryError
 from mmctr.experiments import ExperimentTask, load_task_matrix, save_task_matrix
-from mmctr.models.registry import MODEL_REGISTRY
+from mmctr.models.common.registry import MODEL_REGISTRY
 
 
 COLD_START_STUDY_MATRIX_SCHEMA = "cold-start-study-matrix-v1"

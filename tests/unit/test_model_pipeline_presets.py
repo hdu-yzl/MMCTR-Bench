@@ -3,13 +3,13 @@ import unittest
 import torch
 
 from mmctr.core import Batch, ContractError
-from mmctr.models.components import feature_presence
+from mmctr.models.common.components import feature_presence
 from mmctr.models import (
     EXECUTABLE_PIPELINE_MODELS,
     default_pipeline_preset,
     model_pipeline_coverage,
 )
-from mmctr.models.registry import available_models, create_model
+from mmctr.models.common.registry import available_models, create_model
 from mmctr.quantization import ResidualQuantizer
 
 

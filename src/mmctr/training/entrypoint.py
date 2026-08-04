@@ -11,7 +11,7 @@ from mmctr.config import (
     resolve_dataset_config,
 )
 from mmctr.data import HistoryMode, ensure_canonical_loader, get_data_loader
-from mmctr.models.registry import create_model, create_model_from_artifacts, model_spec
+from mmctr.models.common.registry import create_model, create_model_from_artifacts, model_spec
 from mmctr.training import (
     AlternatingPhase,
     CheckpointManager,

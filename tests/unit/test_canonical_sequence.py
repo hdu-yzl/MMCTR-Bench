@@ -3,8 +3,8 @@ import unittest
 import torch
 
 from mmctr.core import Batch
-from mmctr.models.base import BaseSeqModel, HistoryCapability
-from mmctr.models.registry import create_model, model_spec
+from mmctr.models.common.base import BaseSeqModel, HistoryCapability
+from mmctr.models.common.registry import create_model, model_spec
 
 
 def make_batch(all_padding=False, batch_size=2):
@@ -103,10 +103,10 @@ class CanonicalSequenceTests(unittest.TestCase):
                 self.assertEqual((2,), tuple(output.logits.shape))
         self.assertTrue(torch.equal(contextual.item_features["id"], original_ids))
 
-    def test_registry_uses_canonical_sequence_module(self):
+    def test_registry_uses_individual_model_modules(self):
         for name in ("dnn_mm_seq", "naml", "make"):
             specification = model_spec(name)
-            self.assertEqual("mmctr.models.sequence", specification.module)
+            self.assertEqual("mmctr.models.mm_models.{}".format(name), specification.module)
 
 
 if __name__ == "__main__":

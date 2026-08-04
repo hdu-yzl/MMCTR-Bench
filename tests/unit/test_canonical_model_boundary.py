@@ -1,8 +1,11 @@
 import ast
+import importlib
+import inspect
 import unittest
 from pathlib import Path
 
-from mmctr.models.registry import MODEL_REGISTRY
+from mmctr.models.common.base import BaseSeqModel
+from mmctr.models.common.registry import MODEL_REGISTRY
 from mmctr.quantization.registry import QUANTIZER_REGISTRY
 
 
@@ -52,6 +55,42 @@ class CanonicalModelBoundaryTests(unittest.TestCase):
         self.assertNotIn("LegacyModelAdapter", public_models.__all__)
         self.assertFalse(hasattr(public_models, "BaseModel"))
         self.assertFalse(hasattr(public_models, "LegacyModelAdapter"))
+
+    def test_each_registered_model_has_one_family_module(self):
+        id_only = {"autoint", "dcn", "deepfm", "din", "dnn"}
+        modules = []
+        for name in MODEL_REGISTRY.names():
+            with self.subTest(name=name):
+                specification = MODEL_REGISTRY.spec(name)
+                family = "baseline" if name in id_only else "mm_models"
+                expected_module = "mmctr.models.{}.{}".format(family, name)
+                self.assertEqual(expected_module, specification.module)
+                module = importlib.import_module(specification.module)
+                model_classes = [
+                    value
+                    for _, value in inspect.getmembers(module, inspect.isclass)
+                    if value.__module__ == specification.module and issubclass(value, BaseSeqModel)
+                ]
+                self.assertEqual(
+                    [specification.symbol], [value.__name__ for value in model_classes]
+                )
+                modules.append(specification.module)
+        self.assertEqual(len(modules), len(set(modules)))
+
+    def test_models_directory_contains_only_family_and_common_packages(self):
+        model_root = SOURCE_ROOT / "mmctr" / "models"
+        self.assertEqual(
+            {"baseline", "common", "mm_models"},
+            {
+                path.name
+                for path in model_root.iterdir()
+                if path.is_dir() and path.name != "__pycache__"
+            },
+        )
+        self.assertEqual(
+            {"__init__.py"},
+            {path.name for path in model_root.glob("*.py")},
+        )
 
 
 if __name__ == "__main__":

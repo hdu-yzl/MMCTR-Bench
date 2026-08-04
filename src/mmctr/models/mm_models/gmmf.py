@@ -5,9 +5,9 @@ from typing import Dict, Mapping, Optional, Tuple
 import torch
 
 from mmctr.core import Batch, ContractError, ModelOutput
-from mmctr.models.baselines.layers import MultiLayerPerceptron
-from mmctr.models.components import apply_feature_mask, apply_sequence_mask
-from mmctr.models.sequence import _SequenceMultimodalModel
+from mmctr.models.common.layers import MultiLayerPerceptron
+from mmctr.models.common.components import apply_feature_mask, apply_sequence_mask
+from mmctr.models.common.sequence import _SequenceMultimodalModel
 
 
 class _AutoEncoder(torch.nn.Module):

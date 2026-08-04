@@ -7,7 +7,7 @@ import numpy as np
 import torch
 
 from mmctr.data.datasets.tiktok import TikTokLoader, prepare_tiktok
-from mmctr.models.registry import create_model
+from mmctr.models.common.registry import create_model
 
 
 class TikTokDatasetTests(unittest.TestCase):

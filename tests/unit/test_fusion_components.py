@@ -4,13 +4,13 @@ import unittest
 import torch
 
 from mmctr.core import ContractError
-from mmctr.models.components.fusion import FusionOutput
-from mmctr.models.components.fusion_registry import (
+from mmctr.models.common.components.fusion import FusionOutput
+from mmctr.models.common.components.fusion_registry import (
     FUSION_REGISTRY,
     create_fusion,
     fusion_capabilities,
 )
-from mmctr.models.multimodal import _build_fusion
+from mmctr.models.common.multimodal import _build_fusion
 
 
 class FusionComponentTests(unittest.TestCase):
@@ -41,7 +41,7 @@ class FusionComponentTests(unittest.TestCase):
         self.assertEqual("sum", FUSION_REGISTRY.canonical_name("add"))
         self.assertEqual("mean", FUSION_REGISTRY.canonical_name("average"))
         imported = set(sys.modules).difference(before)
-        self.assertNotIn("mmctr.models.components.fusion", imported)
+        self.assertNotIn("mmctr.models.common.components.fusion", imported)
 
     def test_all_registered_fusions_support_rank_two_and_three_backward(self):
         expected_dimensions = {

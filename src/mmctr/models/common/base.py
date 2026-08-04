@@ -6,11 +6,11 @@ from enum import Enum
 import torch
 
 from mmctr.core import Batch, ContractError, ModelOutput, ensure_model_output
-from mmctr.models.components.masking import (
+from mmctr.models.common.components.masking import (
     masked_softmax as component_masked_softmax,
     validate_sequence_mask,
 )
-from mmctr.models.components.pooling import masked_reduce
+from mmctr.models.common.components.pooling import masked_reduce
 
 
 class HistoryCapability(str, Enum):
