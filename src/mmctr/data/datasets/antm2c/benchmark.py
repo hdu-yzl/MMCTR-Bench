@@ -215,7 +215,7 @@ def iter_legacy_tfrecord_batches(
     if image_store.ndim != 2 or image_store.shape[1] != layout.image_dimension:
         raise ContractError("legacy AntM2C image item store has an invalid shape")
 
-    import tensorflow as tf  # type: ignore[import-untyped]
+    import tensorflow as tf
 
     description = {
         "text_features": tf.io.FixedLenFeature([layout.text_dimension * 6], tf.float32),

@@ -190,10 +190,10 @@ def render_metric_figure(
     counts = [len(grouped_values[group]) for group in groups]
 
     try:
-        import matplotlib  # type: ignore[import-untyped]
+        import matplotlib
 
         matplotlib.use("Agg")
-        import matplotlib.pyplot as pyplot  # type: ignore[import-untyped]
+        import matplotlib.pyplot as pyplot
     except ImportError as error:
         raise ContractError("plotting requires the analysis dependency group") from error
 

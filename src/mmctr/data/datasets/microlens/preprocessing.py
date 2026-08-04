@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, Mapping
 
 import numpy as np
-import pyarrow.parquet as pq  # type: ignore[import-untyped]
+import pyarrow.parquet as pq
 
 from mmctr.core import ContractError
 from mmctr.data.datasets.arrays import (

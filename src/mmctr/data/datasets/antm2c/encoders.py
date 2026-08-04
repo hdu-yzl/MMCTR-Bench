@@ -94,7 +94,7 @@ class BertPoolerEncoder:
 
     def __init__(self, checkpoint: Path, device: str) -> None:
         import torch
-        from transformers import BertModel, BertTokenizer  # type: ignore[import-untyped]
+        from transformers import BertModel, BertTokenizer
 
         self._torch = torch
         self._device = torch.device(device)

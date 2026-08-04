@@ -138,7 +138,7 @@ def _copy_item_store(source_dir: Path, stage: Path) -> None:
 
 
 def _feature_description(layout: LegacyAntM2CLayout) -> Mapping[str, Any]:
-    import tensorflow as tf  # type: ignore[import-untyped]
+    import tensorflow as tf
 
     return {
         "text_features": tf.io.FixedLenFeature([layout.text_dimension * 6], tf.float32),
