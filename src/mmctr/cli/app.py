@@ -28,7 +28,7 @@ def _configure_threads(num_threads: int) -> None:
 
 def _run_train(arguments) -> int:
     _configure_threads(arguments.num_threads)
-    from trainers.Trainers import Trainer
+    from mmctr.training.entrypoint import Trainer
 
     trainer = Trainer(
         dataset_name=arguments.dataset_name,
@@ -70,6 +70,125 @@ def _list_quantizers(_arguments) -> int:
     return 0
 
 
+def _plan_fusion_study(arguments) -> int:
+    from mmctr.analysis import load_fusion_study_config, save_fusion_study_matrix
+
+    tasks = load_fusion_study_config(arguments.config)
+    matrix_path = save_fusion_study_matrix(tasks, arguments.output)
+    print(
+        json.dumps(
+            {
+                "matrix_path": str(matrix_path),
+                "task_count": len(tasks),
+                "models": sorted({task.model for task in tasks}),
+                "datasets": sorted({task.dataset for task in tasks}),
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+def _plan_robustness_study(arguments) -> int:
+    from mmctr.analysis import load_robustness_study_config, save_robustness_study_matrix
+
+    tasks = load_robustness_study_config(arguments.config)
+    matrix_path = save_robustness_study_matrix(tasks, arguments.output)
+    print(
+        json.dumps(
+            {
+                "matrix_path": str(matrix_path),
+                "task_count": len(tasks),
+                "models": sorted({task.model for task in tasks}),
+                "datasets": sorted({task.dataset for task in tasks}),
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+def _plan_alignment_study(arguments) -> int:
+    from mmctr.analysis import load_alignment_study_config, save_alignment_study_matrix
+
+    tasks = load_alignment_study_config(arguments.config)
+    matrix_path = save_alignment_study_matrix(tasks, arguments.output)
+    print(
+        json.dumps(
+            {
+                "matrix_path": str(matrix_path),
+                "task_count": len(tasks),
+                "models": sorted({task.model for task in tasks}),
+                "datasets": sorted({task.dataset for task in tasks}),
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+def _plot_results(arguments) -> int:
+    output_path = arguments.output.expanduser().resolve()
+    os.environ.setdefault("MPLCONFIGDIR", str(output_path.parent / ".matplotlib-cache"))
+    from mmctr.analysis import render_metric_figure
+
+    provenance_path = (
+        arguments.provenance.expanduser().resolve()
+        if arguments.provenance is not None
+        else Path(str(output_path) + ".provenance.json")
+    )
+    provenance = render_metric_figure(
+        arguments.inputs,
+        output_path=output_path,
+        metric=arguments.metric,
+        kind=arguments.kind,
+        group_by=arguments.group_by,
+        title=arguments.title,
+        provenance_path=provenance_path,
+    )
+    print(
+        json.dumps(
+            {
+                "figure_path": str(output_path),
+                "provenance_path": str(provenance_path),
+                "input_count": len(arguments.inputs),
+                "fingerprint": provenance["fingerprint"],
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+def _plan_cold_start_study(arguments) -> int:
+    from mmctr.analysis import load_cold_start_study_config, save_cold_start_study_matrix
+
+    tasks = load_cold_start_study_config(arguments.config)
+    matrix_path = save_cold_start_study_matrix(tasks, arguments.output)
+    print(
+        json.dumps(
+            {
+                "matrix_path": str(matrix_path),
+                "task_count": len(tasks),
+                "models": sorted({task.model for task in tasks}),
+                "datasets": sorted({task.dataset for task in tasks}),
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mmctr", description="MMCTR-Bench command line")
     parser.add_argument("--version", action="version", version=__version__)
@@ -101,6 +220,55 @@ def build_parser() -> argparse.ArgumentParser:
 
     datasets = subparsers.add_parser("list-datasets", help="list registered dataset names")
     datasets.set_defaults(handler=_list_datasets)
+
+    fusion = subparsers.add_parser(
+        "plan-fusion-study",
+        help="validate a fusion study and write an ExperimentRunner task matrix",
+    )
+    fusion.add_argument("--config", type=Path, required=True)
+    fusion.add_argument("--output", type=Path, required=True)
+    fusion.set_defaults(handler=_plan_fusion_study)
+
+    robustness = subparsers.add_parser(
+        "plan-robustness-study",
+        help="validate a modality-dropout study and write an ExperimentRunner task matrix",
+    )
+    robustness.add_argument("--config", type=Path, required=True)
+    robustness.add_argument("--output", type=Path, required=True)
+    robustness.set_defaults(handler=_plan_robustness_study)
+
+    alignment = subparsers.add_parser(
+        "plan-alignment-study",
+        help="validate an auxiliary alignment study and write an ExperimentRunner task matrix",
+    )
+    alignment.add_argument("--config", type=Path, required=True)
+    alignment.add_argument("--output", type=Path, required=True)
+    alignment.set_defaults(handler=_plan_alignment_study)
+
+    plot = subparsers.add_parser(
+        "plot-results",
+        help="render a metric figure and provenance from completed result-v1 artifacts",
+    )
+    plot.add_argument("--inputs", type=Path, nargs="+", required=True)
+    plot.add_argument("--output", type=Path, required=True)
+    plot.add_argument("--metric", required=True)
+    plot.add_argument("--kind", choices=("bar", "line"), default="bar")
+    plot.add_argument(
+        "--group-by",
+        choices=("model", "dataset", "task_id", "seed"),
+        default="model",
+    )
+    plot.add_argument("--title", default=None)
+    plot.add_argument("--provenance", type=Path, default=None)
+    plot.set_defaults(handler=_plot_results)
+
+    cold_start = subparsers.add_parser(
+        "plan-cold-start-study",
+        help="verify a cold-start audit and write an ExperimentRunner task matrix",
+    )
+    cold_start.add_argument("--config", type=Path, required=True)
+    cold_start.add_argument("--output", type=Path, required=True)
+    cold_start.set_defaults(handler=_plan_cold_start_study)
     return parser
 
 

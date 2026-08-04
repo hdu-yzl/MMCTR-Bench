@@ -1,0 +1,61 @@
+{
+  "feature_dimensions": {
+    "audio": 128,
+    "id": 1,
+    "image": 128,
+    "text": 768
+  },
+  "fingerprint": "a908bb25f28f899bf2cf21f81483ae67d2106adea582e0e5576a2e9cb1ff05bc",
+  "id_offsets": {
+    "item": 9320,
+    "user": 1
+  },
+  "metadata": {
+    "negative_ratio": 5,
+    "raw_item_id_max": 6709,
+    "raw_item_id_min": 0,
+    "raw_user_id_max": 9318,
+    "raw_user_id_min": 0,
+    "seed": 42,
+    "source_sha256": {
+      "audio_feat.npy": "c5cb4f36ac8855816a8117d8158ee462ddfb4cab6dc8cd2cc6b8720f972888cc",
+      "image_feat.npy": "43214d153ee7a819f260218db27eb09fd423e87f435224979ab9b76e5cd704e4",
+      "test.json": "3fbf94e1d759b0815782dd4a3186c0ec520cbe2b48662720293e06bd487617d9",
+      "text_feat.npy": "80f33645eeb55f95fdab1ecbfd6074c4bd61c0bfbe5b612daa233bf9401aebaa",
+      "train.json": "e6cdc923bdf8a2500d7296ed04ed730a0a2a440cd6f5e8cf0b0a8a563cee06bd",
+      "val.json": "66c2f328e9095a245ba52cbd99b0ee5d83f7b3ec37c22d5c14db5b7ba0e76d59"
+    },
+    "split_protocol": "official-split-causal-prefix-negative-v1"
+  },
+  "name": "tiktok",
+  "oov_id": null,
+  "padding_id": 0,
+  "schema_version": 1,
+  "sequence_length": 5,
+  "source_fingerprint": "7d91ae29ad08fe6fa41a9894caaf075a8e91ca8b25e544c8a1e0333a0d703854",
+  "splits": {
+    "test": {
+      "items": 6660,
+      "positives": 6130,
+      "samples": 36780,
+      "sha256": "59c547b7b1b996b1e89869f60a22a0782c2928f087ba5c0731e990951e74481b",
+      "users": 9319
+    },
+    "train": {
+      "items": 6710,
+      "positives": 59541,
+      "samples": 357246,
+      "sha256": "d9f74717a445eed5e5ecba052a7a5f6e12ae50eb680459a6157d7f56d8952fdd",
+      "users": 9308
+    },
+    "val": {
+      "items": 6176,
+      "positives": 3051,
+      "samples": 18306,
+      "sha256": "169dde4266daa644b87bda5bcecb637fa05c8663a50148d67bc197c6963f24c7",
+      "users": 3051
+    }
+  },
+  "storage_format": "named-npy-v1",
+  "version": "tiktok-canonical-v1"
+}

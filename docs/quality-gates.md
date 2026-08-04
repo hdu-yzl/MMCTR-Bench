@@ -1,22 +1,20 @@
 # Quality gates
 
-Linux is the authoritative environment for MMCTR quality gates. The current first-stage gate is
-deliberately incremental: it protects the public `src/mmctr` namespace and the complete test
-suite while legacy modules are migrated behind that namespace.
+Linux is the authoritative environment for MMCTR quality gates. The gate protects the public
+`src/mmctr` namespace, the complete test suite, and the installable package boundary.
 
 ## Current scope
 
 - Ruff lint and formatting include `src/mmctr/**/*.py` and `tests/**/*.py`.
 - Pytest collects every test below `tests/`.
 - Coverage measures the public `mmctr` package and requires at least 80% statement coverage.
-- Mypy checks every file under `src/mmctr`; `follow_imports = "skip"` prevents the current
-  compatibility bridges from recursively type-checking legacy top-level packages.
+- Mypy checks every file under `src/mmctr`; `follow_imports = "skip"` keeps optional framework
+  packages outside the typed core boundary.
 - Package build creates both an sdist and a wheel in an isolated build environment.
 
-This is not a claim that the legacy `src/analysis`, `src/data`, `src/models`, `src/scripts`,
-`src/trainers`, and `src/utils` trees are clean. The initial Linux audit found 160 Ruff lint
-violations in the full repository and 116 files that would be reformatted. Each legacy area will
-enter the gate when its owning migration task moves it into the public namespace.
+The former `src/models`, `src/scripts`, `src/data`, `src/trainers`, and `src/utils` runtime trees
+are no longer shipped. Their canonical implementations and entry points live entirely below
+`src/mmctr`.
 
 ## Linux commands
 
@@ -65,7 +63,7 @@ so `CI-001` is `DONE`.
 
 ## Linux baseline: 2026-07-31
 
-The following results were produced with `/home/star/Disk3/hkl/envs/bm/bin/python` on Ubuntu
+The following results were produced with `<BM_PYTHON>` resolved from `conda activate bm` on Ubuntu
 20.04.6 LTS:
 
 | Gate | Result |
@@ -86,3 +84,12 @@ written below ignored project-local `.tmp/` storage.
 The maintainer selected this Linux server as the sole environment for all subsequent changes and
 validation. The recorded Linux evidence therefore closes `QA-001` as `DONE`; no Windows rerun is
 required or inferred.
+
+## Current release rehearsal: 2026-08-04
+
+Using the absolute `bm` interpreter recorded in the server evidence (Python 3.8.20), the cumulative
+refactor passes
+`pip check`, Ruff format for 142 files, Ruff lint, mypy for 86 source files, 198 unit/smoke tests,
+and 213 complete tests with 84.90% coverage. The no-isolation source/wheel build and
+repository-external wheel CLI rehearsal also pass. Artifact hashes and remaining non-engineering
+blockers are recorded in [`release-checklist.md`](release-checklist.md).

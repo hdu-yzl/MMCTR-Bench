@@ -7,7 +7,9 @@ from .registry import available_datasets, create_data_loader, resolve_data_loade
 
 _LOADER_EXPORTS = {
     "Antm2cLoader": "antm2c",
+    "MicroLensLoader": "microlens",
     "MicrolensLoader": "microlens",
+    "TikTokLoader": "tiktok",
     "TiktokLoader": "tiktok",
 }
 _PUBLIC_EXPORTS = {
@@ -15,6 +17,7 @@ _PUBLIC_EXPORTS = {
     "DataLoaderProtocol": ("mmctr.data.loader", "DataLoaderProtocol"),
     "HistoryMode": ("mmctr.data.loader", "HistoryMode"),
     "adapt_legacy_loader": ("mmctr.data.loader", "adapt_legacy_loader"),
+    "ensure_canonical_loader": ("mmctr.data.loader", "ensure_canonical_loader"),
     "DatasetManifest": ("mmctr.data.manifest", "DatasetManifest"),
     "SplitStatistics": ("mmctr.data.manifest", "SplitStatistics"),
 }

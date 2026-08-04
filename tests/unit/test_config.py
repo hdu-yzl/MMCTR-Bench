@@ -13,7 +13,7 @@ from mmctr.config import (
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-TRAIN_CONFIG_PATH = REPOSITORY_ROOT / "config" / "train.yaml"
+TRAIN_CONFIG_PATH = REPOSITORY_ROOT / "configs" / "training" / "default.yaml"
 
 
 class TrainingConfigTest(unittest.TestCase):
@@ -27,11 +27,11 @@ class TrainingConfigTest(unittest.TestCase):
         self.assertEqual(config.output_root, (REPOSITORY_ROOT / "outputs").resolve())
         self.assertEqual(
             config.checkpoint_dir,
-            (REPOSITORY_ROOT / "experiments" / "checkpoints").resolve(),
+            (REPOSITORY_ROOT / "outputs" / "checkpoints").resolve(),
         )
         self.assertEqual(
             config.quantization_artifact_dir,
-            (REPOSITORY_ROOT / "experiments" / "quantization").resolve(),
+            (REPOSITORY_ROOT / "outputs" / "quantization" / "artifacts").resolve(),
         )
         self.assertIsInstance(config.lr, float)
         with self.assertRaises(FrozenInstanceError):
@@ -74,16 +74,12 @@ class TrainingConfigTest(unittest.TestCase):
                 load_yaml_mapping(path)
 
     def test_tracked_executable_yaml_files_have_unique_keys(self):
-        config_directory = REPOSITORY_ROOT / "config"
-        self.assertFalse((config_directory / "best_params.yaml").exists())
+        config_directory = REPOSITORY_ROOT / "configs"
+        self.assertFalse((REPOSITORY_ROOT / "config").exists())
 
-        for path in sorted(config_directory.glob("*.yaml")):
-            with self.subTest(path=path.name):
+        for path in sorted(config_directory.rglob("*.yaml")):
+            with self.subTest(path=path.relative_to(config_directory).as_posix()):
                 self.assertIsInstance(load_yaml_mapping(path), dict)
-        self.assertIsInstance(
-            load_yaml_mapping(REPOSITORY_ROOT / "configs/local/paths.example.yaml"),
-            dict,
-        )
 
     def test_layers_merge_recursively_without_mutating_inputs(self):
         training = {"lr": 0.001, "nested": {"keep": 1, "replace": 1}}

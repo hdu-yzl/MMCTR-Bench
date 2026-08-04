@@ -16,11 +16,11 @@ cannot accidentally route a pretraining objective through the binary CTR engine.
 
 ## Artifact layout
 
-`config/train.yaml` declares `quantization_artifact_dir`, resolved relative to the
+`configs/training/default.yaml` declares `quantization_artifact_dir`, resolved relative to the
 repository root by `TrainingConfig`. The stable layout is:
 
 ```text
-experiments/quantization/
+outputs/quantization/artifacts/
 ├── rq/<dataset>/<modality>.npz
 └── psrq/<dataset>/model.npz
 ```
@@ -42,8 +42,8 @@ On the authoritative Linux server, activate `bm`, record `command -v python`, an
 use that absolute interpreter for these modules:
 
 ```bash
-<SERVER_ENV>/bin/python -m trainers.RQ_trainer --dataset-name antm2c --use-local-data
-<SERVER_ENV>/bin/python -m trainers.PSRQ_trainer --dataset-name antm2c --cuda 0 --use-local-data
+<SERVER_ENV>/bin/python -m mmctr.quantization.rq_entrypoint --dataset-name antm2c --use-local-data
+<SERVER_ENV>/bin/python -m mmctr.quantization.psrq_entrypoint --dataset-name antm2c --cuda 0 --use-local-data
 ```
 
 RQ L2-normalizes each non-ID item modality before fitting and stores the actual
@@ -57,8 +57,15 @@ loader verifies level count and codebook size; PSRQ additionally verifies ordere
 modalities, every raw feature dimension, latent projection dimension and encoder
 hidden dimensions. An artifact from another dataset or modality is rejected.
 
-The historical multi-GPU `Codebook_Tuner.py` still uses frozen legacy premodels
-and recommendation classes so existing paper-result reproduction remains
-available. Its migration to canonical pretraining plus `TrainingEngine` belongs
-to the experiment/tuning consolidation task; it is not a second production
-artifact format.
+The former multi-GPU codebook tuner and frozen premodels have been removed. Use the canonical
+RQ/PSRQ entry points above to create validated artifacts, then use the validation-only experiment
+tuner for QARM/MCCA recommendation configuration selection.
+
+## Real artifact validation
+
+The Linux server gate generated all three TikTok RQ artifacts with the production `3 × 1024`
+structure over the complete 6,711-row item store, and trained the production `3 × 256` PSRQ for
+five epochs on V100 (`final_loss=8.485107`). Strict disk reload then composed QARM and MCCA and ran
+one real 32-event TikTok forward/backward/Adam step for each. The ignored local report at
+`outputs/quantization/tiktok-real-validation.json` records the dataset fingerprint, exact artifact
+hashes/sizes, losses and parameter counts; the artifacts themselves remain outside Git.

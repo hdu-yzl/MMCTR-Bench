@@ -1,0 +1,16 @@
+# Small schema-complete example for `mmctr plan-alignment-study`.
+# Module paths are model-specific and are validated again when hooks are installed.
+dataset: fixture
+data_fingerprint: replace-with-canonical-manifest-fingerprint
+data:
+  name: fixture
+model_configs:
+  dnn_mm:
+    latent_dim: 4
+models: [dnn_mm]
+methods: [cosine, mse]
+weights: [0.0, 0.1, 0.3, 0.5]
+representations:
+  text: text_projector
+  image: image_projector
+seeds: [2025, 2026, 2027]

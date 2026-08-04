@@ -17,6 +17,7 @@ from mmctr.quantization import (
     quantizer_spec,
     rq_artifact_path,
 )
+from mmctr.quantization.training import copy_feature_tables
 
 
 def configs():
@@ -103,6 +104,16 @@ def make_batch(batch_size=2, all_padding=False, padded_value=0.0):
 
 
 class QuantizationArtifactTests(unittest.TestCase):
+    def test_pretraining_feature_tables_own_writable_memory(self):
+        source = np.arange(12, dtype=np.float32).reshape(4, 3)
+        source.setflags(write=False)
+
+        copied = copy_feature_tables({"image": source}, ("image",))
+
+        self.assertTrue(copied["image"].numpy().flags.writeable)
+        copied["image"][0, 0] = -1.0
+        self.assertEqual(0.0, float(source[0, 0]))
+
     def test_rq_round_trip_preserves_codes_and_reconstruction(self):
         quantizer = make_rq(3)
         values = torch.tensor([[0.1, 0.2, 0.3], [1.0, 0.5, 0.25]])
@@ -294,7 +305,7 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
         with self.assertRaisesRegex(ContractError, "PSRQ structure"):
             create_model("mcca", wrong, data_config, quantizer=initialized_psrq())
 
-    def test_registry_separates_premodels_and_keeps_legacy_metadata(self):
+    def test_registry_separates_canonical_premodels(self):
         expected = {
             "qarm": ("mmctr.models.quantized", "QARM"),
             "mcca": ("mmctr.models.quantized", "MCCA"),
@@ -303,7 +314,6 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
             specification = model_spec(name)
             self.assertEqual(module, specification.module)
             self.assertEqual(symbol, specification.symbol)
-            self.assertIn("legacy_module", specification.metadata)
         quantizers = {
             "rq": ("mmctr.quantization.residual", "ResidualQuantizer"),
             "psrq": ("mmctr.quantization.psrq", "PSRQPretrainer"),
@@ -312,7 +322,6 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
             specification = quantizer_spec(name)
             self.assertEqual(module, specification.module)
             self.assertEqual(symbol, specification.symbol)
-            self.assertEqual("models.pre_models", specification.metadata["legacy_module"])
 
 
 if __name__ == "__main__":

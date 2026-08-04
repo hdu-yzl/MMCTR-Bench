@@ -64,10 +64,10 @@ ANTM2C_FIELDS = MappingProxyType(
         ),
         "item_entity_names": FieldSpec(
             "item_entity_names",
-            FeatureOwner.ITEM_CANDIDATE,
+            FeatureOwner.INTERACTION_CONTEXT,
             "entity_text",
             768,
-            True,
+            False,
             "empty_text_with_manifest",
         ),
         "item_title": FieldSpec(

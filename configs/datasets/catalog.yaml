@@ -1,0 +1,76 @@
+# data.yaml - 数据集配置
+tiktok:
+  name: "tiktok"
+  data_dir: "data/processed/tiktok/canonical-v1"
+  version: "tiktok-canonical-v1"
+  storage_format: "named-npy-v1"
+  fingerprint: "a908bb25f28f899bf2cf21f81483ae67d2106adea582e0e5576a2e9cb1ff05bc"
+  padding_id: 0
+  id_offsets: {"user": 1, "item": 9320}
+  id_feature_num: 16030
+  mm_dims : {"id":0,"text":768, "audio":128, "image":128} # 非序列的模态输入维度
+  mm_seq_dims : {"id":0,"text":768, "audio":128, "image":128}  # 序列的模态输入维度
+  multimodel_num: 3
+  id_fields_num: 2
+  seq_len: 5
+  min_item_id: 9320
+  min_user_id: 1
+  # 可更改参数
+  use_mm_features: ["id","image", "text","audio"]
+  use_mm_seq_features: ["id","image", "text","audio"]
+  use_seq:  true
+  use_mm_rq:  false
+  user_features: [ "id" ]  # 序列建模时区分用户特征
+  user_features_dim: { "id": 0 }
+  using_local_data: false
+
+antm2c:
+  name: "antm2c"
+  data_dir: "data/processed/antm2c/canonical-v1"
+  version: "antm2c-canonical-v1"
+  storage_format: "sharded-named-npy-v1"
+  fingerprint: "ece3afcc876853caadd4e277421c938a59426e2e003577b1fd02b90e2d3b2aca"
+  padding_id: 0
+  id_offsets: {"user": 0, "item": 67624}
+  id_feature_num: 152491
+  multimodel_num: 2
+  mm_dims : {"id":0,"text":768, "image":512} # 非序列的模态输入维度
+  mm_seq_dims : {"id":0,"text":768, "image":512}  # 序列的模态输入维度
+  id_fields_num: 2
+  seq_len: 5
+  min_item_id: 67625
+  min_user_id: 0
+  # 可更改参数
+  use_mm_features: ["id","image","text"]
+  use_mm_seq_features: ["id","image","text"]
+  use_seq:  true
+  use_mm_rq:  false
+  user_features: ["id","text"]  # 序列建模时区分用户特征
+  user_features_dim: {"id":0,"text":3840}
+  using_local_data: false
+
+microlens:
+  name: "microlens"
+  data_dir: "data/processed/microlens/canonical-v1"
+  version: "microlens-canonical-v1"
+  storage_format: "named-npy-v1"
+  fingerprint: "1e28692d5b7f5c722c6621f78533a1974eef9f9b64256a6a3e51e8a27889221f"
+  padding_id: 0
+  id_offsets: {"user": 0, "item": 1000000}
+  id_feature_num: 1091718
+  multimodel_num: 2
+  mm_dims : {"id":0,"text":768, "image":1024} # 非序列的模态输入维度
+  mm_seq_dims : {"id":0,"text":768, "image":1024}  # 序列的模态输入维度
+  id_fields_num: 2
+  seq_len: 5
+  min_item_id: 1000001
+  min_user_id: 1
+  user_features: [ "id" ]  # 序列建模时区分用户特征
+  user_features_dim: { "id": 0 }
+  # 可更改参数
+  use_mm_features: ["id","image", "text"]
+  use_mm_seq_features: ["id","image", "text"]
+  use_seq:  true
+  use_mm_rq:  false  # todo
+
+  using_local_data: false

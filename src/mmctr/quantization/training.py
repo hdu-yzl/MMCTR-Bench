@@ -1,12 +1,27 @@
 """Small explicit training helpers for quantization premodels."""
 
-from typing import Mapping
+from typing import Mapping, Sequence
 
+import numpy as np
 import torch
 
 from mmctr.core import ContractError
 
 from .psrq import PSRQPretrainer
+
+
+def copy_feature_tables(
+    features: Mapping[str, np.ndarray], modalities: Sequence[str]
+) -> Mapping[str, torch.Tensor]:
+    """Copy read-only/memory-mapped feature stores into owned float tensors."""
+
+    missing = [name for name in modalities if name not in features]
+    if missing:
+        raise ContractError("pretraining feature tables are missing: {}".format(missing))
+    return {
+        name: torch.from_numpy(np.array(features[name], dtype=np.float32, copy=True, order="C"))
+        for name in modalities
+    }
 
 
 def fit_psrq(
@@ -53,4 +68,4 @@ def fit_psrq(
     return final_loss
 
 
-__all__ = ["fit_psrq"]
+__all__ = ["copy_feature_tables", "fit_psrq"]

@@ -149,12 +149,10 @@ class CanonicalComplexSequenceTests(unittest.TestCase):
         create_model("marn", model_config, data_config)
         self.assertEqual(anomaly_mode, torch.is_anomaly_enabled())
 
-    def test_registry_keeps_legacy_regression_metadata(self):
+    def test_registry_uses_canonical_sequence_module(self):
         for name in ("dmf", "marn"):
             specification = model_spec(name)
             self.assertEqual("mmctr.models.sequence", specification.module)
-            self.assertEqual("models.mm_ctr_models", specification.metadata["legacy_module"])
-            self.assertEqual(name.upper(), specification.metadata["legacy_symbol"])
 
 
 if __name__ == "__main__":

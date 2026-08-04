@@ -28,9 +28,9 @@ The run-context utility creates this initial layout:
 └─ checkpoints/
 ```
 
-The primary legacy trainer also writes `run.log` and, on successful completion, `summary.json`.
-Its existing model-specific checkpoint filename is retained inside the isolated `checkpoints/`
-directory until the common training engine is introduced by `TRAIN-001`.
+The canonical trainer also writes `run.log` and, on successful completion, `summary.json`.
+`TrainingEngine` writes schema-versioned `checkpoints/best.pt` and `checkpoints/last.pt` inside the
+same isolated run.
 
 `run_metadata.json` starts with status `running` and records the run/config identity, Git commit
 when available, Python/OS and framework versions, command, working directory, seed, requested
@@ -40,9 +40,9 @@ temporary-file replacement.
 
 ## Current adoption boundary
 
-`src/trainers/Trainers.py` uses this contract. Legacy tuning and analysis entry points still have
-their own output conventions; their migration belongs to `TUNE-001` and `EXP-001`. Until those
-tasks are complete, do not treat their output layout as the formal run contract.
+`mmctr.training.entrypoint` uses this contract. Tuning and analysis also use the canonical
+run/result protocols documented in [experiments.md](experiments.md); no second trainer package is
+published.
 
-Use `--output_root` to override the configured `output_root` for the primary legacy trainer. The
+Use `--output-root` to override the configured `output_root` for the primary trainer. The
 override selects only the root; the trainer always creates the remaining hierarchy and run ID.

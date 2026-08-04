@@ -12,6 +12,21 @@ training defaults < dataset < model < experiment < explicit CLI overrides
 `merge_config_layers` recursively merges mappings without mutating its inputs. Lists and scalar
 values are replaced as complete values; they are not concatenated implicitly.
 
+The repository has one tracked configuration root:
+
+```text
+configs/
+├── datasets/catalog.yaml
+├── models/catalog.yaml
+├── training/default.yaml
+├── experiments/*.example.yaml
+└── local/paths.example.yaml
+```
+
+The former `config/` tree and duplicate `seq_data.yaml` were removed. Sequence and pooled models
+resolve the same dataset catalog; history behavior is selected by model capability rather than by
+loading a second copy of dataset metadata.
+
 ## Training schema
 
 `TrainingConfig` rejects missing and unknown keys, booleans passed as integers, unsupported
@@ -36,6 +51,7 @@ dataset fields remain mappings until their dedicated model/data refactor tasks e
 evidence. This boundary is deliberate: configuration cleanup must not silently change paper model
 formulas or data semantics.
 
-The tracked `config/best_param.yaml` remains the reviewed legacy parameter snapshot. Historical
-tuner output is not executable configuration and is kept outside that canonical file. New tuning
-output belongs under ignored `outputs/` paths until a maintainer promotes it after review.
+The former `Tuner.yaml` and unconsumed `best_param.yaml` were removed. Historical test-selected
+records remain explicitly quarantined in `docs/legacy_tuning_history.yaml` and are not executable
+configuration. New tuning output belongs under ignored `outputs/` paths; a reviewed frozen
+selection must retain its experiment ID, validation metrics, seeds, and data fingerprint.

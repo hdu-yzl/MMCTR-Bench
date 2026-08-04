@@ -1,4 +1,4 @@
-"""Lazy public model exports backed by the formal registry and compatibility bases."""
+"""Lazy public model exports backed by the formal canonical registry."""
 
 import importlib
 
@@ -37,10 +37,15 @@ _MODEL_EXPORTS = {
 }
 
 _BASE_EXPORTS = {
-    "BaseModel": ("models.base_model", "BaseModel"),
     "BaseSeqModel": ("mmctr.models.base", "BaseSeqModel"),
     "HistoryCapability": ("mmctr.models.base", "HistoryCapability"),
-    "LegacyModelAdapter": ("mmctr.models.compat", "LegacyModelAdapter"),
+}
+
+_PRESET_EXPORTS = {
+    "EXECUTABLE_PIPELINE_MODELS",
+    "ModelPipelinePreset",
+    "default_pipeline_preset",
+    "model_pipeline_coverage",
 }
 
 
@@ -49,6 +54,10 @@ def get_model(*args, **kwargs):
 
 
 def __getattr__(name):
+    if name in _PRESET_EXPORTS:
+        value = getattr(importlib.import_module("mmctr.models.presets"), name)
+        globals()[name] = value
+        return value
     if name in _BASE_EXPORTS:
         module_name, class_name = _BASE_EXPORTS[name]
         model_class = getattr(importlib.import_module(module_name), class_name)
@@ -63,12 +72,14 @@ def __getattr__(name):
     return model_class
 
 
-__all__ = [
-    "BaseModel",
-    "BaseSeqModel",
-    "HistoryCapability",
-    "LegacyModelAdapter",
-    "available_models",
-    "create_model_from_artifacts",
-    "get_model",
-] + list(_MODEL_EXPORTS)
+__all__ = (
+    [
+        "BaseSeqModel",
+        "HistoryCapability",
+        "available_models",
+        "create_model_from_artifacts",
+        "get_model",
+    ]
+    + sorted(_PRESET_EXPORTS)
+    + list(_MODEL_EXPORTS)
+)

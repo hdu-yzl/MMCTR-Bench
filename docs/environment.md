@@ -7,8 +7,8 @@ MMCTR currently has two environment artifacts with deliberately different roles:
   reproduction.
 - `environment.yml` is a machine-independent bootstrap file. It creates the Python toolchain
   without embedding a server path, a private mirror, or Linux platform packages.
-- `pyproject.toml` is the package and dependency-group authority. `setup.py` remains only as a
-  compatibility shim for legacy build frontends; no separate requirements file is maintained.
+- `pyproject.toml` is the sole package/build and dependency-group authority. Modern PEP 517
+  frontends are required; no `setup.py` or separate requirements file is maintained.
 
 The bootstrap file is not by itself a claim that the complete training stack is reproducible.
 The maintainer-selected Linux server is the sole environment for subsequent editing, dependency
@@ -94,7 +94,7 @@ current session confirmed the following operating rules on 2026-07-31:
 - Keep every new package download, package cache, model/data download, build dependency, and
   temporary artifact on the same filesystem as the current project clone. Repository-local
   `.cache/`, `.tmp/`, and `downloads/` directories are ignored by Git for this purpose.
-- `/home/star/Disk3/hkl/Benchmark` is the original pre-refactoring project. Use it as a read-only
+- `<ORIGINAL_REFERENCE_ROOT>` is the original pre-refactoring project. Use it as a read-only
   reference when locating data or reconstructing historical path/configuration conventions.
   Never modify that directory or copy its private data and machine-specific configuration into
   tracked files.
@@ -136,7 +136,7 @@ was not changed.
 |---|---|
 | Conda executable absolute path | `/root/anaconda3/bin/conda` |
 | Active environment | Existing maintainer-provided `bm`; no bootstrap environment was created |
-| Python executable absolute path | `/home/star/Disk3/hkl/envs/bm/bin/python` (Python 3.8.20) |
+| Python executable | `<BM_PYTHON>` resolved from `conda activate bm` (validated with Python 3.8.20) |
 | OS/kernel | Ubuntu 20.04.6 LTS; Linux 5.15.0-139-generic; host `ESC8000-G4` |
 | GPU and driver | `nvidia-smi` reports driver 535.183.01, CUDA 12.2 compatibility, and 8× Tesla V100-SXM2-32GB |
 | Framework builds | PyTorch 1.13.1+cu117; TensorFlow 2.12.1 built with CUDA support; NumPy remains 1.23.5 |

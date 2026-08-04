@@ -22,7 +22,7 @@ Environment variables override the local file:
 | `MMCTR_TIKTOK_DATA_DIR` | TikTok processed dataset directory |
 | `MMCTR_OUTPUT_ROOT` | Root for isolated run outputs |
 
-The primary legacy trainer reads these overrides only when `--use_local_data 1` is passed. If the
+The canonical trainer reads these overrides only when `--use-local-data` is passed. If the
 selected dataset has no local path, it fails with an explicit configuration error. Without that
 flag, canonical dataset paths are resolved against the repository root and never against the
 current working directory.

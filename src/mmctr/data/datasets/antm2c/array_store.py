@@ -16,6 +16,13 @@ from .item_store import ItemFeatureStore, ItemIndex
 
 
 ARRAY_STORE_SCHEMA_VERSION = 1
+LEGACY_USER_TEXT_CONTEXT = (
+    "service_text",
+    "query_text",
+    "bill_text",
+    "entity_text",
+    "time_context",
+)
 MMapMode = Optional[Literal["r+", "r", "w+", "c"]]
 
 
@@ -285,6 +292,16 @@ class AntM2CArrayLoader:
                 history_features[name] = torch.as_tensor(
                     self.item_store.gather(name, history_indices), dtype=torch.float32
                 )
+            context_features = {
+                name: torch.as_tensor(np.array(values[start:stop], copy=True), dtype=torch.float32)
+                for name, values in table.context_features.items()
+            }
+            if "text" not in context_features and all(
+                name in context_features for name in LEGACY_USER_TEXT_CONTEXT
+            ):
+                context_features["text"] = torch.cat(
+                    [context_features[name] for name in LEGACY_USER_TEXT_CONTEXT], dim=-1
+                )
             yield Batch(
                 user_features={
                     "id": torch.as_tensor(
@@ -300,12 +317,7 @@ class AntM2CArrayLoader:
                 labels=torch.as_tensor(
                     np.array(table.labels[start:stop], copy=True), dtype=torch.float32
                 ),
-                context_features={
-                    name: torch.as_tensor(
-                        np.array(values[start:stop], copy=True), dtype=torch.float32
-                    )
-                    for name, values in table.context_features.items()
-                },
+                context_features=context_features,
                 metadata={
                     "dataset": self.dataset_name,
                     "dataset_version": self.manifest.version,
@@ -320,6 +332,7 @@ __all__ = [
     "ARRAY_STORE_SCHEMA_VERSION",
     "AntM2CArrayLoader",
     "InteractionTable",
+    "LEGACY_USER_TEXT_CONTEXT",
     "load_array_store",
     "write_array_store",
 ]

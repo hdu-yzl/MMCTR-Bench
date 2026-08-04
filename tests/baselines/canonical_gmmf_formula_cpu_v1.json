@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "baseline_id": "canonical_gmmf_formula_cpu_v1",
+  "scope": "Synthetic CPU formula regression with complete history and modalities.",
+  "seed": 7,
+  "expected": {
+    "logits": [-0.09113830327987671, -0.08788752555847168],
+    "reconstruction_loss": 0.5704163312911987,
+    "discriminator_loss": 5.68237829208374,
+    "generator_loss": 2.634937047958374,
+    "parameter_count": 1051
+  },
+  "tolerance": {
+    "absolute": 1e-7,
+    "relative": 0.0
+  }
+}

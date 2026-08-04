@@ -110,5 +110,7 @@ Follow-up tasks:
 
 ## License status
 
-The maintainer has not yet selected the repository license. Do not add or change license text,
-copyright ownership, or contributor-license terms without an explicit maintainer decision.
+The repository-owned source code, configuration, and documentation are licensed under Apache-2.0.
+By submitting a contribution, you agree that it may be distributed under that license. Do not add
+third-party data, checkpoints, incompatible code, or a copyright/NOTICE statement whose ownership
+has not been verified. Dataset and checkpoint terms remain separate from the software license.

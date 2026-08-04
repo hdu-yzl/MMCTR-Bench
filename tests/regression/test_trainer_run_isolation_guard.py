@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-TRAINER_PATH = REPOSITORY_ROOT / "src" / "trainers" / "Trainers.py"
+TRAINER_PATH = REPOSITORY_ROOT / "src" / "mmctr" / "training" / "entrypoint.py"
 
 
 class TrainerRunIsolationGuardTest(unittest.TestCase):
@@ -21,21 +21,24 @@ class TrainerRunIsolationGuardTest(unittest.TestCase):
         runtime_lines = [
             node.lineno
             for node in calls
-            if isinstance(node.func, ast.Attribute)
-            and node.func.attr in {"getDataLoader", "getModel"}
+            if (isinstance(node.func, ast.Name) and node.func.id == "get_data_loader")
+            or (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr in {"get_data_loader", "create_model"}
+            )
         ]
 
         self.assertEqual(len(context_lines), 1)
         self.assertTrue(runtime_lines)
         self.assertLess(context_lines[0], min(runtime_lines))
         self.assertIn("load_training_config", source)
-        self.assertIn("PROJECT_ROOT = Path(__file__).resolve().parents[2]", source)
+        self.assertIn("PROJECT_ROOT = Path(__file__).resolve().parents[3]", source)
         self.assertNotIn("local_data.yaml", source)
         self.assertNotIn("local_seq_data.yaml", source)
         self.assertIn("self.run_context.checkpoints_dir", source)
-        self.assertIn("filename='run.log'", source)
-        self.assertIn("self.run_context.finalize('completed'", source)
-        self.assertGreaterEqual(source.count("self.run_context.finalize('failed'"), 2)
+        self.assertIn('filename="run.log"', source)
+        self.assertIn('self.run_context.finalize("completed"', source)
+        self.assertGreaterEqual(source.count('self.run_context.finalize("failed"'), 2)
 
 
 if __name__ == "__main__":

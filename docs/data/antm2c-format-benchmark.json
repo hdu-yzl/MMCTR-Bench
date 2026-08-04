@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "data_version": "antm2c-benchmark-v1",
+  "source_fingerprint": "b3322335c75f550cffdbb83dc1275c89ce209613efb249a59dcec0121103b21c",
+  "protocol": {
+    "splits": ["train", "val", "test"],
+    "samples_per_split": 2048,
+    "batch_size": 256,
+    "repeats": 5,
+    "cache": "one full warm-up pass per format, then median of complete CPU passes",
+    "source_shards_are_stratified": true,
+    "gpu_wait_ms": null,
+    "gpu_wait_reason": "CPU loader benchmark does not include host-to-device transfer"
+  },
+  "sample_audit": {
+    "split_samples": {"train": 2048, "val": 2048, "test": 2048},
+    "scanned_samples": {"train": 2052, "val": 2058, "test": 2048},
+    "skipped_title_store_mismatches": {"train": 4, "val": 10, "test": 0},
+    "skipped_image_store_mismatches": {"train": 0, "val": 0, "test": 0},
+    "item_entity_rows": 6144,
+    "item_entity_items": 2820,
+    "item_entity_conflicting_items": 247,
+    "item_entity_max_versions_per_item": 19,
+    "prefix_sha256": {
+      "train": "42836f2414eea6c23a8de163ac45c6563210b932c0d6f71289ca1f7d89533816",
+      "val": "2b77b06f36635dbddd747926009c2757b407766387020c35bb14aec64bee7577",
+      "test": "9c3bcb3959aafc462d10e11129e226b6299efdacef966c9646df7d29649b3372"
+    }
+  },
+  "storage_bytes": {
+    "sample_legacy_interactions": 126903807,
+    "sample_named_interactions": 95408256,
+    "named_shared_item_store": 435510515,
+    "full_source_tfrecords": 231139326681,
+    "full_source_item_store": 434524416,
+    "interaction_reduction_percent": 24.818444571958352,
+    "projected_full_named_total": 174209651520,
+    "projected_full_savings": 57364199577
+  },
+  "throughput": {
+    "legacy_samples_per_second": 11135.068867449561,
+    "named_arrays_samples_per_second": 67803.38123241275,
+    "speedup": 6.089174843868102,
+    "legacy_median_seconds": 0.551770273999864,
+    "named_arrays_median_seconds": 0.09061494999696151,
+    "samples": 6144,
+    "batches": 24,
+    "semantic_checksum": 3468011435.1131005
+  },
+  "environment": {
+    "python": "3.8.20",
+    "os": "Linux-5.15.0-139-generic-x86_64-with-glibc2.17",
+    "numpy": "1.23.5",
+    "torch": "1.13.1+cu117",
+    "tensorflow": "2.12.1",
+    "cuda_visible": false
+  }
+}

@@ -1,7 +1,6 @@
 # Architecture
 
-MMCTR is migrating from legacy top-level packages to a single `mmctr` namespace. New code follows
-this dependency direction:
+MMCTR uses a single installable `mmctr` namespace. Runtime code follows this dependency direction:
 
 ```text
 cli -> experiments -> training/evaluation -> models + data + quantization -> core/config/utils
@@ -20,9 +19,9 @@ cli -> experiments -> training/evaluation -> models + data + quantization -> cor
 - `RunResult` is the in-memory result returned by runners and contains status, finite metrics,
   artifact location, error, and metadata.
 
-Legacy loaders and models are accepted only through `Batch.from_legacy` and
-`ModelOutput.from_legacy`. This keeps tuple ordering and the historical `pred`/`au_loss` keys out
-of new core code while model families are migrated incrementally.
+Every formal registry model and dataset is canonical. `Batch.from_legacy` and
+`ModelOutput.from_legacy` remain explicit format adapters for frozen regression fixtures and the
+audited AntM2C TFRecord conversion path; no legacy model or loader package is published.
 
 The core contracts do not create optimizers, select devices, write checkpoints, compute sklearn
 metrics, or parse command-line arguments. Those responsibilities belong to the training,

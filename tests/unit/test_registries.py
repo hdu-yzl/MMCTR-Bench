@@ -22,6 +22,20 @@ class RegistryTests(unittest.TestCase):
     def test_model_alias_resolves_to_one_canonical_name(self):
         self.assertEqual("dnn_mm_seq", MODEL_REGISTRY.canonical_name("dnn_seq"))
 
+    def test_all_datasets_resolve_to_canonical_dataset_loaders(self):
+        self.assertEqual(
+            "mmctr.data.datasets.antm2c.canonical",
+            DATASET_REGISTRY.spec("antm2c").module,
+        )
+        self.assertEqual(
+            "mmctr.data.datasets.microlens.loader",
+            DATASET_REGISTRY.spec("microlens").module,
+        )
+        self.assertEqual(
+            "mmctr.data.datasets.tiktok.loader",
+            DATASET_REGISTRY.spec("tiktok").module,
+        )
+
     def test_registry_listing_does_not_import_heavy_implementations(self):
         before = set(sys.modules)
         MODEL_REGISTRY.names()

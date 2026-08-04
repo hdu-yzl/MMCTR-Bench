@@ -19,5 +19,20 @@ resumed job cannot silently reset early stopping or cross run boundaries.
 The engine accepts a metric writer such as `RunContext.append_metrics`, keeping artifact layout and
 training behavior separate.
 
-Legacy models still exposing `fit`, `evalate`, `save`, and `load` remain behind compatibility
-imports until the single-base-model migration is complete. New code must not call those methods.
+Models with genuinely alternating objectives use an explicit composition rather than owning a
+private `fit()` loop. `PhasedAdam` stores disjoint named parameter groups in one serializable Adam
+state. Its normal `step()` updates only `main`; `step_phase(name)` temporarily hides every other
+group's gradients. `AlternatingPhase(name, start_epoch, objective)` tells `TrainingEngine` which
+scalar objective to run and the inclusive epoch at which it becomes active. The engine always runs
+the main BCE/auxiliary objective first, followed by active phases in declared order.
+
+GMMF is the first consumer. The Trainer composes `main`, `discriminator`, and `generator` groups
+from registry metadata, preserves their separate learning rates, and runs discriminator then
+generator after `epoch >= N`. All three per-parameter Adam states are saved in the same run-local
+checkpoint, so resume cannot silently reset the adversarial phases. Ordinary models continue to
+use the unchanged single-optimizer path.
+
+Every formal registry entry resolves to a canonical `Batch -> ModelOutput` model. The old
+model-owned `fit`, misspelled `evalate`, `save`, and `load` interfaces and their compatibility
+imports have been physically removed; numerical regression is retained through self-contained
+fixtures rather than a second runtime implementation.

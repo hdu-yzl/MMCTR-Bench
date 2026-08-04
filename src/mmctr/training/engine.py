@@ -4,7 +4,7 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Mapping, Optional
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence
 
 import torch
 
@@ -14,9 +14,28 @@ from mmctr.evaluation import BinaryClassificationEvaluator, BinaryMetrics
 
 from .callbacks import EarlyStopping
 from .checkpointing import CheckpointManager
+from .optimizers import PhasedAdam
 
 
 MetricWriter = Callable[[Mapping[str, object]], None]
+
+
+@dataclass(frozen=True)
+class AlternatingPhase:
+    """One named optimizer phase activated from an inclusive epoch index."""
+
+    name: str
+    start_epoch: int
+    objective: Callable[[Batch], torch.Tensor]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name or self.name == "main":
+            raise ValueError("alternating phase name must be non-empty and not 'main'")
+        if int(self.start_epoch) < 0:
+            raise ValueError("alternating phase start_epoch must be non-negative")
+        if not callable(self.objective):
+            raise ValueError("alternating phase objective must be callable")
+        object.__setattr__(self, "start_epoch", int(self.start_epoch))
 
 
 @dataclass(frozen=True)
@@ -56,6 +75,7 @@ class TrainingEngine:
         gradient_clip_norm: Optional[float] = None,
         logger: Optional[logging.Logger] = None,
         metric_writer: Optional[MetricWriter] = None,
+        alternating_phases: Sequence[AlternatingPhase] = (),
     ) -> None:
         if gradient_clip_norm is not None and gradient_clip_norm <= 0:
             raise ValueError("gradient_clip_norm must be positive")
@@ -67,6 +87,22 @@ class TrainingEngine:
         self.gradient_clip_norm = gradient_clip_norm
         self.logger = logger or logging.getLogger(__name__)
         self.metric_writer = metric_writer
+        self.alternating_phases = tuple(alternating_phases)
+        if any(not isinstance(phase, AlternatingPhase) for phase in self.alternating_phases):
+            raise ValueError("alternating_phases must contain AlternatingPhase objects")
+        phase_names = tuple(phase.name for phase in self.alternating_phases)
+        if len(set(phase_names)) != len(phase_names):
+            raise ValueError("alternating phase names must be unique")
+        if self.alternating_phases:
+            if not isinstance(self.optimizer, PhasedAdam):
+                raise ValueError("alternating phases require a PhasedAdam optimizer")
+            missing_phases = set(phase_names).difference(self.optimizer.phases)
+            if missing_phases:
+                raise ValueError(
+                    "alternating phases are missing optimizer groups: {}".format(
+                        sorted(missing_phases)
+                    )
+                )
         self.criterion = torch.nn.BCEWithLogitsLoss()
         self.evaluator = BinaryClassificationEvaluator(device)
         self._resume_metadata: Dict[str, Any] = {}
@@ -91,8 +127,25 @@ class TrainingEngine:
             if self.gradient_clip_norm is not None:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.gradient_clip_norm)
             self.optimizer.step()
+            batch_loss = loss.detach()
+            for phase in self.alternating_phases:
+                if epoch < phase.start_epoch:
+                    continue
+                self.optimizer.zero_grad()
+                phase_loss = phase.objective(device_batch)
+                if not isinstance(phase_loss, torch.Tensor) or phase_loss.ndim != 0:
+                    raise ContractError(
+                        "alternating phase {!r} must return a scalar Tensor".format(phase.name)
+                    )
+                if not torch.isfinite(phase_loss):
+                    raise ContractError(
+                        "alternating phase {!r} returned a non-finite loss".format(phase.name)
+                    )
+                phase_loss.backward()
+                self.optimizer.step_phase(phase.name)
+                batch_loss = batch_loss + phase_loss.detach()
             samples = device_batch.batch_size
-            total_loss += float(loss.detach().item()) * samples
+            total_loss += float(batch_loss.item()) * samples
             total_samples += samples
             batch_count += 1
         if batch_count == 0:
@@ -225,4 +278,4 @@ class TrainingEngine:
             self.metric_writer(values)
 
 
-__all__ = ["EpochResult", "TrainingEngine"]
+__all__ = ["AlternatingPhase", "EpochResult", "TrainingEngine"]

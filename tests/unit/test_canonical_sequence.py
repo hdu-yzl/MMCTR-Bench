@@ -103,12 +103,10 @@ class CanonicalSequenceTests(unittest.TestCase):
                 self.assertEqual((2,), tuple(output.logits.shape))
         self.assertTrue(torch.equal(contextual.item_features["id"], original_ids))
 
-    def test_registry_keeps_legacy_regression_metadata(self):
+    def test_registry_uses_canonical_sequence_module(self):
         for name in ("dnn_mm_seq", "naml", "make"):
             specification = model_spec(name)
             self.assertEqual("mmctr.models.sequence", specification.module)
-            self.assertIn("legacy_module", specification.metadata)
-            self.assertIn("legacy_symbol", specification.metadata)
 
 
 if __name__ == "__main__":

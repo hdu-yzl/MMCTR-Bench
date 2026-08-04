@@ -96,7 +96,7 @@ class LocalPathsTest(unittest.TestCase):
             data_directory.mkdir()
 
             catalog = load_dataset_catalog(
-                REPOSITORY_ROOT / "config/data.yaml",
+                REPOSITORY_ROOT / "configs/datasets/catalog.yaml",
                 "antm2c",
                 project_root=REPOSITORY_ROOT,
                 use_local_data=True,

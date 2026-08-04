@@ -8,9 +8,13 @@ from mmctr.core.registry import ComponentRegistry, ComponentSpec
 DATASET_REGISTRY = ComponentRegistry("dataset")
 DATASET_REGISTRY.register_many(
     [
-        ComponentSpec("antm2c", "data.dataloaders", "Antm2cLoader"),
-        ComponentSpec("microlens", "data.dataloaders", "MicrolensLoader"),
-        ComponentSpec("tiktok", "data.dataloaders", "TiktokLoader"),
+        ComponentSpec(
+            "antm2c",
+            "mmctr.data.datasets.antm2c.canonical",
+            "AntM2CCanonicalLoader",
+        ),
+        ComponentSpec("microlens", "mmctr.data.datasets.microlens.loader", "MicroLensLoader"),
+        ComponentSpec("tiktok", "mmctr.data.datasets.tiktok.loader", "TikTokLoader"),
     ]
 )
 

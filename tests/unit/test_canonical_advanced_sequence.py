@@ -149,12 +149,10 @@ class CanonicalAdvancedSequenceTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             create_model("diff_msin", model_config, data_config)
 
-    def test_registry_keeps_legacy_regression_metadata(self):
-        for name, symbol in (("em3", "EM3"), ("diff_msin", "Diff_MSIN")):
+    def test_registry_uses_canonical_advanced_sequence_module(self):
+        for name in ("em3", "diff_msin"):
             specification = model_spec(name)
             self.assertEqual("mmctr.models.advanced_sequence", specification.module)
-            self.assertEqual("models.mm_ctr_models", specification.metadata["legacy_module"])
-            self.assertEqual(symbol, specification.metadata["legacy_symbol"])
 
 
 if __name__ == "__main__":

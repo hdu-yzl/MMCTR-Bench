@@ -1,0 +1,14 @@
+# Small schema-complete example for `mmctr plan-robustness-study`.
+# Replace the fixture data/config values with resolved production values.
+dataset: fixture
+data_fingerprint: replace-with-canonical-manifest-fingerprint
+data:
+  name: fixture
+model_configs:
+  dnn_mm:
+    latent_dim: 4
+models: [dnn_mm]
+modalities: [text, image]
+probabilities: [0.0, 0.1, 0.2, 0.3, 0.5]
+seeds: [2025, 2026, 2027]
+splits: [train, val, test]

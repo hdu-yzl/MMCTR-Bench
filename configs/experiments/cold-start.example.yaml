@@ -1,0 +1,11 @@
+# Generate and verify this audit with ColdStartProtocol before planning the study.
+dataset: fixture
+data_fingerprint: replace-with-canonical-manifest-fingerprint
+data:
+  name: fixture
+model_configs:
+  dnn:
+    latent_dim: 4
+models: [dnn]
+seeds: [2025, 2026, 2027]
+audit_manifest: ../../../outputs/analysis/cold-start/audit.json

@@ -1,4 +1,4 @@
-"""Canonical lazy registry for production and compatibility model implementations."""
+"""Canonical lazy registry for production model implementations."""
 
 from typing import Any
 
@@ -14,8 +14,6 @@ MODEL_REGISTRY.register_many(
             "DNN",
             metadata={
                 "history": "pooled",
-                "legacy_module": "models.ctr_models",
-                "legacy_symbol": "DNN",
             },
         ),
         ComponentSpec(
@@ -24,8 +22,6 @@ MODEL_REGISTRY.register_many(
             "DNN_mm",
             metadata={
                 "history": "pooled",
-                "legacy_module": "models.ctr_models",
-                "legacy_symbol": "DNN_mm",
             },
         ),
         ComponentSpec(
@@ -35,8 +31,6 @@ MODEL_REGISTRY.register_many(
             aliases=("dnn_seq",),
             metadata={
                 "history": "sequence_tokens",
-                "legacy_module": "models.ctr_models",
-                "legacy_symbol": "DNN_mm_seq",
             },
         ),
         ComponentSpec(
@@ -45,8 +39,6 @@ MODEL_REGISTRY.register_many(
             "DCN",
             metadata={
                 "history": "pooled",
-                "legacy_module": "models.ctr_models",
-                "legacy_symbol": "DCN",
             },
         ),
         ComponentSpec(
@@ -55,8 +47,6 @@ MODEL_REGISTRY.register_many(
             "DeepFM",
             metadata={
                 "history": "pooled",
-                "legacy_module": "models.ctr_models",
-                "legacy_symbol": "DeepFM",
             },
         ),
         ComponentSpec(
@@ -65,8 +55,6 @@ MODEL_REGISTRY.register_many(
             "DIN",
             metadata={
                 "history": "sequence_tokens",
-                "legacy_module": "models.ctr_models",
-                "legacy_symbol": "DIN",
             },
         ),
         ComponentSpec(
@@ -75,8 +63,6 @@ MODEL_REGISTRY.register_many(
             "AutoInt",
             metadata={
                 "history": "pooled",
-                "legacy_module": "models.ctr_models",
-                "legacy_symbol": "AutoInt",
             },
         ),
         ComponentSpec(
@@ -85,8 +71,6 @@ MODEL_REGISTRY.register_many(
             "LMF",
             metadata={
                 "history": "pooled",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "LMF",
             },
         ),
         ComponentSpec(
@@ -96,8 +80,6 @@ MODEL_REGISTRY.register_many(
             metadata={
                 "history": "sequence_tokens",
                 "forward_uses_labels": True,
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "Diff_MSIN",
             },
         ),
         ComponentSpec(
@@ -106,8 +88,6 @@ MODEL_REGISTRY.register_many(
             "MARN",
             metadata={
                 "history": "sequence_tokens",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "MARN",
             },
         ),
         ComponentSpec(
@@ -116,8 +96,6 @@ MODEL_REGISTRY.register_many(
             "MTFN",
             metadata={
                 "history": "pooled",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "MTFN",
             },
         ),
         ComponentSpec(
@@ -126,8 +104,6 @@ MODEL_REGISTRY.register_many(
             "DMF",
             metadata={
                 "history": "sequence_tokens",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "DMF",
             },
         ),
         ComponentSpec(
@@ -136,8 +112,6 @@ MODEL_REGISTRY.register_many(
             "SimCEN",
             metadata={
                 "history": "pooled",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "SimCEN",
             },
         ),
         ComponentSpec(
@@ -146,8 +120,6 @@ MODEL_REGISTRY.register_many(
             "NAML",
             metadata={
                 "history": "sequence_tokens",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "NAML",
             },
         ),
         ComponentSpec(
@@ -156,8 +128,6 @@ MODEL_REGISTRY.register_many(
             "MAKE",
             metadata={
                 "history": "sequence_tokens",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "MAKE",
             },
         ),
         ComponentSpec(
@@ -166,12 +136,16 @@ MODEL_REGISTRY.register_many(
             "EM3",
             metadata={
                 "history": "sequence_tokens",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "EM3",
             },
         ),
         ComponentSpec(
-            "gmmf", "models.mm_ctr_models", "GMMF", metadata={"history": "sequence_tokens"}
+            "gmmf",
+            "mmctr.models.gmmf",
+            "GMMF",
+            metadata={
+                "history": "sequence_tokens",
+                "alternating_optimization": "gmmf_gan",
+            },
         ),
         ComponentSpec(
             "qarm",
@@ -180,8 +154,6 @@ MODEL_REGISTRY.register_many(
             metadata={
                 "history": "sequence_tokens",
                 "quantization_artifacts": "rq_per_modality",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "QARM",
             },
         ),
         ComponentSpec(
@@ -191,8 +163,6 @@ MODEL_REGISTRY.register_many(
             metadata={
                 "history": "sequence_tokens",
                 "quantization_artifacts": "psrq",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "MCCA",
             },
         ),
         ComponentSpec(
@@ -202,8 +172,6 @@ MODEL_REGISTRY.register_many(
             metadata={
                 "history": "pooled",
                 "forward_uses_labels": True,
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "MB",
             },
         ),
         ComponentSpec(
@@ -212,8 +180,6 @@ MODEL_REGISTRY.register_many(
             "PAMD",
             metadata={
                 "history": "pooled",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "PAMD",
             },
         ),
         ComponentSpec(
@@ -222,8 +188,6 @@ MODEL_REGISTRY.register_many(
             "MMMLP",
             metadata={
                 "history": "sequence_tokens",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "MMMLP",
             },
         ),
         ComponentSpec(
@@ -232,8 +196,6 @@ MODEL_REGISTRY.register_many(
             "M3SRec",
             metadata={
                 "history": "sequence_tokens",
-                "legacy_module": "models.mm_ctr_models",
-                "legacy_symbol": "M3SRec",
             },
         ),
     ]
@@ -250,17 +212,6 @@ def model_spec(name: str) -> ComponentSpec:
 
 def resolve_model_class(name: str):
     return MODEL_REGISTRY.resolve(name)
-
-
-def resolve_legacy_model_class(name: str):
-    """Resolve the compatibility implementation retained for historical entry points."""
-
-    import importlib
-
-    spec = model_spec(name)
-    module_name = spec.metadata.get("legacy_module", spec.module)
-    symbol_name = spec.metadata.get("legacy_symbol", spec.symbol)
-    return getattr(importlib.import_module(module_name), symbol_name)
 
 
 def create_model(name: str, *args: Any, **kwargs: Any):
@@ -286,36 +237,11 @@ def create_model_from_artifacts(
     return create_model(name, model_config, data_config, **dependencies)
 
 
-def create_canonical_model(name: str, *args: Any, **kwargs: Any):
-    """Construct a registered model and adapt legacy forward signatures when required."""
-
-    from mmctr.models.base import BaseSeqModel, HistoryCapability
-    from mmctr.models.compat import LegacyModelAdapter
-
-    spec = model_spec(name)
-    model = create_model(name, *args, **kwargs)
-    if isinstance(model, BaseSeqModel):
-        return model
-    history = spec.metadata.get("history", "sequence_tokens")
-    capability = (
-        HistoryCapability.POOLED_HISTORY
-        if history == "pooled"
-        else HistoryCapability.SEQUENCE_TOKENS
-    )
-    return LegacyModelAdapter(
-        model,
-        capability,
-        forward_uses_labels=bool(spec.metadata.get("forward_uses_labels", False)),
-    )
-
-
 __all__ = [
     "MODEL_REGISTRY",
     "available_models",
-    "create_canonical_model",
     "create_model",
     "create_model_from_artifacts",
     "model_spec",
-    "resolve_legacy_model_class",
     "resolve_model_class",
 ]

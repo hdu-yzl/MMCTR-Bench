@@ -4,9 +4,8 @@ MMCTR-Bench is a research benchmark for click-through-rate recommendation with m
 sequential features. The repository includes conventional CTR baselines, multimodal fusion
 models, quantization-oriented models, dataset adapters, tuning scripts, and analysis workflows.
 
-> **Project status:** active engineering refactor. The public package, CLI, synthetic smoke suite,
-> and local engineering guards are available; unified model/data/training internals, CI, and the
-> reproducible Linux release gate are still being built. See
+> **Project status:** release candidate. The public package, CLI, canonical model/data/training
+> internals, CI, Linux quality gates, and Apache-2.0 software licensing are complete. See
 > [REFACTORING_PLAN.md](REFACTORING_PLAN.md) for authoritative status and validation evidence.
 
 ## Scope
@@ -17,14 +16,14 @@ Current dataset adapters:
 - MicroLens
 - TikTok
 
-Current registered model names include DNN, DCN, DeepFM, DIN, AutoInt, LMF, Diff-MSIN, MARN,
-MTFN, DMF, SimCEN, NAML, MAKE, EM3, GMMF, QARM, MCCA, MB, PAMD, MMMLP, M3SRec, RQ, and PSRQ.
+The registry exposes 23 canonical CTR models, including DNN, DCN, DeepFM, DIN, AutoInt, LMF,
+Diff-MSIN, MARN, MTFN, DMF, SimCEN, NAML, MAKE, EM3, GMMF, QARM, MCCA, MB, PAMD, MMMLP, and
+M3SRec. RQ and PSRQ are separate quantization pretraining components.
 
-The public package namespace is `mmctr`; the current bridge exposes models, data factories, and
-utilities there while retaining legacy top-level packages for existing research scripts. Import
-migration details and current boundaries are documented in
+The public package namespace is `mmctr`; model classes, factories, and training components are
+published only through that namespace. Import migration details are documented in
 [docs/migration.md](docs/migration.md). Typed data/model contracts and shared analysis protocols
-are still introduced incrementally.
+are the only formal runtime paths.
 
 Strict training configuration validation and layer precedence are documented in
 [docs/configuration.md](docs/configuration.md).
@@ -66,19 +65,19 @@ Install the server-approved PyTorch/CUDA build from its official channel before 
 installation. The dependency groups do not select a GPU build automatically.
 
 A public CLI surface is now available for help, registry listing, strict config validation, and an
-isolated legacy training adapter:
+isolated canonical training entry point:
 
 ```bash
 <SERVER_ENV>/bin/python -m mmctr.cli --help
 <SERVER_ENV>/bin/python -m mmctr.cli list-models
 <SERVER_ENV>/bin/python -m mmctr.cli list-quantizers
-<SERVER_ENV>/bin/python -m mmctr.cli validate-config --config config/train.yaml
+<SERVER_ENV>/bin/python -m mmctr.cli validate-config \
+  --config configs/training/default.yaml
 ```
 
-See [docs/cli.md](docs/cli.md) and [docs/run-layout.md](docs/run-layout.md). The Linux framework and
-CUDA environment gates now pass; end-to-end training on each real dataset remains tracked by the
-data/model migration tasks. A dependency-light test baseline covers pooling behavior and an ID-only
-DNN CPU forward/loss/backward step with synthetic tensors:
+See [docs/cli.md](docs/cli.md) and [docs/run-layout.md](docs/run-layout.md). Linux framework, real
+canonical data, CPU, and CUDA gates pass. A dependency-light test baseline covers pooling behavior
+and an ID-only DNN CPU forward/loss/backward step with synthetic tensors:
 
 ```bash
 <SERVER_ENV>/bin/python -m pytest tests/unit tests/smoke
@@ -92,15 +91,23 @@ reproducible; GPU and real-data gates are run explicitly on the same Linux serve
 Repository configs use these portable defaults:
 
 ```text
+data/raw/
+├─ antm2c/       # user downloads from the provider
+├─ microlens/    # user downloads from the provider
+└─ tiktok/       # user downloads from an authorized upstream source
+
 data/processed/
 ├─ antm2c/
 ├─ microlens/
 └─ tiktok/
 ```
 
-Private data stays outside version control. Dataset sources, licenses, download instructions,
-field schemas, and manifests are scheduled under `OSS-002`. Do not infer permission to
-redistribute a dataset merely because an adapter exists in this repository.
+Private data stays outside version control. Exact user-supplied filenames are documented in the
+tracked README inside each `data/raw/<dataset>/` directory. Dataset sources, acquisition
+boundaries, current license findings, local placement, and provenance requirements are documented
+in [data/README.md](data/README.md); schemas and manifests are documented in
+[docs/data.md](docs/data.md). Do not infer permission to redistribute a dataset merely because an
+adapter exists in this repository.
 
 ## Research protocol
 
@@ -120,14 +127,13 @@ The full protocol and refactor red lines are defined in
 ## Repository layout
 
 ```text
-config/        Legacy dataset, model, training, and tuning configuration
-src/data/      Dataset adapters and preprocessing scripts
-src/mmctr/     Canonical core, data, models, quantization, training, and utilities
-src/models/    Frozen legacy model implementations retained for regression
-src/trainers/  Training entry points and remaining legacy trainers
-src/scripts/   Legacy tuning and batch scripts
-src/analysis/  Cold-start, robustness, alignment, fusion, efficiency, and plotting analysis
-docs/          Environment and future architecture/usage documentation
+configs/          Dataset/model catalogs, training defaults, experiments, and local-path example
+data/raw/         User-downloaded inputs; only placement README files are tracked
+data/processed/   Generated canonical datasets; payload arrays are ignored
+src/mmctr/        Canonical core, data, models, training, analysis, and utilities
+reports/figures/  Versioned final research figures
+outputs/          Ignored runs, checkpoints, logs, quantization artifacts, and analyses
+docs/             Architecture and usage documentation
 ```
 
 ## Development
@@ -138,14 +144,20 @@ commands in this workspace must use the configured absolute interpreter path; se
 records must likewise use the real absolute server interpreter.
 
 The staged Linux lint, formatting, typing, test, coverage, and package-build commands are
-documented in [docs/quality-gates.md](docs/quality-gates.md).
+documented in [docs/quality-gates.md](docs/quality-gates.md). The final source/privacy,
+distribution-rehearsal, and publication gates are in
+[docs/release-checklist.md](docs/release-checklist.md).
 
 ## Citation
 
-Citation metadata is provided in [CITATION.cff](CITATION.cff). Model- and dataset-specific paper
-citations are not yet complete and are tracked by `OSS-002`.
+Citation metadata is provided in [CITATION.cff](CITATION.cff). The dataset papers and all 23 model
+registry entries are mapped in [docs/references.md](docs/references.md), including explicit labels
+for benchmark-only variants and adapted methods.
 
 ## License
 
-A project license has not yet been selected by the maintainer. The `LICENSE` file will be added
-only after that explicit decision; `OSS-001` remains incomplete until then.
+Repository-owned source code, configuration, and documentation are licensed under the
+[Apache License 2.0](LICENSE) (`Apache-2.0`). Third-party datasets and checkpoints are not covered
+by this software license and are not redistributed by the repository; review their providers'
+terms before obtaining, using, or sharing them. See [data/README.md](data/README.md) for the
+dataset-specific boundaries.

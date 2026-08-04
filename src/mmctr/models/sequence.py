@@ -113,10 +113,12 @@ class _SequenceMultimodalModel(BaseSeqModel):
         encoded: Dict[str, torch.Tensor] = {}
         presence: Dict[str, torch.Tensor] = {}
         for name in self.user_feature_names:
-            try:
+            if name in batch.user_features:
                 values = batch.user_features[name]
-            except KeyError as error:
-                raise ContractError("user feature {!r} is missing".format(name)) from error
+            elif name in batch.context_features:
+                values = batch.context_features[name]
+            else:
+                raise ContractError("user/context feature {!r} is missing".format(name))
             if name == "id":
                 values = self.embedding(values).squeeze(1)
             else:

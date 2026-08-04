@@ -28,21 +28,19 @@ class ImportOrderRegressionTest(unittest.TestCase):
     def test_helper_import_does_not_eagerly_import_model_packages(self):
         self._run_in_clean_process(
             "import sys\n"
-            "import utils.helper\n"
+            "import mmctr.utils.helper\n"
             "assert 'models.ctr_models' not in sys.modules\n"
             "assert 'models.mm_ctr_models' not in sys.modules\n"
         )
 
-    def test_legacy_helper_and_public_registry_have_explicitly_separate_classes(self):
+    def test_helper_and_public_registry_resolve_the_same_canonical_class(self):
         self._run_in_clean_process(
-            "from models.ctr_models.dnn import DNN as LegacyDNN\n"
             "from mmctr import __version__\n"
             "from mmctr.models import DNN\n"
-            "from mmctr.utils import helper\n"
+            "from mmctr.models.registry import resolve_model_class\n"
             "assert __version__ == '0.1.0'\n"
-            "assert DNN is not LegacyDNN\n"
             "assert DNN.__module__.startswith('mmctr.models.baselines')\n"
-            "assert helper.resolve_model_class('dnn') is LegacyDNN\n"
+            "assert resolve_model_class('dnn') is DNN\n"
         )
 
 

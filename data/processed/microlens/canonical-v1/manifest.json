@@ -1,0 +1,53 @@
+{
+  "feature_dimensions": {
+    "id": 1,
+    "image": 1024,
+    "text": 768
+  },
+  "fingerprint": "1e28692d5b7f5c722c6621f78533a1974eef9f9b64256a6a3e51e8a27889221f",
+  "id_offsets": {
+    "item": 1000000,
+    "user": 0
+  },
+  "metadata": {
+    "raw_item_id_max": 91717,
+    "raw_item_id_min": 1,
+    "seed": 42,
+    "source_sha256": {
+      "item_feature.parquet": "a63d8cbe090a79ee18bdb51a4146a4205339cb4b3b81bcae26035c17a322fc65",
+      "train.parquet": "182fba831484d931e3943557cdd1b791861b2f921d0a7ff66bb34d492be7d5b1"
+    },
+    "split_protocol": "deterministic-random-80-10-10-v1"
+  },
+  "name": "microlens",
+  "oov_id": null,
+  "padding_id": 0,
+  "schema_version": 1,
+  "sequence_length": 5,
+  "source_fingerprint": "d2e9e1a9d040d4bec05f2d3dfd0195592f5a3d5d5cd62a084488d0251cee0ba0",
+  "splits": {
+    "test": {
+      "items": 52703,
+      "positives": 89855,
+      "samples": 360000,
+      "sha256": "1376f479ec5e45982e601914cb6bcc769aff12a0a6f8c2fc9c3b609b0515ee2d",
+      "users": 309939
+    },
+    "train": {
+      "items": 77741,
+      "positives": 720119,
+      "samples": 2880000,
+      "sha256": "aea90e8ef74e53c01dddfaba7d87dc009409f10290c052fda8b9171b7c15ba40",
+      "users": 898574
+    },
+    "val": {
+      "items": 52702,
+      "positives": 90026,
+      "samples": 360000,
+      "sha256": "08df0511adfc0a219aae751b761eb110d2bdd58ca9545b90d7aa38de400b9aa2",
+      "users": 309511
+    }
+  },
+  "storage_format": "named-npy-v1",
+  "version": "microlens-canonical-v1"
+}

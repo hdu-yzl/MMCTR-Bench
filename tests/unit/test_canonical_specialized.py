@@ -210,13 +210,10 @@ class CanonicalSpecializedTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             create_model("m3srec", model_config, data_config)
 
-    def test_registry_keeps_legacy_regression_metadata(self):
-        expected = {"mb": "MB", "pamd": "PAMD", "mmmlp": "MMMLP", "m3srec": "M3SRec"}
-        for name, symbol in expected.items():
+    def test_registry_uses_canonical_specialized_module(self):
+        for name in ("mb", "pamd", "mmmlp", "m3srec"):
             specification = model_spec(name)
             self.assertEqual("mmctr.models.specialized", specification.module)
-            self.assertEqual("models.mm_ctr_models", specification.metadata["legacy_module"])
-            self.assertEqual(symbol, specification.metadata["legacy_symbol"])
 
 
 if __name__ == "__main__":

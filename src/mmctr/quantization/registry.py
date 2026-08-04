@@ -14,8 +14,6 @@ QUANTIZER_REGISTRY.register_many(
             "ResidualQuantizer",
             metadata={
                 "artifact_kind": "residual-quantizer",
-                "legacy_module": "models.pre_models",
-                "legacy_symbol": "RQ",
             },
         ),
         ComponentSpec(
@@ -24,8 +22,6 @@ QUANTIZER_REGISTRY.register_many(
             "PSRQPretrainer",
             metadata={
                 "artifact_kind": "progressive-semantic-residual-quantizer",
-                "legacy_module": "models.pre_models",
-                "legacy_symbol": "PSRQ",
             },
         ),
     ]

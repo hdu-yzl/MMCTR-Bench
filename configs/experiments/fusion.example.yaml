@@ -1,0 +1,23 @@
+# Small schema-complete example for `mmctr plan-fusion-study`.
+# Replace the fixture data block and fingerprint with one canonical dataset manifest.
+dataset: fixture
+data_fingerprint: replace-with-canonical-manifest-fingerprint
+data:
+  name: fixture
+  id_feature_num: 30
+  use_mm_features: [id, text]
+  use_mm_seq_features: [id, text]
+  mm_dims: {id: 0, text: 3}
+  mm_seq_dims: {id: 0, text: 3}
+  user_features: [id]
+  user_features_dim: {id: 0}
+model_configs:
+  dnn_mm:
+    latent_dim: 4
+    projection_dim: 4
+    mlp_dims: [8]
+    dropout: 0.0
+    batch_norm: false
+models: [dnn_mm]
+fusions: [cat, mean]
+seeds: [2025, 2026, 2027]

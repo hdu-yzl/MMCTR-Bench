@@ -127,9 +127,27 @@ def adapt_legacy_loader(
     return CanonicalDataLoader(dataset_name, source, manifest, mode)
 
 
+def ensure_canonical_loader(
+    dataset_name: str,
+    source: Any,
+    data_config: Mapping[str, Any],
+    history_mode: Optional[HistoryMode] = None,
+) -> DataLoaderProtocol:
+    """Keep audited canonical loaders intact and adapt only legacy sources."""
+
+    manifest = getattr(source, "manifest", None)
+    iter_batches = getattr(source, "iter_batches", None)
+    if isinstance(manifest, DatasetManifest) and callable(iter_batches):
+        if source.dataset_name != dataset_name.lower() or manifest.name != dataset_name.lower():
+            raise ContractError("canonical loader dataset identity does not match request")
+        return source
+    return adapt_legacy_loader(dataset_name, source, data_config, history_mode)
+
+
 __all__ = [
     "CanonicalDataLoader",
     "DataLoaderProtocol",
     "HistoryMode",
     "adapt_legacy_loader",
+    "ensure_canonical_loader",
 ]

@@ -40,11 +40,19 @@ from mmctr.models.components.pooling_registry import (
     create_pooling,
     pooling_capabilities,
 )
+from mmctr.models.components.pipeline import (
+    ComponentConfig,
+    ModalPipeline,
+    ModalPipelineConfig,
+    ModalPipelineOutput,
+    ModalPipelineSet,
+)
 from mmctr.models.components.projection import DimensionAdapter, NamedFeatureProjector
 
 
 __all__ = [
     "ConcatenateFusion",
+    "ComponentConfig",
     "DimensionAdapter",
     "FUSION_REGISTRY",
     "FusionCapability",
@@ -52,6 +60,10 @@ __all__ = [
     "LowRankFusion",
     "MAFFusion",
     "MTFNFusion",
+    "ModalPipeline",
+    "ModalPipelineConfig",
+    "ModalPipelineOutput",
+    "ModalPipelineSet",
     "NamedFeatureProjector",
     "MeanFusion",
     "ModalityFusion",

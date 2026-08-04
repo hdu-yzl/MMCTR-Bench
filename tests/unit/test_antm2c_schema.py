@@ -17,7 +17,7 @@ class AntM2CSchemaTests(unittest.TestCase):
         )
         self.assertEqual(FeatureOwner.ITEM, ANTM2C_FIELDS["item_title"].owner)
         self.assertEqual(
-            FeatureOwner.ITEM_CANDIDATE,
+            FeatureOwner.INTERACTION_CONTEXT,
             ANTM2C_FIELDS["item_entity_names"].owner,
         )
 

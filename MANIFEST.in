@@ -1,0 +1,16 @@
+include README.md
+include LICENSE
+include CITATION.cff
+include CONTRIBUTING.md
+include environment.yml
+include bm_env.yml
+include data/README.md
+recursive-include data *.md
+include docs/references.md
+include docs/release-checklist.md
+recursive-include docs *.md *.json
+recursive-include configs *.yaml
+recursive-include tests *.py *.json
+prune configs/local
+global-exclude *.py[cod]
+global-exclude __pycache__

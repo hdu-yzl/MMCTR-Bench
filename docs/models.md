@@ -4,6 +4,41 @@ The shared projection, dimension, sequence-mask, and missing-modality rules are 
 [`model-components.md`](model-components.md). Canonical backbones consume those public components;
 pooling and fusion remain separate staged interfaces.
 
+## Default modal-pipeline presets
+
+`mmctr.models.default_pipeline_preset(model_name, model_config, data_config)` resolves a model's
+default branch behavior after configuration merging. The returned frozen `ModelPipelinePreset`
+either builds a `ModalPipelineSet` or records why a paper-specific path cannot yet be expressed by
+the public components. `model_pipeline_coverage()` covers every canonical registry name, and the
+legacy alias `dnn_seq` resolves to the `dnn_mm_seq` preset.
+
+Thirteen models currently have executable, numerically checked presets:
+
+- `dnn`, `dcn`, `deepfm`, and `autoint`: separate target/history ID projection with masked mean
+  history pooling before each model-specific interaction head;
+- `dnn_mm` and `dnn_mm_seq`: target fusion plus per-modality mean history pooling before fusion;
+- `lmf` and `mtfn`: target fusion plus token fusion before masked mean history pooling;
+- `naml`: shared target/history MAF and learned attention history pooling;
+- `make`: shared configurable fusion and target-aware DIN history pooling;
+- `simcen`: ordered projected target/history fields before its private segmentation and expert body;
+- `qarm`: quantized target fields plus per-field masked mean history pooling after code embedding.
+- `dmf`: shared non-ID target/history modality-center projection and fusion before its private DTA
+  and similarity-tier head, plus the canonical user branch.
+
+Sequence presets retain the existing shared target/history projector. NAML, MAKE, and DMF also
+retain their shared fusion instance; this is part of parameter semantics, not an implementation detail.
+Preset regression tests load the existing branch weights into the equivalent pipeline and compare
+target, history, and user representations at `1e-7` absolute tolerance.
+
+All other registered models have an explicit non-executable decision with a concrete reason. This
+includes paper-private SRC/FQ-Former, expert/MoE, PGD, decomposition, quantization, or GMMF DSN
+fusion paths. DIN also remains model-specific: a regression attempt found that its current
+Dice normalization observes padded-position projection bias, while the public pipeline masks that
+bias before pooling; the resulting effective representation difference is not silently accepted as
+compatible. Calling `build()` on a non-executable preset raises `ContractError`. Such models must
+not be approximated with a convenient public mean/cat component; the corresponding algorithm or
+compatibility decision must first gain checkpoint and numeric regression coverage.
+
 The only public model base is `mmctr.models.BaseSeqModel`. Despite the name, it supports both
 non-sequential models that consume pooled history and models that retain sequence tokens. Each
 model declares exactly one `HistoryCapability`:
@@ -15,14 +50,9 @@ model declares exactly one `HistoryCapability`:
 The base owns no optimizer, device selection, logger, metric implementation, checkpoint path, or
 training loop. Its public forward signature is always `forward(batch: Batch) -> ModelOutput`.
 
-`LegacyModelAdapter` is a temporary migration bridge. It copies all feature dictionaries before
-calling an old model, joins separate user/item IDs only for old pooled models, and converts
-`pred`/`au_loss` output dictionaries into `ModelOutput`. This prevents old in-place mutations from
-changing the caller's `Batch`; it does not make the wrapped constructor side-effect free.
-
-The old `models.base_model.BaseModel` and `models.base_seq_model.BaseSeqModel` emit deprecation
-warnings and remain solely so unmigrated research models keep working. Model-family tasks replace
-them with pure implementations before the compatibility packages can be removed.
+The former `models` package, dual training-owning bases, and forward-signature adapter are no
+longer distributed. Historical numerical evidence is retained as fixed canonical fixtures instead
+of keeping a second executable model implementation in the wheel.
 
 ## Migrated baseline family
 
@@ -32,10 +62,9 @@ then apply mask-aware mean history pooling before their original model-specific 
 history tokens and applies its target-aware attention with the explicit history mask. All five keep
 logits at `[B]`, including batch size one.
 
-`mmctr.utils.helper.getModel` and `helper.resolve_model_class` intentionally continue to resolve the
-frozen legacy classes for historical scripts and numerical fixtures. This is a compatibility API,
-not the formal registry. New callers use `mmctr.models.registry.create_model` with `(model_config,
-data_config)` and let `TrainingEngine` own all training state.
+Callers construct models with `mmctr.models.registry.create_model(model_name, model_config,
+data_config)` and let `TrainingEngine` own optimizer, device, checkpoint, metrics, and run state.
+The DNN migration fixture still reproduces the pre-migration logits, loss, and 205-parameter count.
 
 ## Migrated simple multimodal family
 
@@ -47,8 +76,7 @@ uses rank-destroying bare `squeeze()`.
 
 The currently required cat/add/mean/MAF/LMF/MTFN operations are private migration components, not
 the future public fusion registry. This preserves the `FUSE-001` boundary while allowing the four
-models to leave the training-owning legacy bases. Legacy helper resolution remains frozen for
-server numerical regression.
+models to leave the former training-owning bases.
 
 `simcen` is the first complex auxiliary-loss migration. Its segmentation and multi-level experts
 remain model-private, while contrastive training is exposed as the scalar named loss
@@ -66,8 +94,7 @@ NAML keeps its MAF target/history fusion and learned user-interest attention, bu
 excluded with masked softmax and an all-padding row returns zero interest. MAKE keeps configurable
 migration fusion, target-aware DIN pooling, cosine similarity tiers, and its MLP head; both DIN and
 the tier histogram consume the same mask. Similarity diagnostics are returned as representations,
-not written by the model. The formal registry points to these canonical implementations while the
-legacy helper metadata remains available for server regression.
+not written by the model. The formal registry points only to these canonical implementations.
 
 DMF and MARN also use this sequence boundary. DMF preserves its non-ID modality-center similarity,
 discretised similarity embeddings, decoupled target attention, tier histogram, and weighted dual
@@ -90,10 +117,18 @@ are explicitly zeroed before masked DIN pooling, and the weighted CIC term is ex
 Diff-MSIN preserves per-modality DIN pooling, specific/shared experts, modal gates, stochastic
 reverse cross-modal fusion, the final gate/cross network, and label-aware synthesis hinge loss.
 Its former aggregate `au_loss` is exposed as the weighted scalar terms `diff_msin_synthesis` and
-`diff_msin_contrastive`; labels come directly from `Batch.labels`. GMMF is intentionally still
-legacy-only because its algorithm couples three optimizers with an alternating GAN schedule. It
-must migrate together with an explicit multi-optimizer training-engine protocol, not as an
-incomplete forward-only model.
+`diff_msin_contrastive`; labels come directly from `Batch.labels`.
+
+GMMF now lives in `mmctr.models.gmmf` as a pure canonical model. It preserves its modality
+autoencoders, conditional generators/discriminators, automatic difference modules, cosine-weighted
+history interests, user-conditioned gates, and weighted reconstruction objective. Reconstruction
+is exposed as `gmmf_reconstruction`; discriminator and generator objectives are explicit scalar
+methods consumed by the training composition. A checkpoint-compatible phased Adam preserves the
+legacy per-batch main → discriminator → generator order and the inclusive `epoch >= N` start rule.
+The fixed-seed formula fixture freezes canonical logits, reconstruction, discriminator, generator
+losses, and parameter count at `1e-7`. Padded histories are additionally masked in the canonical
+path. The DSN/CGAN fusion remains model-specific until it becomes a registered public
+fusion component, so GMMF's modal-pipeline preset is still intentionally non-executable.
 
 ## Migrated specialized model family
 
@@ -112,8 +147,7 @@ cross-modal attention/MoE, positional/modality embeddings, and attention fusion.
 All four models consume the canonical `Batch` without mutation. Pooled models use
 explicit masked history means; token models mask padded tokens throughout their
 sequence path and locate the last valid token from mask positions, including
-left-padded histories. The legacy implementations remain available only through
-registry regression metadata.
+left-padded histories. Registry metadata names only the canonical implementation and capabilities.
 
 ## Quantization premodels and quantized CTR models
 
@@ -136,5 +170,5 @@ canonical `Batch.history_mask`. QARM performs masked mean pooling. MCCA applies 
 masked query/history attention and pins its frozen PSRQ encoder in evaluation mode
 even while the CTR head trains. Original zero-valued modalities stay zero after
 code lookup, so a nearest code cannot silently turn a missing modality into a
-present one. Frozen legacy classes remain reachable through registry metadata for
-server numerical regression and the legacy codebook tuner only.
+present one. Validation-only tuning and canonical RQ/PSRQ artifact training replace the removed
+legacy codebook tuner.

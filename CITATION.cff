@@ -2,9 +2,10 @@ cff-version: 1.2.0
 message: "If you use MMCTR-Bench, please cite this software and the relevant model and dataset papers."
 title: "MMCTR-Bench"
 type: software
+license: Apache-2.0
 authors:
   - name: "MMCTR-Bench contributors"
 repository-code: "https://github.com/hdu-yzl/MMCTR-Bench"
 url: "https://github.com/hdu-yzl/MMCTR-Bench"
 version: 0.1.0
-date-released: 2026-07-31
+date-released: 2026-08-04

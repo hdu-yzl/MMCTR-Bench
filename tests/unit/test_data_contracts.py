@@ -2,7 +2,12 @@ import unittest
 
 import torch
 
-from mmctr.data import DatasetManifest, HistoryMode, adapt_legacy_loader
+from mmctr.data import (
+    DatasetManifest,
+    HistoryMode,
+    adapt_legacy_loader,
+    ensure_canonical_loader,
+)
 
 
 class FakeLegacyLoader:
@@ -54,6 +59,25 @@ class DatasetContractTests(unittest.TestCase):
         batch = next(iter(loader.iter_batches("train")))
         self.assertTrue(torch.equal(batch.user_features["id"], torch.tensor([[10], [11]])))
         self.assertTrue(torch.equal(batch.item_features["id"], torch.tensor([[20], [21]])))
+
+    def test_existing_canonical_loader_keeps_its_audited_manifest(self):
+        manifest = DatasetManifest.from_config("microlens", self.config())
+
+        class ExistingCanonicalLoader:
+            dataset_name = "microlens"
+
+            def __init__(self):
+                self.manifest = manifest
+
+            def iter_batches(self, split):
+                return iter(())
+
+        source = ExistingCanonicalLoader()
+
+        loader = ensure_canonical_loader("microlens", source, self.config())
+
+        self.assertIs(source, loader)
+        self.assertIs(manifest, loader.manifest)
 
 
 if __name__ == "__main__":

@@ -89,4 +89,53 @@ other initial algorithms preserve the common input dimension.
 The DNN-MM, DNN-MM-Seq, NAML, DMF, MARN, LMF, and MTFN compatibility presets now delegate to these
 public implementations while retaining parameter names for learned MAF/LMF/MTFN state. Other
 paper-private fusion formulas remain local until their equations and checkpoint keys have explicit
-regression coverage. Branch topology and configurable pipeline composition remain `PIPE-001` work.
+regression coverage.
+
+## Configurable modal pipeline
+
+`ModalPipelineSet.from_mapping()` parses the resolved `modal_pipeline` mapping into independent
+`target`, `history`, and `user` branches. Target and user branches use `feature_fusion` and consume
+rank-two feature mappings. A history branch must select exactly one of these topologies:
+
+- `pool_then_fuse`: each modality owns a pooling component, then the pooled vectors are fused;
+- `fuse_then_pool`: token-level modalities are fused first, then one pooling component consumes the
+  fused sequence;
+- `sequence_fusion`: token-level modalities are fused and remain rank three for a sequence-aware
+  model head.
+
+The YAML-like input is strict and does not mutate the caller's mapping. Component entries accept a
+short name or a `name/options` mapping. For example:
+
+```yaml
+modal_pipeline:
+  target:
+    modalities: [id, image, text]
+    input_dimensions: {id: 128, image: 512, text: 768}
+    projection_dim: 128
+    fusion: {name: concatenate}
+  history:
+    topology: pool_then_fuse
+    modalities: [id, image, text]
+    input_dimensions: {id: 128, image: 512, text: 768}
+    projection_dim: 128
+    pooling:
+      id: {name: din, options: {hidden_dims: [64, 32]}}
+      image: {name: mean}
+      text: {name: attention}
+    fusion: {name: maf}
+    output_dim: 128
+```
+
+The pipeline performs projection, explicit mask/presence intersection, configured pooling/fusion,
+and an optional final-dimension adapter. Target-aware pooling requires an exact same-modality target
+mapping; configurations that do not use a target reject one instead of silently ignoring it. A
+`ModalPipelineOutput` contains the final representation, its authoritative boolean presence mask,
+and immutable named auxiliary losses propagated by fusion. All-padding rows or tokens remain zero
+even when projection, fusion, or adapter layers have learned biases.
+
+Configuration structure is checked before forward execution: branch/topology compatibility,
+modality uniqueness, exact dimension and pooling keys, positive dimensions, registered component
+names, and component constructor constraints fail early. Runtime checks still enforce exact names,
+floating dtype, ranks, final dimensions, common device/prefix, boolean masks, and target shape. The
+pipeline deliberately does not inspect `Batch`; dataset field ownership and ID embedding remain at
+the model boundary.

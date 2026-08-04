@@ -32,6 +32,21 @@ from .extraction import (
     iter_extracted_features,
     run_batch_extraction,
 )
+from .raw import (
+    RAW_REQUIRED_FIELDS,
+    RawEvent,
+    RawReplay,
+    iter_raw_events,
+    replay_raw_events,
+    split_for_timestamp,
+)
+from .encoders import (
+    BertPoolerEncoder,
+    CheckpointIdentity,
+    ChineseClipImageEncoder,
+    fingerprint_checkpoint,
+    load_tar_images,
+)
 
 
 __all__ = [
@@ -40,6 +55,9 @@ __all__ = [
     "AntM2CProtocol",
     "AntM2CArrayLoader",
     "BatchEncoder",
+    "BertPoolerEncoder",
+    "CheckpointIdentity",
+    "ChineseClipImageEncoder",
     "ExtractionInput",
     "ExtractionManifest",
     "ExtractionShard",
@@ -52,14 +70,22 @@ __all__ = [
     "ItemFeatureStore",
     "ItemIndex",
     "OwnershipAudit",
+    "RAW_REQUIRED_FIELDS",
+    "RawEvent",
+    "RawReplay",
     "audit_item_candidate",
     "assert_no_future_leakage",
     "build_feature_store",
     "build_histories",
     "build_item_index",
     "field_spec",
+    "fingerprint_checkpoint",
+    "load_tar_images",
     "iter_extracted_features",
+    "iter_raw_events",
     "load_array_store",
     "run_batch_extraction",
+    "replay_raw_events",
+    "split_for_timestamp",
     "write_array_store",
 ]
