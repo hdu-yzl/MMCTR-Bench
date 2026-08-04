@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, cast
 
+import tomli
 import yaml
 
 
@@ -68,8 +69,11 @@ class LinuxCIWorkflowTest(unittest.TestCase):
 
     def test_ci_dependency_group_covers_collected_optional_tests(self) -> None:
         project_root = Path(__file__).resolve().parents[2]
-        pyproject = (project_root / "pyproject.toml").read_text(encoding="utf-8")
+        pyproject = tomli.loads((project_root / "pyproject.toml").read_text(encoding="utf-8"))
+        ci_dependencies = pyproject["project"]["optional-dependencies"]["ci"]
 
-        self.assertIn("ci = [", pyproject)
-        for dependency in ("Pillow", "matplotlib", "pyarrow", "tensorflow"):
-            self.assertIn('"{}>'.format(dependency), pyproject)
+        for dependency in ("Pillow", "matplotlib", "pandas", "pyarrow", "tensorflow"):
+            self.assertTrue(
+                any(value.startswith(dependency) for value in ci_dependencies),
+                "CI dependency group is missing {}".format(dependency),
+            )
