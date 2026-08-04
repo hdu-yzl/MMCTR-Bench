@@ -34,7 +34,7 @@ class LinuxCIWorkflowTest(unittest.TestCase):
         commands = "\n".join(str(step["run"]) for step in steps if "run" in step)
         expected_fragments = (
             "torch==1.13.1+cpu",
-            ".[training,dev]",
+            ".[training,ci,dev]",
             "-m pip check",
             "-m ruff format --check .",
             "-m ruff check .",
@@ -65,3 +65,11 @@ class LinuxCIWorkflowTest(unittest.TestCase):
         self.assertIn("ignore_missing_imports = true", pyproject)
         for module in ("PIL.*", "matplotlib.*", "pyarrow.*", "tensorflow.*", "transformers.*"):
             self.assertIn('"{}"'.format(module), pyproject)
+
+    def test_ci_dependency_group_covers_collected_optional_tests(self) -> None:
+        project_root = Path(__file__).resolve().parents[2]
+        pyproject = (project_root / "pyproject.toml").read_text(encoding="utf-8")
+
+        self.assertIn("ci = [", pyproject)
+        for dependency in ("Pillow", "matplotlib", "pyarrow", "tensorflow"):
+            self.assertIn('"{}>'.format(dependency), pyproject)

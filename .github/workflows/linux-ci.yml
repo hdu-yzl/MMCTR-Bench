@@ -53,7 +53,7 @@ jobs:
           "$MMCTR_PYTHON" -m pip install \
             --index-url https://download.pytorch.org/whl/cpu \
             "torch==1.13.1+cpu"
-          "$MMCTR_PYTHON" -m pip install --editable ".[training,dev]"
+          "$MMCTR_PYTHON" -m pip install --editable ".[training,ci,dev]"
           "$MMCTR_PYTHON" -m pip check
 
       - name: Check formatting and lint
