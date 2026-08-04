@@ -39,9 +39,9 @@ class Trainer(object):
         self.dataset_name = str(dataset_name).lower()
 
         model_catalog = load_yaml_mapping(PROJECT_ROOT / "configs/models/catalog.yaml")
-        config_name = requested_model_name
-        if config_name not in model_catalog and self.model_name == "dnn_mm_seq":
-            config_name = "dnn_seq"
+        config_name = self.model_name
+        if config_name not in model_catalog:
+            config_name = requested_model_name
         self.model_config = model_catalog[config_name]
         self.model_config["model_name"] = self.model_name
         all_data_config = load_yaml_mapping(PROJECT_ROOT / "configs/datasets/catalog.yaml")

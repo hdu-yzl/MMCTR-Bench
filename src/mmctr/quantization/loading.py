@@ -55,19 +55,21 @@ def _load_qarm_dependencies(model_config: Mapping, data_config: Mapping, artifac
     return {"quantizers": quantizers}
 
 
-def _load_mcca_dependencies(model_config: Mapping, data_config: Mapping, artifact_root: Path):
+def _load_psrq_consumer_dependencies(
+    model_config: Mapping, data_config: Mapping, artifact_root: Path
+):
     config = _effective_config(model_config, data_config)
     dataset = str(data_config.get("name", "")).lower()
     quantizer = PSRQPretrainer.from_artifact(psrq_artifact_path(artifact_root, dataset))
     expected_modalities = _non_id_modalities(data_config)
     if quantizer.dataset_name != dataset:
-        raise ContractError("MCCA PSRQ artifact dataset does not match")
+        raise ContractError("PSRQ benchmark consumer artifact dataset does not match")
     if quantizer.modalities != expected_modalities:
-        raise ContractError("MCCA PSRQ artifact modalities do not match")
+        raise ContractError("PSRQ benchmark consumer artifact modalities do not match")
     dimensions = dict(data_config.get("mm_seq_dims", data_config.get("mm_dims", {})))
     expected_dimensions = {name: int(dimensions[name]) for name in expected_modalities}
     if quantizer.modality_dimensions != expected_dimensions:
-        raise ContractError("MCCA PSRQ artifact dimensions do not match")
+        raise ContractError("PSRQ benchmark consumer artifact dimensions do not match")
     expected_structure = (
         int(config.get("n_levels", 3)),
         int(config.get("codebook_size", 256)),
@@ -86,7 +88,9 @@ def _load_mcca_dependencies(model_config: Mapping, data_config: Mapping, artifac
     )
     if actual_structure != expected_structure:
         raise ContractError(
-            "MCCA PSRQ structure {} does not match {}".format(actual_structure, expected_structure)
+            "PSRQ benchmark consumer structure {} does not match {}".format(
+                actual_structure, expected_structure
+            )
         )
     quantizer.eval()
     quantizer.requires_grad_(False)
@@ -105,8 +109,8 @@ def load_model_quantization_dependencies(
     name = model_name.lower()
     if name == "qarm":
         return _load_qarm_dependencies(model_config, data_config, root)
-    if name == "mcca":
-        return _load_mcca_dependencies(model_config, data_config, root)
+    if name == "psrq":
+        return _load_psrq_consumer_dependencies(model_config, data_config, root)
     raise ContractError("model {!r} does not consume quantization artifacts".format(name))
 
 

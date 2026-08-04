@@ -11,7 +11,7 @@ Options:
   --dataset NAME          Dataset registry name (default: antm2c)
   --gpus IDS              Comma-separated CUDA indices (default: 0)
   --models NAMES          Comma-separated model names (default: all)
-  --include-quantized     Include QARM and MCCA; pretrain their artifacts first
+  --include-quantized     Include QARM and PSRQ; pretrain their artifacts first
   --python PATH           Python interpreter (default: MMCTR_PYTHON or active environment)
   --output-root PATH      Run output root (default: outputs)
   --num-threads N         CPU threads per training worker (default: 8)
@@ -117,7 +117,7 @@ if [[ "$model_csv" == "all" ]]; then
   if ((include_quantized == 0)); then
     filtered_models=()
     for model in "${models[@]}"; do
-      [[ "$model" == "qarm" || "$model" == "mcca" ]] || filtered_models+=("$model")
+      [[ "$model" == "qarm" || "$model" == "psrq" ]] || filtered_models+=("$model")
     done
     models=("${filtered_models[@]}")
   fi
@@ -126,7 +126,7 @@ else
   ((${#models[@]} > 0)) || die "--models must contain at least one model"
   if ((include_quantized == 0)); then
     for model in "${models[@]}"; do
-      if [[ "$model" == "qarm" || "$model" == "mcca" ]]; then
+      if [[ "$model" == "qarm" || "$model" == "psrq" ]]; then
         die "$model requires --include-quantized and pretrained RQ/PSRQ artifacts"
       fi
     done

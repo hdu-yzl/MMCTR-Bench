@@ -14,10 +14,16 @@ This project was refactored with the assistance of AI.
 ## What is included
 
 - Three dataset adapters: **AntM2C**, **MicroLens**, and **TikTok**.
-- 23 canonical CTR models: `autoint`, `dcn`, `deepfm`, `diff_msin`, `din`, `dmf`, `dnn`,
-  `dnn_mm`, `dnn_mm_seq`, `em3`, `gmmf`, `lmf`, `m3srec`, `make`, `marn`, `mb`, `mcca`,
-  `mmmlp`, `mtfn`, `naml`, `pamd`, `qarm`, and `simcen`.
-- RQ and PSRQ as separate quantization pretraining components for QARM and MCCA.
+- The paper evaluation covers five ID-only baselines (`dnn`, `deepfm`, `din`, `autoint`, and
+  `dcn`) and 16 multimodal models organized into four paradigms:
+  - **TMIE**: `mmmlp`, `diff_msin`, and `dmf`;
+  - **CSAQ**: `make`, `m3srec`, `em3`, `psrq`, and `qarm`;
+  - **GFFI**: `naml`, `mb`, `lmf`, `simcen`, and `mtfn`;
+  - **RDRR**: `pamd`, `gmmf`, and `marn`.
+- The software registry additionally exposes `dnn_mm` and `dnn_mm_seq` as reference variants; they
+  are not additional paper-benchmarked models. The canonical `psrq` entry implements the paper's
+  PSRQ pretraining and downstream MCCA consumer; `mcca` remains only a backward-compatible alias.
+  RQ analogously supplies pretrained artifacts to `qarm`.
 - Canonical training, validation-only selection, experiment planning, robustness/alignment/
   cold-start analysis, plotting, and versioned result protocols.
 - Apache-2.0 licensed repository code and documentation. Third-party datasets and checkpoints are
@@ -126,8 +132,9 @@ scripts/train_all_models.sh --dataset antm2c --gpus 0,1,2,3,4,5,6,7 --dry-run
 scripts/train_all_models.sh --dataset antm2c --gpus 0,1,2,3,4,5,6,7
 ```
 
-The default batch intentionally excludes `qarm` and `mcca` because they require pretrained RQ and
-PSRQ artifacts. Train a selected subset with:
+The default batch intentionally excludes `qarm` and `psrq` because they require pretrained RQ and
+PSRQ artifacts, respectively. The canonical `psrq` model uses PSRQ-pretrained semantic codes in its
+internal downstream MCCA consumer. Train a selected subset with:
 
 ```bash
 scripts/train_all_models.sh \
@@ -139,7 +146,7 @@ scripts/train_all_models.sh \
 Each GPU has at most one worker, duplicate GPU indices are rejected, and any failed worker makes
 the launcher return a non-zero exit code.
 
-### Pretrain quantizers and include QARM/MCCA
+### Pretrain quantizers and include QARM/PSRQ
 
 ```bash
 scripts/pretrain_quantizers.sh --dataset tiktok --gpu 0 --dry-run
@@ -223,7 +230,9 @@ and release audit are in [docs/quality-gates.md](docs/quality-gates.md) and
 ## Citation and references
 
 Use [CITATION.cff](CITATION.cff) when citing MMCTR-Bench. Dataset provenance and the mapping for
-all 23 model registry entries are documented in [docs/references.md](docs/references.md).
+all 23 software registry entries are documented in [docs/references.md](docs/references.md), including
+21 paper evaluation entries (five ID-only and 16 multimodal) plus the two DNN multimodal reference
+variants.
 
 ## License
 

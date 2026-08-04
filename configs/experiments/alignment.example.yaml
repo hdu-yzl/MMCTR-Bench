@@ -8,6 +8,8 @@ model_configs:
   dnn_mm:
     latent_dim: 4
 models: [dnn_mm]
+# Runnable implementation subset. The paper protocol evaluates
+# KL, InfoNCE, Cosine, MMD, and Adv; only cosine and MSE are currently implemented.
 methods: [cosine, mse]
 weights: [0.0, 0.1, 0.3, 0.5]
 representations:

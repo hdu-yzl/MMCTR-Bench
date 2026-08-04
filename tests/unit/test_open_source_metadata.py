@@ -18,8 +18,8 @@ def test_public_provenance_docs_cover_all_datasets_and_models() -> None:
         assert f"`{model_name}`" in references
 
     assert "https://github.com/westlake-repl/MicroLens" in data_readme
-    assert "https://www.atecup.com/home" in data_readme
-    assert "https://github.com/nickwzk/InvRL" in data_readme
+    assert "https://www.atecup.cn/OfficalDataSet" in data_readme
+    assert "https://github.com/HKUDS/MMSSL" in data_readme
     assert "does not redistribute" in data_readme
 
 
@@ -28,6 +28,39 @@ def test_public_readme_links_provenance_documents() -> None:
 
     assert "data/README.md" in readme
     assert "docs/references.md" in readme
+
+
+def test_paper_model_taxonomy_matches_the_public_registry() -> None:
+    id_only = {"dnn", "deepfm", "din", "autoint", "dcn"}
+    multimodal = {
+        "mmmlp",
+        "diff_msin",
+        "dmf",
+        "make",
+        "m3srec",
+        "em3",
+        "psrq",
+        "qarm",
+        "naml",
+        "mb",
+        "lmf",
+        "simcen",
+        "mtfn",
+        "pamd",
+        "gmmf",
+        "marn",
+    }
+    software_variants = {"dnn_mm", "dnn_mm_seq"}
+
+    assert len(id_only) == 5
+    assert len(multimodal) == 16
+    assert set(MODEL_REGISTRY.names()) == id_only | multimodal | software_variants
+    assert MODEL_REGISTRY.canonical_name("mcca") == "psrq"
+
+
+def test_local_paper_is_explicitly_excluded_from_git() -> None:
+    ignore_rules = (PROJECT_ROOT / ".gitignore").read_text(encoding="utf-8")
+    assert "/MMCTR_Benchmark.pdf" in ignore_rules
 
 
 def test_final_readme_documents_one_click_training() -> None:
@@ -41,7 +74,12 @@ def test_final_readme_documents_one_click_training() -> None:
         "data/raw/microlens",
         "data/raw/tiktok",
         "outputs/",
-        "23 canonical CTR models",
+        "five ID-only baselines",
+        "16 multimodal models",
+        "TMIE",
+        "CSAQ",
+        "GFFI",
+        "RDRR",
     ):
         assert required in readme
 
@@ -94,4 +132,17 @@ def test_apache_license_metadata_is_public_and_excludes_third_party_data() -> No
     assert "Apache-2.0" in readme
     assert "third-party datasets and checkpoints are not covered" in readme.lower()
     assert "license: Apache-2.0" in citation
+    assert "MMCTR-Bench: A Comprehensive and Diagnostic Benchmark" in citation
+    for author in (
+        "Kailiang",
+        "Chaohua",
+        "Xiongda",
+        "Jintao",
+        "Yonglin",
+        "Dugang",
+        "Xing",
+        "Xiuqiang",
+        "Zhong",
+    ):
+        assert author in citation
     assert "include LICENSE" in manifest

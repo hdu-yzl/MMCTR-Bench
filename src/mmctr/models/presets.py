@@ -43,7 +43,7 @@ _MODEL_SPECIFIC_REASONS = MappingProxyType(
         "pamd": "pairwise common/specific decomposition and reconstruction are model-specific",
         "mmmlp": "modality and fusion MLP-Mixer stacks are model-specific",
         "m3srec": "shared attention and specific/cross MoE stages are model-specific",
-        "mcca": "frozen PSRQ encoding and code attention are owned by the quantized boundary",
+        "psrq": "frozen PSRQ encoding and code attention are owned by the quantized boundary",
     }
 )
 

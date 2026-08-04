@@ -12,7 +12,7 @@ dnn:
     modal_fusion_method: "cat"
     seq_modeling: false
 
-dnn_seq:
+dnn_mm_seq:
     latent_dim: 128  # embedding dimension
     projection_dim: 128
 
@@ -89,7 +89,7 @@ autoint:
 
     seq_modeling: false
 
-    attn_layers: 3        # 交互层数
+    attn_layers: 3        # interaction layers
     attn_heads: 2         # 注意力头数
     attn_size: 64         # 每个头的维度
     attn_use_residual: true
@@ -372,7 +372,7 @@ qarm:
     n_levels: 3
     codebook_size: 1024
 
-    # 启用数据集特定的参数
+    # Dataset-specific overrides
     antm2c:
         latent_dim: 128  # embedding dimension
         projection_dim: 128
@@ -416,6 +416,7 @@ psrq:
     latent_dim: 128
     projection_dim: 128
 
+    mlp_dims: [ 1024, 512, 256 ]
     psrq_dims: [256,128]
     codebook_size: 256
     n_levels: 3
@@ -427,11 +428,12 @@ psrq:
     mu: 0.25
     quant_loss_weight: 1
 
-    # 数据集特定参数（需与对应 mcca 的 psrq_dims / codebook_size / n_levels 保持一致）
+    # The pretrainer and PSRQ benchmark consumer must share the quantization structure.
     antm2c:
         latent_dim: 128
         projection_dim: 128
 
+        mlp_dims: [ 1024, 512, 256 ]
         psrq_dims: [256,128]
         codebook_size: 256
         n_levels: 3
@@ -447,6 +449,7 @@ psrq:
         latent_dim: 128
         projection_dim: 128
 
+        mlp_dims: [ 1024, 512, 256 ]
         psrq_dims: [256,128]
         codebook_size: 256
         n_levels: 3
@@ -462,6 +465,7 @@ psrq:
         latent_dim: 128
         projection_dim: 128
 
+        mlp_dims: [ 1024, 512, 256 ]
         psrq_dims: [256,128]
         codebook_size: 256
         n_levels: 3
@@ -472,56 +476,3 @@ psrq:
 
         mu: 0.25
         quant_loss_weight: 1
-
-
-mcca:
-    latent_dim: 128
-    projection_dim: 128
-
-    mlp_dims: [ 1024, 512, 256 ]
-    psrq_dims: [256,128 ]
-
-    codebook_size: 256
-    n_levels: 3
-    dropout: 0.0
-    batch_norm: true
-    seq_modeling: true
-
-    antm2c:
-        latent_dim: 128
-        projection_dim: 128
-
-        mlp_dims: [ 1024, 512, 256 ]
-        psrq_dims: [256,128 ]
-
-        codebook_size: 256
-        n_levels: 3
-        dropout: 0.0
-        batch_norm: true
-        seq_modeling: true
-    
-    microlens:
-        latent_dim: 128
-        projection_dim: 128
-
-        mlp_dims: [ 1024, 512, 256 ]
-        psrq_dims: [256,128 ]
-
-        codebook_size: 256
-        n_levels: 3
-        dropout: 0.0
-        batch_norm: true
-        seq_modeling: true
-
-    tiktok:
-        latent_dim: 128
-        projection_dim: 128
-
-        mlp_dims: [ 1024, 512, 256 ]
-        psrq_dims: [256,128 ]
-
-        codebook_size: 256
-        n_levels: 3
-        dropout: 0.0
-        batch_norm: true
-        seq_modeling: true

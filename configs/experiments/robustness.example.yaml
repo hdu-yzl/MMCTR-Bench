@@ -9,6 +9,7 @@ model_configs:
     latent_dim: 4
 models: [dnn_mm]
 modalities: [text, image]
-probabilities: [0.0, 0.1, 0.2, 0.3, 0.5]
+# Paper protocol: retrain one model per non-ID modality masking rate.
+probabilities: [0.1, 0.3, 0.5, 0.7]
 seeds: [2025, 2026, 2027]
 splits: [train, val, test]

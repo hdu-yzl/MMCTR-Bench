@@ -201,7 +201,7 @@ class _MaskedCrossAttentionPool(torch.nn.Module):
 
 
 class MCCA(_QuantizedSequenceModel):
-    """PSRQ code alignment model with mask-aware cross-attention histories.
+    """PSRQ benchmark consumer with mask-aware cross-attention histories.
 
     The injected PSRQ module is frozen permanently, including when the parent
     model enters training mode. Modality codes encode each branch separately;
@@ -217,7 +217,7 @@ class MCCA(_QuantizedSequenceModel):
         config = _dataset_config(model_config, data_config)
         super().__init__(config, data_config)
         if not isinstance(quantizer, PSRQPretrainer) or not quantizer.is_initialized:
-            raise ContractError("MCCA requires an initialized PSRQPretrainer")
+            raise ContractError("PSRQ benchmark consumer requires an initialized PSRQPretrainer")
         dimensions = dict(data_config.get("mm_seq_dims", data_config.get("mm_dims", {})))
         expected_dimensions = {name: int(dimensions[name]) for name in self.quantized_modalities}
         expected_structure = (
@@ -242,7 +242,7 @@ class MCCA(_QuantizedSequenceModel):
         )
         if actual_structure != expected_structure:
             raise ContractError(
-                "MCCA PSRQ structure {} does not match {}".format(
+                "PSRQ benchmark consumer structure {} does not match {}".format(
                     actual_structure, expected_structure
                 )
             )

@@ -4,6 +4,23 @@
 `forward(Batch) -> ModelOutput`; they do not construct optimizers, choose devices, compute metrics,
 or write files.
 
+## Paper protocol and public defaults
+
+The formal protocol in paper §3.5 and Appendix C / Table 4 uses Adam, batch size `512`, at most `20`
+epochs, validation-AUC early stopping with patience `5`, and random seed `2025`. The public
+`configs/training/default.yaml` exposes those values. Shared representation defaults are ID embedding
+dimension `128`, modality projection dimension `128`, and prediction MLP `[1024, 512, 256]`; these live
+in the model catalog rather than the training schema.
+
+The paper also specifies Xavier parameter initialization. This is a reproduction requirement, not a claim
+that the engine globally reinitializes every model: initialization remains model-owned, and only modules
+with an explicit Xavier initializer currently enforce it instead of their PyTorch constructor default.
+
+The formal hyperparameter search is Optuna random search with seed `2025`, with a per-model budget of
+**50 trials or 50 GPU-hours, whichever is reached first**. The current training config describes one
+resolved run and does not enforce a study-level GPU-hour budget. Smaller examples are smoke/planning
+examples, not the paper protocol.
+
 The engine performs these steps:
 
 1. consume canonical train batches and optimise BCE-with-logits plus named auxiliary losses;
@@ -58,7 +75,7 @@ scripts/train_all_models.sh --dataset antm2c --gpus 0,1,2,3,4,5,6,7 --dry-run
 scripts/train_all_models.sh --dataset antm2c --gpus 0,1,2,3,4,5,6,7
 ```
 
-Use `--models dnn,dcn,deepfm` for a subset. QARM/MCCA require
+Use `--models dnn,dcn,deepfm` for a subset. QARM/PSRQ require
 `scripts/pretrain_quantizers.sh` and the explicit `--include-quantized` option. All launchers
 validate registry names, accept `--use-local-data`, propagate worker failures, and resolve paths
 relative to the repository rather than the caller's current directory.

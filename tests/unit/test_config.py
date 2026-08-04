@@ -23,7 +23,7 @@ class TrainingConfigTest(unittest.TestCase):
     def test_repository_training_config_is_typed_and_paths_are_root_relative(self):
         config = load_training_config(TRAIN_CONFIG_PATH)
 
-        self.assertEqual(config.optim, "adamw")
+        self.assertEqual(config.optim, "adam")
         self.assertEqual(config.output_root, (REPOSITORY_ROOT / "outputs").resolve())
         self.assertEqual(
             config.checkpoint_dir,
@@ -57,7 +57,7 @@ class TrainingConfigTest(unittest.TestCase):
         cases.append((bad_range, "lr must be a number >"))
 
         bad_cross_field = self._valid_mapping()
-        bad_cross_field["early_stop_patience"] = 6
+        bad_cross_field["early_stop_patience"] = bad_cross_field["max_epochs"] + 1
         cases.append((bad_cross_field, "early_stop_patience must be <= max_epochs"))
 
         for values, expected_message in cases:

@@ -1,6 +1,8 @@
 # TikTok raw inputs
 
-The user must obtain this processed TikTok layout through an authorized upstream route. No
+The user must obtain this TikTok layout through the official
+[HKUDS/MMSSL repository](https://github.com/HKUDS/MMSSL) associated with Wei et al., *Multi-Modal
+Self-Supervised Learning for Recommendation* (WWW 2023), or another authorized route. No
 independent redistribution permission is supplied by MMCTR-Bench.
 
 Place the official split files and upstream features exactly as follows:

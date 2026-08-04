@@ -29,6 +29,7 @@ env/
 .codebuddy/
 /AGENTS.md
 /REFACTORING_PLAN.md
+/MMCTR_Benchmark.pdf
 *.swp
 *.swo
 .DS_Store

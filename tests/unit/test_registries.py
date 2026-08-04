@@ -19,8 +19,14 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(len(set(MODEL_REGISTRY.names())), len(MODEL_REGISTRY.names()))
         self.assertEqual(len(set(QUANTIZER_REGISTRY.names())), len(QUANTIZER_REGISTRY.names()))
 
-    def test_model_alias_resolves_to_one_canonical_name(self):
+    def test_model_aliases_resolve_to_one_canonical_name(self):
         self.assertEqual("dnn_mm_seq", MODEL_REGISTRY.canonical_name("dnn_seq"))
+        self.assertEqual("psrq", MODEL_REGISTRY.canonical_name("mcca"))
+        self.assertEqual("psrq", MODEL_REGISTRY.spec("mcca").name)
+
+    def test_model_and_quantizer_psrq_namespaces_coexist(self):
+        self.assertEqual("MCCA", MODEL_REGISTRY.spec("psrq").symbol)
+        self.assertEqual("PSRQPretrainer", QUANTIZER_REGISTRY.spec("psrq").symbol)
 
     def test_all_datasets_resolve_to_canonical_dataset_loaders(self):
         self.assertEqual(

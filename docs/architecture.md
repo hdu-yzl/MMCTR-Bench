@@ -6,6 +6,16 @@ MMCTR uses a single installable `mmctr` namespace. Runtime code follows this dep
 cli -> experiments -> training/evaluation -> models + data + quantization -> core/config/utils
 ```
 
+## Paper protocol versus executable surface
+
+The paper's formal protocol is broader than the currently executable generic analysis surface. It defines
+five alignment objectives (`KL`, `InfoNCE`, `Cosine`, `MMD`, `Adv`) while the runtime accepts only
+`cosine` and diagnostic `mse`; it evaluates nine fusion replacements (`CAT`, `DMF`, `DTA`, `FQ-Former`,
+`LMF`, `MAF`, `MTFN`, `SimCEN`, `SRC`) while the generic registry exposes `concatenate`, `sum`, `mean`,
+`maf`, `lmf`, and `mtfn`. Protocol documentation must preserve the paper scope, whereas configurations
+must contain only accepted runtime names. Missing implementations are explicit gaps, never silently
+approximated operators.
+
 ## Core contracts
 
 `mmctr.core` is the boundary shared by data adapters, models, training, and experiment runners.
@@ -28,7 +38,7 @@ metrics, or parse command-line arguments. Those responsibilities belong to the t
 evaluation, experiment, and CLI layers.
 
 Quantization premodels form a sibling boundary to CTR models. RQ/PSRQ consume item
-feature tables and produce versioned artifacts, while QARM/MCCA remain ordinary
+feature tables and produce versioned artifacts, while QARM and the PSRQ CTR model remain ordinary
 `BaseSeqModel` consumers after the composition layer injects those loaded
 artifacts. This keeps pretraining objectives and artifact I/O out of
 `Batch -> ModelOutput` and out of model constructors.

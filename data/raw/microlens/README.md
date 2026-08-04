@@ -1,6 +1,7 @@
 # MicroLens raw inputs
 
-The user must obtain MicroLens through the official author repository/download flow and comply with
+The user must obtain MicroLens through the official author repository/download flow for Yongxin Ni
+et al., *A Content-Driven Micro-Video Recommendation Dataset at Scale* (CIKM 2025), and comply with
 its current terms. The repository does not provide a mirror.
 
 Place the provider files exactly as follows:

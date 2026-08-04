@@ -27,6 +27,11 @@ test evaluation is allowed.
 
 ## Validation-only tuning
 
+Paper §3.5 and Appendix C define the formal search as Optuna random search with seed `2025`, stopping
+each model at **50 trials or 50 GPU-hours, whichever occurs first**. The current validation-only tuner and
+small example matrices do not schedule or enforce that wall-clock GPU budget; they are executable
+infrastructure/examples, not evidence that the formal paper search ran.
+
 `ValidationOnlyTuner` consumes complete `TuningTrial` records and rejects any trial that already
 contains a `test*` metric. Selection uses strictly higher `val_auc`; `val_log_loss` is recorded but
 does not silently change the declared legacy tie rule. The study writes complete
@@ -39,6 +44,12 @@ are written to a separate `final_test_result.json`; they cannot alter or overwri
 artifact. This keeps configuration search and final reporting mechanically separated.
 
 ## Modal robustness
+
+The paper protocol independently masks textual and visual non-ID modalities at the instance level with
+rates `{0.1, 0.3, 0.5, 0.7}`; ID features remain present. The same mechanism is applied to
+train/validation/test, and a separate model is retrained and validation-selected for each rate. Reported
+AUC drop is relative to the original complete-modality model, so the complete setting is the baseline,
+not an additional masking rate. The public example enumerates exactly these four rates.
 
 `ModalityDropout` is the single canonical missing-modality transform. It accepts named non-ID
 modalities and a probability, then samples one missing flag per example/modality and applies the
@@ -112,6 +123,15 @@ across compared models and retain the report artifacts used to generate them.
 
 ## Alignment protocol
 
+The paper evaluates five objectives at a unified cross-modal interface: Kullback–Leibler divergence
+(`KL`), `InfoNCE`, cosine similarity (`Cosine`), maximum mean discrepancy (`MMD`), and adversarial
+alignment (`Adv`). Only the objective and its validation-selected coefficient vary.
+
+The current implementation is a strict subset: it supports `cosine` and `mse`. `MSE` is an implementation
+diagnostic and is not one of the paper five; `KL`, `InfoNCE`, `MMD`, and `Adv` are not runnable through
+the current planner. The example YAML therefore keeps only accepted runtime names rather than falsely
+advertising the complete paper study.
+
 Alignment studies use the production model unchanged. `ActivationCapture` installs temporary
 forward hooks on explicitly named modules, retains their differentiable tensor outputs for one
 forward pass, and always removes the hooks when its context exits. Alternatively, models that
@@ -166,6 +186,17 @@ figures belong under ignored `outputs/figures/`; runtime source under `src/` con
 research artifacts.
 
 ## Fusion studies
+
+The paper independently retrains each model after replacing only its fusion module with one of nine
+operators: Concat (`CAT`), `DMF`, decoupled target attention (`DTA`), `FQ-Former`, low-rank multimodal
+fusion (`LMF`), multi-head attention fusion (`MAF`), multimodal tensor fusion network (`MTFN`),
+`SimCEN`, and stochastic reverse cross-modal fusion (`SRC`). Standard linear projections may adapt
+dimensions; the remaining architecture and formal tuning budget stay fixed.
+
+The current generic registry exposes six operators: `concatenate`/`cat`, `sum`, `mean`, `maf`, `lmf`, and
+`mtfn`. Only `CAT`, `MAF`, `LMF`, and `MTFN` overlap the paper nine; `sum` and `mean` are runtime extras,
+while `DMF`, `DTA`, `FQ-Former`, `SimCEN`, and `SRC` are not registered generic replacements. A valid
+six-operator matrix is therefore not by itself a reproduction of the paper's nine-operator study.
 
 `build_fusion_study_tasks` creates immutable ExperimentRunner tasks that vary registered fusion
 components on the production `dnn_mm`, `dnn_mm_seq`, `dmf`, and `make` implementations. Each task

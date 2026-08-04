@@ -51,7 +51,8 @@ class CliIntegrationTest(unittest.TestCase):
         quantizer_names = quantizers.stdout.splitlines()
         self.assertEqual(model_names, sorted(model_names))
         self.assertIn("dnn", model_names)
-        self.assertIn("mcca", model_names)
+        self.assertIn("psrq", model_names)
+        self.assertNotIn("mcca", model_names)
         self.assertEqual(dataset_names, ["antm2c", "microlens", "tiktok"])
         self.assertEqual(quantizer_names, ["psrq", "rq"])
         self.assertNotIn(
@@ -67,7 +68,7 @@ class CliIntegrationTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         resolved = json.loads(result.stdout)
-        self.assertEqual(resolved["optim"], "adamw")
+        self.assertEqual(resolved["optim"], "adam")
         self.assertTrue(Path(resolved["output_root"]).is_absolute())
 
     def test_plan_fusion_study_writes_canonical_matrix(self):

@@ -196,7 +196,7 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
         )
 
     def test_models_use_canonical_contract_and_backward(self):
-        for name in ("qarm", "mcca"):
+        for name in ("qarm", "psrq"):
             with self.subTest(name=name):
                 model = self._model(name)
                 self.assertIsInstance(model, BaseSeqModel)
@@ -223,12 +223,12 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
                 )
             initialized_psrq().save(psrq_artifact_path(root, "fixture"))
             qarm = create_model_from_artifacts("qarm", model_config, data_config, root)
-            mcca = create_model_from_artifacts("mcca", model_config, data_config, root)
+            psrq = create_model_from_artifacts("psrq", model_config, data_config, root)
             self.assertEqual((2,), tuple(qarm(make_batch()).logits.shape))
-            self.assertEqual((2,), tuple(mcca(make_batch()).logits.shape))
+            self.assertEqual((2,), tuple(psrq(make_batch()).logits.shape))
 
     def test_batch_size_one_and_all_padding_are_stable(self):
-        for name in ("qarm", "mcca"):
+        for name in ("qarm", "psrq"):
             with self.subTest(name=name):
                 model = self._model(name)
                 single = model(make_batch(batch_size=1, all_padding=True))
@@ -240,7 +240,7 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
     def test_masked_padding_values_do_not_change_history_representation(self):
         clean = make_batch(padded_value=0.0)
         contaminated = make_batch(padded_value=1000.0)
-        for name in ("qarm", "mcca"):
+        for name in ("qarm", "psrq"):
             with self.subTest(name=name):
                 model = self._model(name)
                 model.eval()
@@ -248,8 +248,8 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
                 contaminated_history = model(contaminated).representations["history_quantized"]
                 self.assertTrue(torch.equal(clean_history, contaminated_history))
 
-    def test_mcca_keeps_frozen_psrq_in_evaluation_mode(self):
-        model = self._model("mcca")
+    def test_psrq_keeps_frozen_psrq_in_evaluation_mode(self):
+        model = self._model("psrq")
         model.train()
         self.assertFalse(model.quantizer.training)
         self.assertFalse(any(parameter.requires_grad for parameter in model.quantizer.parameters()))
@@ -269,8 +269,8 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
         )
         qarm_target = self._model("qarm")(missing).representations["target_quantized"]
         self.assertTrue(torch.equal(qarm_target[:, 4:], torch.zeros_like(qarm_target[:, 4:])))
-        mcca_joint = self._model("mcca")(missing).representations["joint_quantized"]
-        self.assertTrue(torch.equal(mcca_joint, torch.zeros_like(mcca_joint)))
+        psrq_joint = self._model("psrq")(missing).representations["joint_quantized"]
+        self.assertTrue(torch.equal(psrq_joint, torch.zeros_like(psrq_joint)))
 
     def test_context_fallback_does_not_mutate_batch(self):
         original = make_batch()
@@ -286,7 +286,7 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
             context_features={"image": original.item_features["image"]},
         )
         original_ids = contextual.item_features["id"].clone()
-        for name in ("qarm", "mcca"):
+        for name in ("qarm", "psrq"):
             with self.subTest(name=name):
                 self.assertEqual((2,), tuple(self._model(name)(contextual).logits.shape))
         self.assertTrue(torch.equal(contextual.item_features["id"], original_ids))
@@ -302,13 +302,13 @@ class CanonicalQuantizedModelTests(unittest.TestCase):
             )
         wrong = dict(model_config)
         wrong["n_levels"] = 3
-        with self.assertRaisesRegex(ContractError, "PSRQ structure"):
-            create_model("mcca", wrong, data_config, quantizer=initialized_psrq())
+        with self.assertRaisesRegex(ContractError, "PSRQ benchmark consumer structure"):
+            create_model("psrq", wrong, data_config, quantizer=initialized_psrq())
 
     def test_registry_separates_canonical_premodels(self):
         expected = {
             "qarm": ("mmctr.models.quantized", "QARM"),
-            "mcca": ("mmctr.models.quantized", "MCCA"),
+            "psrq": ("mmctr.models.quantized", "MCCA"),
         }
         for name, (module, symbol) in expected.items():
             specification = model_spec(name)

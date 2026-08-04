@@ -1,4 +1,4 @@
-# data.yaml - 数据集配置
+# Canonical dataset catalog. These entries describe the maintained, updated processing pipelines.
 tiktok:
   name: "tiktok"
   data_dir: "data/processed/tiktok/canonical-v1"
@@ -8,20 +8,19 @@ tiktok:
   padding_id: 0
   id_offsets: {"user": 1, "item": 9320}
   id_feature_num: 16030
-  mm_dims : {"id":0,"text":768, "audio":128, "image":128} # 非序列的模态输入维度
-  mm_seq_dims : {"id":0,"text":768, "audio":128, "image":128}  # 序列的模态输入维度
+  mm_dims: {"id": 0, "text": 768, "audio": 128, "image": 128}
+  mm_seq_dims: {"id": 0, "text": 768, "audio": 128, "image": 128}
   multimodel_num: 3
   id_fields_num: 2
   seq_len: 5
   min_item_id: 9320
   min_user_id: 1
-  # 可更改参数
-  use_mm_features: ["id","image", "text","audio"]
-  use_mm_seq_features: ["id","image", "text","audio"]
-  use_seq:  true
-  use_mm_rq:  false
-  user_features: [ "id" ]  # 序列建模时区分用户特征
-  user_features_dim: { "id": 0 }
+  use_mm_features: ["id", "image", "text", "audio"]
+  use_mm_seq_features: ["id", "image", "text", "audio"]
+  use_seq: true
+  use_mm_rq: false
+  user_features: ["id"]
+  user_features_dim: {"id": 0}
   using_local_data: false
 
 antm2c:
@@ -34,19 +33,18 @@ antm2c:
   id_offsets: {"user": 0, "item": 67624}
   id_feature_num: 152491
   multimodel_num: 2
-  mm_dims : {"id":0,"text":768, "image":512} # 非序列的模态输入维度
-  mm_seq_dims : {"id":0,"text":768, "image":512}  # 序列的模态输入维度
+  mm_dims: {"id": 0, "text": 768, "image": 512}
+  mm_seq_dims: {"id": 0, "text": 768, "image": 512}
   id_fields_num: 2
   seq_len: 5
   min_item_id: 67625
   min_user_id: 0
-  # 可更改参数
-  use_mm_features: ["id","image","text"]
-  use_mm_seq_features: ["id","image","text"]
-  use_seq:  true
-  use_mm_rq:  false
-  user_features: ["id","text"]  # 序列建模时区分用户特征
-  user_features_dim: {"id":0,"text":3840}
+  use_mm_features: ["id", "image", "text"]
+  use_mm_seq_features: ["id", "image", "text"]
+  use_seq: true
+  use_mm_rq: false
+  user_features: ["id", "text"]
+  user_features_dim: {"id": 0, "text": 3840}
   using_local_data: false
 
 microlens:
@@ -59,18 +57,16 @@ microlens:
   id_offsets: {"user": 0, "item": 1000000}
   id_feature_num: 1091718
   multimodel_num: 2
-  mm_dims : {"id":0,"text":768, "image":1024} # 非序列的模态输入维度
-  mm_seq_dims : {"id":0,"text":768, "image":1024}  # 序列的模态输入维度
+  mm_dims: {"id": 0, "text": 768, "image": 1024}
+  mm_seq_dims: {"id": 0, "text": 768, "image": 1024}
   id_fields_num: 2
   seq_len: 5
   min_item_id: 1000001
   min_user_id: 1
-  user_features: [ "id" ]  # 序列建模时区分用户特征
-  user_features_dim: { "id": 0 }
-  # 可更改参数
-  use_mm_features: ["id","image", "text"]
-  use_mm_seq_features: ["id","image", "text"]
-  use_seq:  true
-  use_mm_rq:  false  # todo
-
+  user_features: ["id"]
+  user_features_dim: {"id": 0}
+  use_mm_features: ["id", "image", "text"]
+  use_mm_seq_features: ["id", "image", "text"]
+  use_seq: true
+  use_mm_rq: false
   using_local_data: false

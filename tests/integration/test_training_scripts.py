@@ -81,7 +81,7 @@ def test_all_models_dry_run_excludes_quantized_models_and_round_robins_gpus() ->
     commands = [line for line in result.stdout.splitlines() if line.startswith("Dry run:")]
     assert len(commands) == 21
     assert all("--model-name qarm" not in line for line in commands)
-    assert all("--model-name mcca" not in line for line in commands)
+    assert all("--model-name psrq" not in line for line in commands)
     assert sum("--cuda 0" in line for line in commands) == 11
     assert sum("--cuda 2" in line for line in commands) == 10
 

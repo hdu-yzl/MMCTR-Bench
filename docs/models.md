@@ -4,6 +4,16 @@ The shared projection, dimension, sequence-mask, and missing-modality rules are 
 [`model-components.md`](model-components.md). Canonical backbones consume those public components;
 pooling and fusion remain separate staged interfaces.
 
+## Paper-wide representation defaults
+
+Under paper §3.5 and Table 4, sparse ID embeddings use dimension `128`, every non-ID modality is
+projected to dimension `128`, and the shared prediction MLP is `[1024, 512, 256]` unless a model's
+original architecture requires a documented exception. The model catalog exposes these values.
+The paper protocol also requires Xavier initialization. Initialization is model-owned in the current
+runtime: explicit Xavier calls exist in several components, but there is no global post-construction
+initializer proving that every registered parameter follows the paper rule. Formal reproduction must audit
+that model-specific boundary rather than infer compliance from the YAML dimensions.
+
 ## Default modal-pipeline presets
 
 `mmctr.models.default_pipeline_preset(model_name, model_config, data_config)` resolves a model's
@@ -152,21 +162,23 @@ left-padded histories. Registry metadata names only the canonical implementation
 ## Quantization premodels and quantized CTR models
 
 RQ and PSRQ are pretraining components under `mmctr.quantization`, not CTR
-`BaseSeqModel` subclasses. RQ fits deterministic residual K-means codebooks and
-keeps the resulting `[levels, codes, dimension]` tensor as a registered buffer.
-PSRQ owns modality and joint autoencoders and returns a `PSRQOutput` containing
-reconstruction/quantization objectives and codes; it deliberately does not emit
-click logits or own an optimizer, device, checkpoint path, or training loop.
+`BaseSeqModel` subclasses. The model and quantizer registries are separate namespaces: the
+quantizer name `psrq` produces semantic-code artifacts, while the canonical CTR model name `psrq`
+uses those artifacts through an internal MCCA consumer. The legacy CTR name `mcca` is an alias only.
+RQ fits deterministic residual K-means codebooks and keeps the resulting
+`[levels, codes, dimension]` tensor as a registered buffer. PSRQ pretraining owns modality and joint
+autoencoders and returns a `PSRQOutput` containing reconstruction/quantization objectives and codes;
+it deliberately does not emit click logits or own an optimizer, device, checkpoint path, or training loop.
 
-QARM and MCCA are canonical sequence-token CTR models in
-`mmctr.models.quantized`. Their constructors accept already-loaded RQ/PSRQ
-dependencies. They never resolve paths, create directories, or load checkpoints.
+QARM and the PSRQ CTR model are canonical sequence-token predictors in
+`mmctr.models.quantized`. Their constructors accept already-loaded RQ/PSRQ dependencies. They never
+resolve paths, create directories, or load checkpoints.
 `create_model_from_artifacts` is the composition boundary used by the main
 Trainer: it loads the dataset-specific artifacts, validates modalities, raw
 dimensions, level count, codebook size and PSRQ architecture, then injects them.
 
 Both models preserve the original discrete-code embedding bodies while using the
-canonical `Batch.history_mask`. QARM performs masked mean pooling. MCCA applies a
+canonical `Batch.history_mask`. QARM performs masked mean pooling. The PSRQ model's internal MCCA consumer applies a
 masked query/history attention and pins its frozen PSRQ encoder in evaluation mode
 even while the CTR head trains. Original zero-valued modalities stay zero after
 code lookup, so a nearest code cannot silently turn a missing modality into a

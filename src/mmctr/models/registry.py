@@ -157,9 +157,10 @@ MODEL_REGISTRY.register_many(
             },
         ),
         ComponentSpec(
-            "mcca",
+            "psrq",
             "mmctr.models.quantized",
             "MCCA",
+            aliases=("mcca",),
             metadata={
                 "history": "sequence_tokens",
                 "quantization_artifacts": "psrq",

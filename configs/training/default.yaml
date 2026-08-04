@@ -1,23 +1,17 @@
-# train.yaml - 训练配置
-# 基础训练参数
-max_epochs: 5
+# Training defaults from the unified MMCTR-Bench protocol.
+max_epochs: 20
 lr: 1.0e-3
 l2: 1.0e-7
 batch_size: 512
-# 优化器配置
-optim: "Adamw"
-# 早停配置
-early_stop_patience: 1
+optim: "Adam"
+early_stop_patience: 5
 
-# 检查点配置
+# Run-local checkpoint and log paths are replaced by the training entry point.
 checkpoint_dir: "outputs/checkpoints/"
-# RQ/PSRQ 预训练产物独立于单次推荐训练 run；路径按项目根解析。
+# RQ/PSRQ pretraining artifacts are independent of recommendation runs.
 quantization_artifact_dir: "outputs/quantization/artifacts/"
-# 主训练入口的新运行根目录；每次运行会在其下创建独立目录
 output_root: "outputs"
 cuda: 1
-# 日志配置
 log_dir: "outputs/logs/"
-log_interval: 1000  # 每多少个batch记录一次
-# 随机种子
+log_interval: 1000
 seed: 2025

@@ -1,11 +1,53 @@
 cff-version: 1.2.0
-message: "If you use MMCTR-Bench, please cite this software and the relevant model and dataset papers."
-title: "MMCTR-Bench"
+message: "If you use MMCTR-Bench, please cite the benchmark paper and the relevant model and dataset papers."
+title: "MMCTR-Bench: A Comprehensive and Diagnostic Benchmark for Multimodal Click-Through Rate Prediction"
 type: software
 license: Apache-2.0
 authors:
-  - name: "MMCTR-Bench contributors"
+  - family-names: "Hao"
+    given-names: "Kailiang"
+  - family-names: "Yang"
+    given-names: "Chaohua"
+  - family-names: "Chen"
+    given-names: "Xiongda"
+  - family-names: "Huang"
+    given-names: "Jintao"
+  - family-names: "Wei"
+    given-names: "Yonglin"
+  - family-names: "Liu"
+    given-names: "Dugang"
+  - family-names: "Tang"
+    given-names: "Xing"
+  - family-names: "He"
+    given-names: "Xiuqiang"
+  - family-names: "Ming"
+    given-names: "Zhong"
 repository-code: "https://github.com/hdu-yzl/MMCTR-Bench"
 url: "https://github.com/hdu-yzl/MMCTR-Bench"
 version: 0.1.0
 date-released: 2026-08-04
+preferred-citation:
+  type: conference-paper
+  title: "MMCTR-Bench: A Comprehensive and Diagnostic Benchmark for Multimodal Click-Through Rate Prediction"
+  authors:
+    - family-names: "Hao"
+      given-names: "Kailiang"
+    - family-names: "Yang"
+      given-names: "Chaohua"
+    - family-names: "Chen"
+      given-names: "Xiongda"
+    - family-names: "Huang"
+      given-names: "Jintao"
+    - family-names: "Wei"
+      given-names: "Yonglin"
+    - family-names: "Liu"
+      given-names: "Dugang"
+    - family-names: "Tang"
+      given-names: "Xing"
+    - family-names: "He"
+      given-names: "Xiuqiang"
+    - family-names: "Ming"
+      given-names: "Zhong"
+  collection-title: "Proceedings of the 33rd ACM SIGKDD Conference on Knowledge Discovery and Data Mining V.1 (KDD '27)"
+  year: 2027
+  publisher: "Association for Computing Machinery"

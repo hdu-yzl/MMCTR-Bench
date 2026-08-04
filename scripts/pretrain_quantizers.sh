@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage: scripts/pretrain_quantizers.sh [options]
 
-Fit the RQ and PSRQ artifacts required by QARM and MCCA.
+Fit the RQ and PSRQ artifacts required by QARM and the PSRQ benchmark consumer.
 
 Options:
   --dataset NAME       Dataset registry name (default: antm2c)

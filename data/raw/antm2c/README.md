@@ -1,8 +1,9 @@
 # AntM2C raw inputs
 
-The user must obtain AntM2C from the original ATEC/provider flow. This repository does not download
-or redistribute it. Keep the provider URL, access date, terms, archive name, and SHA-256 values in
-an ignored local provenance record.
+The user must obtain AntM2C from the original ATEC/provider flow. The dataset accompanies Zhaoxin
+Huan et al., *Exploring Multi-Scenario Multi-Modal CTR Prediction with a Large-Scale Dataset*
+(SIGIR 2024). This repository does not download or redistribute it. Keep the provider URL, access
+date, terms, archive name, and SHA-256 values in an ignored local provenance record.
 
 Recommended placement:
 

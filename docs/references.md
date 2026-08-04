@@ -1,64 +1,89 @@
-# Dataset and model references
+# References and provenance
 
-This is the citation and provenance index for the public registry. It distinguishes a paper's
-algorithm from this repository's canonical implementation: a matching name does not by itself claim
-bitwise reproduction, checkpoint compatibility, or permission to redistribute the paper's data.
-Implementation behavior and numerical evidence are documented in [`models.md`](models.md).
+This page records the papers and upstream sources associated with the public dataset adapters and
+model registry. A citation here identifies provenance; it does **not** grant this repository the
+right to redistribute a third-party dataset, checkpoint, or feature artifact. Obtain those assets
+from their official sources and follow their terms.
 
-## Dataset papers
+## Datasets
 
-- **AntM2C:** Zhaoxin Huan et al. *AntM²C: A Large Scale Dataset For Multi-Scenario Multi-Modal CTR
-  Prediction*. arXiv:2308.16437, 2023. [Paper](https://arxiv.org/abs/2308.16437) and
-  [provider homepage](https://www.atecup.com/home).
+- **AntM2C:** Zhaoxin Huan et al. *Exploring Multi-Scenario Multi-Modal CTR Prediction with a
+  Large-Scale Dataset*. SIGIR, 2024. Use the
+  [official dataset portal](https://www.atecup.cn/OfficalDataSet) and follow its access terms.
 - **MicroLens:** Yongxin Ni et al. *A Content-Driven Micro-Video Recommendation Dataset at Scale*.
-  arXiv:2309.15379, 2023. [Paper](https://arxiv.org/abs/2309.15379) and
-  [official repository](https://github.com/westlake-repl/MicroLens).
-- **TikTok processed layout:** the locally observed layout is traceable to the `tiktok/` directory
-  in the [official InvRL implementation](https://github.com/nickwzk/InvRL). The corresponding paper
-  is Xiaoyu Du et al., *Invariant Representation Learning for Multimedia Recommendation*, ACM
-  Multimedia 2022. This is a provenance lead, not a verified data license; the maintainer must
-  retain the actual acquisition record.
+  CIKM, 2025. See the [official repository](https://github.com/westlake-repl/MicroLens).
+- **TikTok:** Wei Wei, Chao Huang, Lianghao Xia, and Chuxu Zhang. *Multi-Modal Self-Supervised
+  Learning for Recommendation*. WWW, 2023. The benchmark's TikTok source is the dataset layout
+  released with the paper in the [official HKUDS/MMSSL repository](https://github.com/HKUDS/MMSSL).
 
-## Model registry
+These references do not imply that the datasets are covered by this repository's Apache-2.0
+license. Dataset redistribution and derived-artifact permissions remain governed by the respective
+upstream owners and terms.
 
-Status meanings:
+## Paper evaluation set
 
-- **paper adaptation:** the implementation is based on a named published method, adapted to the
-  benchmark's `Batch -> ModelOutput` and CTR contracts;
-- **fusion adaptation:** a published fusion operator is used inside a benchmark CTR body;
-- **benchmark variant:** this repository does not claim a separate paper for that registry entry.
+The MMCTR-Bench paper evaluates **five ID-only baselines** and **16 multimodal models**. The 16
+multimodal models follow the paper's four modeling paradigms. Registry names are shown in code font;
+where the paper name and software entry differ, the mapping is stated explicitly.
 
-| Registry name | Status | Reference or provenance |
-|---|---|---|
-| `dnn` | benchmark variant | Generic multilayer-perceptron CTR baseline; no separate paper is claimed. |
-| `dnn_mm` | benchmark variant | DNN with canonical target/history multimodal fusion; no separate paper is claimed. |
-| `dnn_mm_seq` | benchmark variant | Sequential DNN-MM variant; legacy alias `dnn_seq`; no separate paper is claimed. |
-| `dcn` | paper adaptation | Ruoxi Wang et al., [*Deep & Cross Network for Ad Click Predictions*](https://arxiv.org/abs/1708.05123), 2017. |
-| `deepfm` | paper adaptation | Huifeng Guo et al., [*DeepFM: A Factorization-Machine based Neural Network for CTR Prediction*](https://arxiv.org/abs/1703.04247), 2017. |
-| `din` | paper adaptation | Guorui Zhou et al., [*Deep Interest Network for Click-Through Rate Prediction*](https://arxiv.org/abs/1706.06978), 2018. |
-| `autoint` | paper adaptation | Weiping Song et al., [*AutoInt: Automatic Feature Interaction Learning via Self-Attentive Neural Networks*](https://arxiv.org/abs/1810.11921), 2019. |
-| `lmf` | fusion adaptation | Zhun Liu et al., [*Efficient Low-rank Multimodal Fusion with Modality-Specific Factors*](https://aclanthology.org/P18-1209/), 2018. |
-| `mtfn` | fusion adaptation | Tan Wang et al., [*Matching Images and Text with Multi-modal Tensor Fusion and Re-ranking*](https://arxiv.org/abs/1908.04011), 2019. |
-| `naml` | paper adaptation | Chuhan Wu et al., [*Neural News Recommendation with Attentive Multi-View Learning*](https://arxiv.org/abs/1907.05576), 2019; adapted here to canonical item modalities. |
-| `marn` | paper adaptation | Xiang Li et al., [*Adversarial Multimodal Representation Learning for Click-Through Rate Prediction*](https://arxiv.org/abs/2003.07162), 2020. |
-| `gmmf` | paper adaptation | Fangxiong Xiao et al., [*From Abstract to Details: A Generative Multimodal Fusion Framework for Recommendation*](https://dblp.org/rec/conf/mm/XiaoDCJYDL22), ACM Multimedia 2022. |
-| `pamd` | paper adaptation | Hongyu Han et al., [*Modality Matches Modality: Pretraining Modality-Disentangled Item Representations for Recommendation*](https://doi.org/10.1145/3485447.3512079), 2022; the canonical CTR consumer retains its common/specific decomposition objective. |
-| `mmmlp` | paper adaptation | Jiahao Liang et al., [*MMMLP: Multi-modal Multilayer Perceptron for Sequential Recommendations*](https://doi.org/10.1145/3543507.3583378), 2023. |
-| `m3srec` | paper adaptation | Shuqing Bian et al., [*Multi-modal Mixture of Experts Representation Learning for Sequential Recommendation*](https://doi.org/10.1145/3583780.3614978), 2023. |
-| `mb` | paper adaptation | Yu Shang et al., [*Enhancing Adversarial Robustness of Multi-modal Recommendation via Modality Balancing*](https://doi.org/10.1145/3581783.3612337), 2023. |
-| `em3` | paper adaptation | Nan Xu et al., [*End-to-end Training of Multimodal Model and Ranking Model*](https://arxiv.org/abs/2302.03497), 2023. |
-| `make` | paper adaptation | Xinyang Chen et al., [*Enhancing Taobao Display Advertising with Multimodal Representations: Challenges, Approaches and Insights*](https://arxiv.org/abs/2407.19467), 2024; MAKE is the paper's staged adaptation module. |
-| `simcen` | paper adaptation | Honghao Li et al., [*SimCEN: Simple Contrast-enhanced Network for CTR Prediction*](https://openreview.net/forum?id=pJHu4hDlLX), ACM Multimedia 2024. |
-| `qarm` | paper adaptation | Xinchen Luo et al., [*QARM: Quantitative Alignment Multi-Modal Recommendation at Kuaishou*](https://arxiv.org/abs/2411.11739), 2024. |
-| `diff_msin` | paper adaptation | Xiaoxi Cui et al., [*Diffusion-based Multi-modal Synergy Interest Network for Click-through Rate Prediction*](https://arxiv.org/abs/2508.21460), 2025. |
-| `mcca` | paper adaptation | Shijia Wang et al., [*Progressive Semantic Residual Quantization for Multimodal-Joint Interest Modeling in Music Recommendation*](https://arxiv.org/abs/2508.20359), 2025; MCCA is the downstream cross-attention network and PSRQ is its pretraining component. |
-| `dmf` | paper adaptation | Alin Fan et al., [*Decoupled Multimodal Fusion for User Interest Modeling in Click-Through Rate Prediction*](https://arxiv.org/abs/2510.11066), 2025/2026 revision. |
+### ID-only baselines (5)
 
-RQ and PSRQ are quantization pretraining components rather than CTR registry models. Cite the QARM
-paper for the RQ-based QARM path and the PSRQ/MCCA paper for the PSRQ-based MCCA path.
+| Registry name | Reference |
+|---|---|
+| `dnn` | Standard multilayer-perceptron CTR baseline; no separate originating paper is claimed here. |
+| `deepfm` | Huifeng Guo et al., [*DeepFM: A Factorization-Machine based Neural Network for CTR Prediction*](https://doi.org/10.24963/ijcai.2017/239), 2017. |
+| `din` | Guorui Zhou et al., [*Deep Interest Network for Click-Through Rate Prediction*](https://doi.org/10.1145/3219819.3219823), 2018. |
+| `autoint` | Weiping Song et al., [*AutoInt: Automatic Feature Interaction Learning via Self-Attentive Neural Networks*](https://doi.org/10.1145/3357384.3357925), 2019. |
+| `dcn` | Ruoxi Wang et al., [*Deep & Cross Network for Ad Click Predictions*](https://doi.org/10.1145/3124749.3124754), 2017. |
 
-## Citation practice
+### TMIE — Target-aware Multimodal Interest Enhancement (3)
 
-When reporting results, cite MMCTR-Bench through [`CITATION.cff`](../CITATION.cff), the dataset paper,
-and every evaluated model paper above. For benchmark variants, cite the benchmark software and state
-the exact registry/config name. Do not cite a paper as evidence of data redistribution rights.
+| Registry name | Reference |
+|---|---|
+| `mmmlp` | Jiahao Liang et al., *MMMLP: Multi-Modal Multilayer Perceptron for Sequential Recommendations*, 2023. |
+| `diff_msin` | Xiaoxi Cui et al., [*Diffusion-Based Multi-Modal Synergy Interest Network for Click-Through Rate Prediction*](https://arxiv.org/abs/2508.21460), 2025. |
+| `dmf` | Alin Fan et al., [*Decoupled Multimodal Fusion for User Interest Modeling in Click-Through Rate Prediction*](https://arxiv.org/abs/2510.11066), 2025. |
+
+### CSAQ — Content Semantic Alignment and Quantization (5)
+
+| Registry name | Paper model and reference |
+|---|---|
+| `make` | MAKE adaptation of Xiang-Rong Sheng et al., *Enhancing Taobao Display Advertising with Multimodal Representations: Challenges, Approaches and Insights*, 2024. |
+| `m3srec` | Shuqing Bian et al., *Multi-Modal Mixture of Experts Representation Learning for Sequential Recommendation*, 2023. |
+| `em3` | Xiuqi Deng et al., [*End-to-End Training of Multimodal Model and Ranking Model*](https://arxiv.org/abs/2404.06078), 2024. |
+| `psrq` | Shijia Wang et al., [*Progressive Semantic Residual Quantization for Multimodal-Joint Interest Modeling in Music Recommendation*](https://arxiv.org/abs/2508.20359), 2025. The canonical model uses a PSRQ pretrainer whose artifacts are consumed by an internal downstream MCCA network; `mcca` is a compatibility alias only. |
+| `qarm` | Xinchen Luo et al., *QARM: Quantitative Alignment Multi-Modal Recommendation at Kuaishou*, 2025. |
+
+### GFFI — General Fusion and Feature Interaction (5)
+
+| Registry name | Reference |
+|---|---|
+| `naml` | Chuhan Wu et al., [*Neural News Recommendation with Attentive Multi-View Learning*](https://doi.org/10.24963/ijcai.2019/536), 2019. |
+| `mb` | Yu Shang et al., *Enhancing Adversarial Robustness of Multi-Modal Recommendation via Modality Balancing*, 2023. |
+| `lmf` | Zhun Liu et al., *Efficient Low-Rank Multimodal Fusion with Modality-Specific Factors*, 2018. |
+| `simcen` | Honghao Li et al., *SimCEN: Simple Contrast-Enhanced Network for CTR Prediction*, 2024. |
+| `mtfn` | Tan Wang et al., *Matching Images and Text with Multi-Modal Tensor Fusion and Re-Ranking*, 2019. |
+
+### RDRR — Representation Disentanglement and Redundancy Reduction (3)
+
+| Registry name | Reference |
+|---|---|
+| `pamd` | Tengyue Han et al., *Modality Matches Modality: Pretraining Modality-Disentangled Item Representations for Recommendation*, 2022. |
+| `gmmf` | Fangxiong Xiao et al., *From Abstract to Details: A Generative Multimodal Fusion Framework for Recommendation*, 2022. |
+| `marn` | Xiang Li et al., [*Adversarial Multimodal Representation Learning for Click-Through Rate Prediction*](https://arxiv.org/abs/2003.07162), WWW 2020. |
+
+## Software-only reference variants (2)
+
+These entries are useful controlled software baselines, but they are **not** additional models in the
+paper's five-plus-16 evaluation set.
+
+| Registry name | Provenance |
+|---|---|
+| `dnn_mm` | DNN with canonical target/history multimodal fusion; no separate paper is claimed. |
+| `dnn_mm_seq` | Sequential DNN-MM variant (legacy alias `dnn_seq`); no separate paper is claimed. |
+
+## Quantization pretraining components
+
+RQ and PSRQ pretraining are not extra registry models. RQ produces artifacts for the downstream
+`qarm` entry. PSRQ pretraining produces artifacts for the canonical downstream `psrq` entry, which
+implements the paper model named **PSRQ**; `mcca` is only its backward-compatible registry alias.

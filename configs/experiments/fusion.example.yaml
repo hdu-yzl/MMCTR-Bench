@@ -19,5 +19,7 @@ model_configs:
     dropout: 0.0
     batch_norm: false
 models: [dnn_mm]
-fusions: [cat, mean]
+# Runnable registry subset. The paper evaluates CAT, DMF, DTA, FQ-Former,
+# LMF, MAF, MTFN, SimCEN, and SRC; only these six generic operators are registered.
+fusions: [concatenate, sum, mean, maf, lmf, mtfn]
 seeds: [2025, 2026, 2027]
