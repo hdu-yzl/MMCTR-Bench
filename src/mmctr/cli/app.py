@@ -38,8 +38,14 @@ def _run_train(arguments) -> int:
         use_local_data=arguments.use_local_data,
         cuda=arguments.cuda,
         output_root=arguments.output_root,
+        seed=arguments.seed,
+        save_checkpoints=not arguments.no_checkpoints,
+        dataset_config_path=arguments.dataset_config,
     )
-    trainer.run()
+    if arguments.validation_only:
+        trainer.run(evaluate_test=False)
+    else:
+        trainer.run()
     return 0
 
 
@@ -48,6 +54,56 @@ def _validate_config(arguments) -> int:
 
     config = load_training_config(arguments.config, project_root=arguments.project_root)
     print(json.dumps(config.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def _run_tune(arguments) -> int:
+    _configure_threads(arguments.num_threads)
+    from mmctr.config import load_yaml_mapping
+    from mmctr.experiments.tuning import ValidationOnlyTuner, run_validation_search
+    from mmctr.training.entrypoint import PROJECT_ROOT, Trainer
+
+    payload = load_yaml_mapping(arguments.candidates)
+    candidates = payload.get("candidates")
+    if set(payload) != {"candidates"} or not isinstance(candidates, list) or not candidates:
+        raise ValueError("candidate YAML requires a nonempty candidates list")
+    for candidate in candidates:
+        if not isinstance(candidate, dict) or set(candidate) - {"model", "training"}:
+            raise ValueError("each candidate accepts only model and training override mappings")
+        if any(not isinstance(value, dict) for value in candidate.values()):
+            raise ValueError("model/training overrides must be mappings")
+
+    def factory(candidate):
+        return Trainer(
+            dataset_name=arguments.dataset_name,
+            model_name=arguments.model_name,
+            dataset_config_path=arguments.dataset_config,
+            cuda=arguments.cuda,
+            seed=arguments.seed,
+            output_root=arguments.output_root,
+            save_checkpoints=False,
+            model_overrides=candidate.get("model"),
+            training_overrides=candidate.get("training"),
+        )
+
+    # Resolve provenance without fitting or reading the test split.
+    from mmctr.config import load_dataset_catalog
+
+    catalog = load_dataset_catalog(
+        arguments.dataset_config or PROJECT_ROOT / "configs/datasets/catalog.yaml",
+        arguments.dataset_name,
+        PROJECT_ROOT,
+    )
+    data = catalog[arguments.dataset_name]
+    tuner = ValidationOnlyTuner(
+        Path(arguments.output_root),
+        arguments.study_id,
+        "{}-{}".format(arguments.dataset_name, arguments.model_name),
+        data["fingerprint"],
+        [arguments.seed],
+    )
+    result = run_validation_search(tuner, candidates, factory)
+    print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
     return 0
 
 
@@ -198,12 +254,40 @@ def build_parser() -> argparse.ArgumentParser:
 
     train = subparsers.add_parser("train", help="run an isolated training task")
     train.add_argument("--dataset-name", default="antm2c")
+    train.add_argument(
+        "--dataset-config", default=None, help="Explicit dataset catalog YAML for this run"
+    )
     train.add_argument("--model-name", default="dnn")
     train.add_argument("--use-local-data", action="store_true")
     train.add_argument("--cuda", type=int, default=None)
     train.add_argument("--output-root", default=None)
+    train.add_argument("--seed", type=int, default=None)
+    train.add_argument(
+        "--validation-only",
+        action="store_true",
+        help="fit/select on validation without evaluating test",
+    )
+    train.add_argument(
+        "--no-checkpoints",
+        action="store_true",
+        help="keep validation-selected weights in memory; write no pt files",
+    )
     train.add_argument("--num-threads", type=int, default=8)
     train.set_defaults(handler=_run_train)
+
+    tune = subparsers.add_parser(
+        "tune", help="validation-only candidate search, then one final test"
+    )
+    tune.add_argument("--dataset-name", required=True)
+    tune.add_argument("--model-name", required=True)
+    tune.add_argument("--dataset-config", default=None)
+    tune.add_argument("--candidates", type=Path, required=True)
+    tune.add_argument("--study-id", required=True)
+    tune.add_argument("--output-root", default="outputs/tuning")
+    tune.add_argument("--seed", type=int, default=2025)
+    tune.add_argument("--cuda", type=int, default=None)
+    tune.add_argument("--num-threads", type=int, default=8)
+    tune.set_defaults(handler=_run_tune)
 
     validate = subparsers.add_parser(
         "validate-config", help="validate and resolve a training YAML file"

@@ -19,13 +19,19 @@ class DIN(BaseSeqModel):
 
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(HistoryCapability.SEQUENCE_TOKENS)
+        self.extra_id_fields = int(data_config.get("extra_id_fields", 0))
+        self.id_field_widths = tuple(data_config.get("id_field_widths", ()))
+        if len(self.id_field_widths) != self.extra_id_fields:
+            raise ContractError("additional ID widths/count mismatch")
         latent_dim = int(model_config.get("latent_dim", 128))
         projection_dim = int(model_config.get("projection_dim", 128))
         dropout = float(model_config.get("dropout", 0.5))
         batch_norm = bool(model_config.get("batch_norm", False))
         mlp_dims = tuple(int(value) for value in model_config.get("mlp_dims", [1024, 512, 256]))
         self.mm_projector = NamedFeatureProjector({"id": latent_dim}, projection_dim)
-        self.user_projector = NamedFeatureProjector({"id": latent_dim}, projection_dim)
+        self.user_projector = NamedFeatureProjector(
+            {"id": latent_dim * (1 + self.extra_id_fields)}, projection_dim
+        )
         self.embedding = FeatureEmbedding(int(data_config["id_feature_num"]) + 1, latent_dim)
         self.attention_pooling = DinAttention(
             projection_dim,
@@ -41,12 +47,11 @@ class DIN(BaseSeqModel):
 
     def forward_batch(self, batch: Batch) -> ModelOutput:
         try:
-            user_ids = batch.user_features["id"]
             item_ids = batch.item_features["id"]
             history_ids = batch.history_features["id"]
         except KeyError as error:
             raise ContractError("DIN requires user/item/history 'id' features") from error
-        user = self.user_projector["id"](self.embedding(user_ids).squeeze(1))
+        user = self.user_projector["id"](self.embed_user_fields(batch))
         item = self.mm_projector["id"](self.embedding(item_ids).squeeze(1))
         history = self.mm_projector["id"](self.embedding(history_ids))
         interest = self.attention_pooling(history, batch.history_mask, item)

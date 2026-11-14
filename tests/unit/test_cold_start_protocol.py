@@ -15,6 +15,32 @@ from mmctr.core import ContractError
 
 
 class ColdStartProtocolTests(unittest.TestCase):
+    def test_zero_shot_rejects_item_seen_only_in_training_history(self):
+        with self.assertRaisesRegex(ContractError, "zero-shot"):
+            ColdStartProtocol("item", "zero_shot").audit(
+                ["t"],
+                [1],
+                [10],
+                ["e"],
+                [2],
+                [11],
+                train_history_item_ids=[11, 0],
+            )
+
+    def test_few_shot_uses_strict_threshold_and_includes_zero_support(self):
+        protocol = ColdStartProtocol("user", "few_shot", max_support_interactions=5)
+        audit = protocol.audit(
+            ["t" + str(i) for i in range(9)],
+            [1] * 4 + [2] * 5,
+            [10] * 9,
+            ["e1", "e2"],
+            [1, 3],
+            [11, 11],
+        )
+        self.assertEqual({1: 4, 3: 0}, dict(audit.support_counts))
+        with self.assertRaisesRegex(ContractError, "few-shot"):
+            protocol.audit(["t" + str(i) for i in range(5)], [2] * 5, [10] * 5, ["e"], [2], [11])
+
     def test_verified_audit_builds_versioned_experiment_tasks(self):
         audit = ColdStartProtocol(target="item", regime="zero_shot").audit(
             train_event_ids=("tr-1",),
@@ -48,11 +74,11 @@ audit_manifest: audit.json
 
             self.assertEqual([task.key for task in tasks], [task.key for task in restored])
             analysis = tasks[0].resolved_config["analysis"]
-            self.assertEqual("cold-start-evaluation-v1", analysis["protocol"])
+            self.assertEqual("entity-support-evaluation-v2", analysis["protocol"])
             self.assertEqual(audit.fingerprint, analysis["audit_fingerprint"])
             self.assertEqual("zero_shot", analysis["regime"])
             payload = json.loads(matrix_path.read_text(encoding="utf-8"))
-            self.assertEqual("cold-start-study-matrix-v1", payload["schema"])
+            self.assertEqual("cold-start-study-matrix-v2", payload["schema"])
 
     def test_legacy_cold_start_trainer_and_tfrecord_scripts_are_removed(self):
         root = Path(__file__).resolve().parents[2]
@@ -91,7 +117,7 @@ audit_manifest: audit.json
                 evaluation_item_ids=(10,),
             )
 
-        few = ColdStartProtocol(target="user", regime="few_shot", max_support_interactions=2)
+        few = ColdStartProtocol(target="user", regime="few_shot", max_support_interactions=3)
         few_audit = few.audit(
             train_event_ids=("tr-1", "tr-2", "tr-3"),
             train_user_ids=(7, 7, 9),

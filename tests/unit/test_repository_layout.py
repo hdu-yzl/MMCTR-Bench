@@ -24,7 +24,7 @@ def test_repository_has_one_configuration_and_output_interface() -> None:
 def test_dataset_filesystem_interface_is_tracked_as_documentation() -> None:
     for area in ("raw", "processed"):
         assert (PROJECT_ROOT / "data" / area / "README.md").is_file()
-        for dataset in ("antm2c", "microlens", "tiktok"):
+        for dataset in ("antm2c", "ebnerd", "microlens", "tiktok"):
             assert (PROJECT_ROOT / "data" / area / dataset / "README.md").is_file()
 
 

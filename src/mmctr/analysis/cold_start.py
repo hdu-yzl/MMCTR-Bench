@@ -17,7 +17,7 @@ from mmctr.experiments import ExperimentTask, load_task_matrix, save_task_matrix
 from mmctr.models.common.registry import MODEL_REGISTRY
 
 
-COLD_START_STUDY_MATRIX_SCHEMA = "cold-start-study-matrix-v1"
+COLD_START_STUDY_MATRIX_SCHEMA = "cold-start-study-matrix-v2"
 _CONFIG_KEYS = frozenset(
     {
         "dataset",
@@ -80,7 +80,11 @@ class ColdStartAudit:
 
 
 class ColdStartProtocol:
-    """Validate event disjointness and target exposure for one versioned split."""
+    """Entity-partition audit primitive; paper union evaluation uses cold_populations.
+
+    For few-shot, the historical ``max_support_interactions`` argument is now the
+    exclusive threshold (paper N=5), and zero support is included.
+    """
 
     def __init__(
         self,
@@ -131,6 +135,7 @@ class ColdStartProtocol:
         evaluation_event_ids: Sequence[str],
         evaluation_user_ids: Sequence[int],
         evaluation_item_ids: Sequence[int],
+        train_history_item_ids: Sequence[int] = (),
     ) -> ColdStartAudit:
         train_events, train_users, train_items = self._validate_partition(
             "train", train_event_ids, train_user_ids, train_item_ids
@@ -144,27 +149,34 @@ class ColdStartProtocol:
         train_targets = train_users if self.target == "user" else train_items
         evaluation_targets = evaluation_users if self.target == "user" else evaluation_items
         evaluation_target_set = set(evaluation_targets)
+        history_items = tuple(int(value) for value in train_history_item_ids)
+        if any(value < 0 for value in history_items):
+            raise ContractError("training history IDs must be nonnegative")
         train_counts = Counter(train_targets)
         support_counts = {
             target_id: int(train_counts.get(target_id, 0))
             for target_id in sorted(evaluation_target_set)
         }
         if self.regime in {"zero_shot", "cold_start"}:
-            if any(support_counts.values()):
+            if any(support_counts.values()) or (
+                self.target == "item" and evaluation_target_set.intersection(history_items)
+            ):
                 raise ContractError("zero-shot target IDs must be absent from training")
         else:
             invalid = {
                 target_id: count
                 for target_id, count in support_counts.items()
-                if count < 1 or count > self.max_support_interactions
+                if count >= self.max_support_interactions
             }
             if invalid:
                 raise ContractError(
-                    "few-shot targets must have 1..{} support interactions: {}".format(
+                    "few-shot targets must have <{} support interactions (including zero): {}".format(
                         self.max_support_interactions, invalid
                     )
                 )
         payload = {
+            "support_rule": "strict_lt_including_zero-v2",
+            "train_history_item_ids": history_items,
             "target": self.target,
             "regime": self.regime,
             "max_support_interactions": self.max_support_interactions,
@@ -196,7 +208,7 @@ def save_cold_start_audit(path: Path, audit: ColdStartAudit) -> Path:
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     payload: Dict[str, Any] = {
-        "schema": "mmctr-cold-start-audit-v1",
+        "schema": "mmctr-cold-start-audit-v2",
         "audit": audit.to_dict(),
     }
     payload["manifest_fingerprint"] = _manifest_digest(payload)
@@ -221,7 +233,7 @@ def load_cold_start_audit(path: Path) -> ColdStartAudit:
     """Load a versioned audit and reject incomplete or modified manifests."""
 
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(payload, dict) or payload.get("schema") != "mmctr-cold-start-audit-v1":
+    if not isinstance(payload, dict) or payload.get("schema") != "mmctr-cold-start-audit-v2":
         raise ContractError("unsupported cold-start audit manifest schema")
     fingerprint = payload.pop("manifest_fingerprint", None)
     if not isinstance(fingerprint, str) or fingerprint != _manifest_digest(payload):
@@ -318,7 +330,7 @@ def build_cold_start_study_tasks(
                         "data": plain_data,
                         "model": _plain(model_config),
                         "analysis": {
-                            "protocol": "cold-start-evaluation-v1",
+                            "protocol": "entity-support-evaluation-v2",
                             "target": audit.target,
                             "regime": audit.regime,
                             "maximum_support_interactions": audit.maximum_support_interactions,

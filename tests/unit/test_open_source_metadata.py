@@ -87,7 +87,7 @@ def test_final_readme_documents_one_click_training() -> None:
     assert "refactored with the assistance of AI" in readme
 
 
-def test_release_checklist_keeps_known_blockers_explicit() -> None:
+def test_release_checklist_defines_source_and_distribution_gates() -> None:
     checklist = (PROJECT_ROOT / "docs" / "release-checklist.md").read_text(encoding="utf-8")
 
     for required in (
@@ -100,8 +100,8 @@ def test_release_checklist_keeps_known_blockers_explicit() -> None:
     ):
         assert required in checklist
 
-    assert "OSS-001" in checklist
-    assert "REL-001" in checklist
+    assert "Source and privacy audit" in checklist
+    assert "Publication" in checklist
 
 
 def test_source_distribution_includes_public_provenance_files() -> None:

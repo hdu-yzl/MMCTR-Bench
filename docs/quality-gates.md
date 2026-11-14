@@ -43,52 +43,20 @@ mkdir -p "$PIP_CACHE_DIR" "$RUFF_CACHE_DIR" "$MYPY_CACHE_DIR" \
 ```
 
 Run plain `"$MMCTR_PYTHON" -m pytest` as the complete CPU regression gate. GPU, real-data, and
-performance checks remain separate explicit server gates. The known TensorFlow dependency and
-CUDA-session findings are recorded in [environment.md](environment.md).
+performance checks remain separate explicit server gates. Runtime requirements are documented in [environment.md](environment.md).
 
 ## Linux CPU CI
 
 The workflow at [`.github/workflows/linux-ci.yml`](../.github/workflows/linux-ci.yml) runs the
 same staged gates on a fixed Ubuntu 22.04 and Python 3.8 CPU runner. It installs the CPU build of
-PyTorch 1.13.1 and the `training,dev` extras, verifies the resolved environment with `pip check`,
+PyTorch 1.13.1 and the `training,ci,dev` extras, verifies the resolved environment with `pip check`,
 then runs Ruff, mypy, unit/smoke tests, the complete coverage gate, and an isolated package build.
 All caches and temporary files are rooted below the GitHub workspace.
 
-TensorFlow remains in the separate `data` extra, so the optional TFRecord smoke is skipped on the
-clean CPU CI job and is covered by the authoritative Linux `bm` environment instead. A repository
-contract test parses the workflow as YAML and locks its runner, actions, Python version, cache
-boundary, and commands. The first clean remote run for commit `66db7d7` completed successfully as
-[GitHub Actions run 30642128515](https://github.com/hdu-yzl/MMCTR-Bench/actions/runs/30642128515),
-so `CI-001` is `DONE`.
+The `ci` extra includes the optional image, plotting, tabular, Arrow, and TensorFlow packages
+needed by collected tests. The workflow contract test verifies the runner, actions, Python
+version, dependency groups, project-local caches, and commands.
 
-## Linux baseline: 2026-07-31
-
-The following results were produced with `<BM_PYTHON>` resolved from `conda activate bm` on Ubuntu
-20.04.6 LTS:
-
-| Gate | Result |
-|---|---|
-| Ruff format | 34 scoped files already formatted |
-| Ruff lint | Passed for the configured `src/mmctr + tests` scope |
-| Unit + smoke | 25 passed in 7.48 seconds, including CI workflow and TFRecord round trips; strict RuntimeWarning rerun also passed |
-| Complete pytest + coverage | 35 passed in 17.84 seconds; 83.80% coverage, above the 80% gate |
-| Mypy | Mypy 1.10.1 found no issues in 14 `src/mmctr` source files |
-| Isolated package build | sdist and wheel built successfully; wheel contains 137 files |
-
-The final wheel is 268,965 bytes with SHA-256
-`c279ede0278cdd3871aefdaf08b3040fac4ddd90b4b849e913ce7e18388d3413`. The final sdist is
-175,986 bytes with SHA-256
-`4c1aa88017e7f8cab04812fd9fecbd5676984099d054bf56945fa63e60ce9ed3`. Both artifacts were
-written below ignored project-local `.tmp/` storage.
-
-The maintainer selected this Linux server as the sole environment for all subsequent changes and
-validation. The recorded Linux evidence therefore closes `QA-001` as `DONE`; no Windows rerun is
-required or inferred.
-
-## Current release rehearsal: 2026-08-04
-
-Using the absolute `bm` interpreter recorded in the server evidence (Python 3.8.20), the cumulative
-refactor passes `pip check`, Ruff format for 143 files, Ruff lint, mypy for 86 source files, 200
-unit/smoke tests, and 220 complete tests with 84.90% coverage. Bash syntax, repository-external
-launcher dry-runs, and the no-isolation source/wheel build also pass. Artifact hashes and remaining
-non-engineering blockers are recorded in [`release-checklist.md`](release-checklist.md).
+Record execution logs and coverage/build reports locally. Public source contains reusable
+procedures; validation records and generated distributions remain under ignored output paths.
+See the [release checklist](release-checklist.md) before source or artifact publication.

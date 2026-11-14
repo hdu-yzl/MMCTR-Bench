@@ -1,0 +1,9 @@
+# Explicit candidates: every run uses train/full validation; only the winner sees test.
+# Expand or generate this list BEFORE running; do not use test scores to revise it.
+candidates:
+  - training: {lr: 0.001}
+    model: {dropout: 0.1}
+  - training: {lr: 0.0001}
+    model: {dropout: 0.1}
+  - training: {lr: 0.00001}
+    model: {dropout: 0.1}

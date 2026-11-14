@@ -14,6 +14,7 @@ DATASET_REGISTRY.register_many(
             "AntM2CCanonicalLoader",
         ),
         ComponentSpec("microlens", "mmctr.data.datasets.microlens.loader", "MicroLensLoader"),
+        ComponentSpec("ebnerd", "mmctr.data.datasets.ebnerd.loader", "EBNeRDLoader"),
         ComponentSpec("tiktok", "mmctr.data.datasets.tiktok.loader", "TikTokLoader"),
     ]
 )

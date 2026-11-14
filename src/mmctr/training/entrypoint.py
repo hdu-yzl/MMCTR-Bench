@@ -1,16 +1,18 @@
 from pathlib import Path
-from typing import Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
 
 from mmctr.utils import helper
 from mmctr.utils.run_context import create_run_context
 from mmctr.config import (
     ConfigValidationError,
+    TrainingConfig,
     load_local_paths,
     load_training_config,
     load_yaml_mapping,
     resolve_dataset_config,
 )
 from mmctr.data import HistoryMode, ensure_canonical_loader, get_data_loader
+from mmctr.core import RunResult
 from mmctr.models.common.registry import create_model, create_model_from_artifacts, model_spec
 from mmctr.training import (
     AlternatingPhase,
@@ -25,6 +27,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Trainer(object):
+    final_test_loader: Any = None
+    final_full_test_loader: Any = None
+    prepare_final_test: Optional[Callable[[], None]] = None
+
     def __init__(
         self,
         dataset_name: str = "antm2c",
@@ -32,6 +38,11 @@ class Trainer(object):
         use_local_data: bool = False,
         cuda: Optional[int] = None,
         output_root: Optional[str] = None,
+        seed: Optional[int] = None,
+        save_checkpoints: bool = True,
+        dataset_config_path: Optional[str] = None,
+        model_overrides: Optional[Mapping] = None,
+        training_overrides: Optional[Mapping] = None,
     ):
         requested_model_name = str(model_name).lower()
         specification = model_spec(requested_model_name)
@@ -42,9 +53,15 @@ class Trainer(object):
         config_name = self.model_name
         if config_name not in model_catalog:
             config_name = requested_model_name
-        self.model_config = model_catalog[config_name]
+        self.model_config = dict(model_catalog[config_name])
+        if model_overrides:
+            if "model_name" in model_overrides:
+                raise ValueError("model_name cannot be a tuning override")
+            self.model_config.update(model_overrides)
         self.model_config["model_name"] = self.model_name
-        all_data_config = load_yaml_mapping(PROJECT_ROOT / "configs/datasets/catalog.yaml")
+        all_data_config = load_yaml_mapping(
+            dataset_config_path or PROJECT_ROOT / "configs/datasets/catalog.yaml"
+        )
         local_paths = None
         if use_local_data:
             local_paths = load_local_paths(PROJECT_ROOT / "configs/local/paths.yaml")
@@ -58,10 +75,25 @@ class Trainer(object):
             project_root=PROJECT_ROOT,
             local_paths=local_paths,
         )
+        from mmctr.models.common.registry import resolve_model_config
+
+        self.model_config = resolve_model_config(self.model_config, dataset_config)
         self.data_config = {self.dataset_name: dataset_config}
         self.train_config = load_training_config(
             PROJECT_ROOT / "configs/training/default.yaml"
         ).to_dict()
+        if training_overrides:
+            allowed = {"lr", "l2", "batch_size", "optim", "max_epochs", "early_stop_patience"}
+            if set(training_overrides) - allowed:
+                raise ValueError("unsupported training tuning override")
+            self.train_config.update(training_overrides)
+            self.train_config = TrainingConfig.from_mapping(
+                self.train_config, PROJECT_ROOT
+            ).to_dict()
+        if seed is not None:
+            if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < 2**32:
+                raise ValueError("seed must be an integer in [0, 2**32)")
+            self.train_config["seed"] = seed
         quantization_artifact_dir = self.train_config["quantization_artifact_dir"]
         if cuda is not None:
             self.train_config["cuda"] = cuda
@@ -80,6 +112,7 @@ class Trainer(object):
             resolved_config=experiment_config,
             repository_root=PROJECT_ROOT,
             metadata={
+                "checkpoint_policy": "disk" if save_checkpoints else "memory_best_only",
                 "seed": self.train_config.get("seed"),
                 "requested_cuda": self.train_config.get("cuda"),
                 "data_version": self.data_config[self.dataset_name].get("version", "unknown"),
@@ -164,13 +197,17 @@ class Trainer(object):
                 self.model,
                 optimizer,
                 device,
-                CheckpointManager(self.run_context.checkpoints_dir),
+                CheckpointManager(self.run_context.checkpoints_dir, persist=save_checkpoints),
                 logger=self.logger,
                 metric_writer=self.run_context.append_metrics,
                 alternating_phases=alternating_phases,
             )
             self.run_context.update_metadata(
-                {"device": str(device), "runtime_kind": self.runtime_kind}
+                {
+                    "device": str(device),
+                    "runtime_kind": self.runtime_kind,
+                    "algorithm_version": getattr(self.model, "algorithm_version", "native"),
+                }
             )
 
             self.logger.info(f"run_id={self.run_context.run_id}")
@@ -180,7 +217,34 @@ class Trainer(object):
             self.run_context.finalize("failed", error=repr(error))
             raise
 
-    def run(self):
+    def evaluate_final(self, epoch: int) -> RunResult:
+        """Evaluate selected weights once; callers must freeze HPO selection first."""
+        if getattr(self, "_test_evaluated", False):
+            raise RuntimeError("final test has already been evaluated for this run")
+        self._test_evaluated = True
+        prepare = getattr(self, "prepare_final_test", None)
+        if prepare is not None:
+            prepare()
+        test_loader = self.final_test_loader or self.dataloader
+        metrics: Dict[str, float] = {}
+        full_loader = getattr(self, "final_full_test_loader", None)
+        if full_loader is not None:
+            full = self.engine.evaluate(full_loader, "test", epoch)
+            if full.metrics is None:
+                raise RuntimeError("full test comparator metrics were not produced")
+            metrics.update(full_test_auc=full.metrics.auc, full_test_loss=full.metrics.log_loss)
+        evaluation = self.engine.evaluate(test_loader, "test", epoch)
+        if evaluation.metrics is None:
+            raise RuntimeError("test metrics were not produced")
+        metrics.update(test_auc=evaluation.metrics.auc, test_loss=evaluation.metrics.log_loss)
+        return RunResult(
+            self.run_context.run_id,
+            "completed",
+            metrics,
+            artifact_dir=self.run_context.root_dir,
+        )
+
+    def run(self, evaluate_test: bool = True) -> RunResult:
         """Fit on train/validation, restore the best checkpoint, then evaluate test once.
 
         Test metrics are produced only after validation-based model selection has
@@ -195,19 +259,26 @@ class Trainer(object):
                 self.run_context.run_id,
                 self.run_context.root_dir,
             )
-            test_result = self.engine.evaluate(
-                self.dataloader,
-                "test",
-                int(fit_result.metrics["best_epoch"]),
-            )
-            if test_result.metrics is None:
-                raise RuntimeError("test metrics were not produced")
-            test_auc = test_result.metrics.auc
-            test_loss = test_result.metrics.log_loss
             summary = dict(fit_result.metrics)
-            summary.update({"test_auc": test_auc, "test_loss": test_loss})
-            self.logger.info(f"test_auc={test_auc:.6f}, test_loss={test_loss:.6f}")
+            if evaluate_test:
+                final = self.evaluate_final(int(fit_result.metrics["best_epoch"]))
+                summary.update(final.metrics)
+            else:
+                validation = self.engine.evaluate(
+                    self.dataloader, "val", int(fit_result.metrics["best_epoch"])
+                )
+                if validation.metrics is None:
+                    raise RuntimeError("validation metrics were not produced")
+                summary.update(
+                    val_auc=validation.metrics.auc, val_log_loss=validation.metrics.log_loss
+                )
             self.run_context.finalize("completed", summary=summary)
+            return RunResult(
+                self.run_context.run_id,
+                "completed",
+                summary,
+                artifact_dir=self.run_context.root_dir,
+            )
         except BaseException as error:
             self.run_context.finalize("failed", error=repr(error))
             raise
@@ -222,6 +293,8 @@ def build_parser():
     parser.add_argument("--use_local_data", action="store_true")
     parser.add_argument("--cuda", type=int, default=None)
     parser.add_argument("--output_root", default=None)
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--no-checkpoints", action="store_true")
     return parser
 
 
@@ -233,6 +306,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         use_local_data=arguments.use_local_data,
         cuda=arguments.cuda,
         output_root=arguments.output_root,
+        seed=arguments.seed,
+        save_checkpoints=not arguments.no_checkpoints,
     )
     trainer.run()
     return 0

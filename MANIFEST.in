@@ -10,8 +10,12 @@ include docs/references.md
 include docs/release-checklist.md
 recursive-include docs *.md *.json
 recursive-include configs *.yaml
-recursive-include scripts *.sh
+recursive-include scripts *.sh *.py
 recursive-include tests *.py *.json
 prune configs/local
+exclude scripts/run_ebnerd_id16*_once.py
+exclude docs/legacy_tuning_history.yaml
+exclude docs/data/antm2c-format-benchmark.json
+global-exclude MMCTR_Benchmark*.pdf
 global-exclude *.py[cod]
 global-exclude __pycache__

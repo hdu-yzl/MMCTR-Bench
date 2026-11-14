@@ -51,7 +51,7 @@ dataset fields remain mappings until their dedicated model/data refactor tasks e
 evidence. This boundary is deliberate: configuration cleanup must not silently change paper model
 formulas or data semantics.
 
-The former `Tuner.yaml` and unconsumed `best_param.yaml` were removed. Historical test-selected
-records remain explicitly quarantined in `docs/legacy_tuning_history.yaml` and are not executable
-configuration. New tuning output belongs under ignored `outputs/` paths; a reviewed frozen
-selection must retain its experiment ID, validation metrics, seeds, and data fingerprint.
+Tuning output belongs under ignored `outputs/` paths. A reviewed frozen selection retains its
+experiment ID, validation metrics, seeds, and data fingerprint. Only validation metrics select
+the configuration; final test metrics are stored separately. See the
+[benchmark protocol](benchmark-protocol.md#model-selection-and-final-evaluation).

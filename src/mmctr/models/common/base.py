@@ -32,6 +32,23 @@ class BaseSeqModel(torch.nn.Module, ABC):
             raise ContractError("models require a canonical Batch")
         return ensure_model_output(self.forward_batch(batch))
 
+    def embed_user_fields(self, batch: Batch) -> torch.Tensor:
+        """Lookup every field in the same table; pool only tokens within each field."""
+        identity = self.embedding(batch.user_features["id"]).flatten(start_dim=1)
+        count = getattr(self, "extra_id_fields", 0)
+        if not count:
+            return identity
+        ids = batch.user_features.get("attribute_ids")
+        if ids is None or ids.ndim != 3 or ids.shape[1] != count:
+            raise ContractError("missing or mismatched additional ID fields")
+        fields = []
+        for index, width in enumerate(self.id_field_widths):
+            field = ids[:, index, :width]
+            mask = field.ne(0).unsqueeze(-1)
+            values = self.embedding(field)
+            fields.append((values * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1))
+        return torch.cat([identity, *fields], dim=1)
+
     @abstractmethod
     def forward_batch(self, batch: Batch) -> ModelOutput:
         """Implement a pure forward pass without mutating ``batch``."""

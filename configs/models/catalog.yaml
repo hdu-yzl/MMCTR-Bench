@@ -160,6 +160,7 @@ mtfn:
     lambda0: 0.05
 
 dmf:
+    similarity_source: frozen_features  # dmf-frozen-features-v2; legacy_projected reproduces old runs
     latent_dim: 128  # embedding dimension
     projection_dim: 128
 

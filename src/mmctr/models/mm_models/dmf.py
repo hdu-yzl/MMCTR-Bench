@@ -1,6 +1,6 @@
 """Decoupled multimodal fusion recommendation model."""
 
-from typing import Mapping
+from typing import Dict, Mapping
 
 import torch
 
@@ -10,7 +10,7 @@ from mmctr.models.common.sequence import _SequenceMultimodalModel
 from mmctr.models.common.similarity import SimilarityTiers
 from mmctr.models.common.base import BaseSeqModel
 from mmctr.models.common.layers import FeatureEmbedding, MultiLayerPerceptron
-from mmctr.models.common.components import apply_sequence_mask
+from mmctr.models.common.components import NamedFeatureProjector, apply_sequence_mask
 
 
 class _SimilarityDiscretizer(torch.nn.Module):
@@ -79,6 +79,24 @@ class DMF(_SequenceMultimodalModel):
         self.non_id_features = tuple(name for name in self.feature_names if name != "id")
         if not self.non_id_features:
             raise ContractError("DMF requires at least one non-ID modality")
+        self.similarity_source = str(model_config.get("similarity_source", "frozen_features"))
+        if self.similarity_source not in {"frozen_features", "legacy_projected"}:
+            raise ContractError("DMF similarity_source must be frozen_features or legacy_projected")
+        self.algorithm_version = (
+            "dmf-frozen-features-v2"
+            if self.similarity_source == "frozen_features"
+            else "dmf-legacy-projected-v1"
+        )
+        if self.similarity_source == "frozen_features":
+            if model_config.get("modal_fusion_method", "cat") != "cat":
+                raise ContractError(
+                    "frozen-feature DMF requires cat fusion; legacy modes are explicit"
+                )
+            # Similarity comes from upstream pretrained vectors, not untrainable
+            # random projections before integer bucket lookup (DMF IV-A, Eq10).
+            id_projector = self.projectors["id"]
+            self.projectors = NamedFeatureProjector({"id": self.latent_dim}, self.projection_dim)
+            self.projectors["id"] = id_projector
         self.tier_count = int(model_config.get("tier_num", 10))
         self.attention_dim = int(model_config.get("attention_dim", 128))
         self.bucket_count = int(model_config.get("num_buckets", 35))
@@ -124,15 +142,38 @@ class DMF(_SequenceMultimodalModel):
             activation=None,
         )
 
+    def project_target(self, batch: Batch) -> Dict[str, torch.Tensor]:
+        if self.similarity_source == "legacy_projected":
+            return super().project_target(batch)
+        values = {name: self._target_feature(batch, name).detach() for name in self.non_id_features}
+        values["id"] = self.projectors["id"](self.embedding(batch.item_features["id"]).squeeze(1))
+        return values
+
+    def project_history(self, batch: Batch) -> Dict[str, torch.Tensor]:
+        if self.similarity_source == "legacy_projected":
+            return super().project_history(batch)
+        values = {
+            name: apply_sequence_mask(batch.history_features[name].detach(), batch.history_mask)
+            for name in self.non_id_features
+        }
+        values["id"] = apply_sequence_mask(
+            self.projectors["id"](self.embedding(batch.history_features["id"])), batch.history_mask
+        )
+        return values
+
     def forward_batch(self, batch: Batch) -> ModelOutput:
         target_features = self.project_target(batch)
         history_features = self.project_history(batch)
-        target_center = self.modal_fusion(
-            {name: target_features[name] for name in self.non_id_features}
-        ).fused
-        history_center = self.modal_fusion(
-            {name: history_features[name] for name in self.non_id_features}
-        ).fused
+        if self.similarity_source == "frozen_features":
+            target_center = torch.cat([target_features[n] for n in self.non_id_features], dim=-1)
+            history_center = torch.cat([history_features[n] for n in self.non_id_features], dim=-1)
+        else:
+            target_center = self.modal_fusion(
+                {name: target_features[name] for name in self.non_id_features}
+            ).fused
+            history_center = self.modal_fusion(
+                {name: history_features[name] for name in self.non_id_features}
+            ).fused
         history_center = apply_sequence_mask(history_center, batch.history_mask)
         similarities = torch.nn.functional.cosine_similarity(
             target_center.unsqueeze(1), history_center, dim=-1

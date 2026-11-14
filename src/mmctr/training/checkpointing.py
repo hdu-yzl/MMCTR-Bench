@@ -1,6 +1,7 @@
 """Isolated atomic model and optimizer checkpoints."""
 
 import os
+from copy import deepcopy
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,9 +24,11 @@ class CheckpointState:
 class CheckpointManager:
     """Own `best.pt` and `last.pt` inside one run-specific directory."""
 
-    def __init__(self, directory: PathLike) -> None:
+    def __init__(self, directory: PathLike, persist: bool = True) -> None:
         self.directory = Path(directory).expanduser().resolve()
         self.directory.mkdir(parents=True, exist_ok=True)
+        self.persist = persist
+        self._best_payload: Optional[Dict[str, Any]] = None
 
     @property
     def best_path(self) -> Path:
@@ -45,6 +48,20 @@ class CheckpointManager:
         metadata: Optional[Mapping[str, Any]] = None,
     ) -> Path:
         path = self._path(name)
+        if not self.persist:
+            # Last/optimizer state is unnecessary when interrupted runs restart.
+            if name == "best":
+                state = model.state_dict()
+                cpu_state = deepcopy(state)
+                for key, value in state.items():
+                    cpu_state[key] = value.detach().cpu().clone()
+                self._best_payload = {
+                    "epoch": int(epoch),
+                    "metric": float(metric) if metric is not None else None,
+                    "model_state": cpu_state,
+                    "metadata": deepcopy(dict(metadata or {})),
+                }
+            return path
         payload = {
             "schema_version": CHECKPOINT_SCHEMA_VERSION,
             "epoch": int(epoch),
@@ -82,9 +99,17 @@ class CheckpointManager:
         """Restore a supported checkpoint and optionally its optimizer state."""
 
         path = self._path(name)
+        if not self.persist:
+            if name != "best" or optimizer is not None:
+                raise ValueError("memory-only checkpoints cannot resume optimizer/last state")
+            if self._best_payload is None:
+                raise FileNotFoundError("no validation-selected weights in memory")
+            payload = self._best_payload
+            model.load_state_dict(payload["model_state"])
+            return CheckpointState(payload["epoch"], payload["metric"], payload["metadata"])
         if not path.is_file():
             raise FileNotFoundError("checkpoint not found: {}".format(path))
-        payload: Dict[str, Any] = torch.load(path, map_location=map_location)
+        payload = torch.load(path, map_location=map_location)
         if payload.get("schema_version") != CHECKPOINT_SCHEMA_VERSION:
             raise ValueError("unsupported checkpoint schema")
         model.load_state_dict(payload["model_state"])

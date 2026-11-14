@@ -30,6 +30,10 @@ env/
 /AGENTS.md
 /REFACTORING_PLAN.md
 /MMCTR_Benchmark.pdf
+/MMCTR_Benchmark*.pdf
+/docs/MMCTR_Benchmark*.pdf
+.codex/
+.agents/
 *.swp
 *.swo
 .DS_Store
@@ -70,6 +74,13 @@ ray_results/
 *.pt
 *.pth
 *.ckpt
+
+# Local experiment drivers and development reports
+/scripts/run_ebnerd_id16*_once.py
+/docs/legacy_tuning_history.yaml
+/docs/data/antm2c-format-benchmark.json
+# EB-NeRD manifests include fitted vocabularies; regenerate them with the data.
+/data/processed/ebnerd/**/manifest.json
 
 # Temporary files
 .cache/

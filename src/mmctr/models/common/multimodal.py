@@ -64,6 +64,10 @@ def _build_fusion(
 class _PooledMultimodalModel(BaseSeqModel):
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(HistoryCapability.POOLED_HISTORY)
+        self.extra_id_fields = int(data_config.get("extra_id_fields", 0))
+        self.id_field_widths = tuple(data_config.get("id_field_widths", ()))
+        if len(self.id_field_widths) != self.extra_id_fields:
+            raise ContractError("additional ID widths/count mismatch")
         self.latent_dim = int(model_config.get("latent_dim", 128))
         self.projection_dim = int(model_config.get("projection_dim", 128))
         self.mlp_dims = tuple(
@@ -79,7 +83,7 @@ class _PooledMultimodalModel(BaseSeqModel):
             raise ContractError("simple multimodal models require target and history ID features")
         target_dimensions = dict(data_config.get("mm_dims", {}))
         history_dimensions = dict(data_config.get("mm_seq_dims", target_dimensions))
-        target_dimensions["id"] = self.latent_dim * 2
+        target_dimensions["id"] = self.latent_dim * (2 + self.extra_id_fields)
         history_dimensions["id"] = self.latent_dim
         self.target_projectors = self._make_projectors(self.feature_names, target_dimensions)
         self.history_projectors = self._make_projectors(
@@ -108,10 +112,16 @@ class _PooledMultimodalModel(BaseSeqModel):
 
     def project_target(self, batch: Batch) -> Dict[str, torch.Tensor]:
         try:
-            target_ids = torch.cat([batch.user_features["id"], batch.item_features["id"]], dim=1)
+            target_embedding = torch.cat(
+                [
+                    self.embed_user_fields(batch),
+                    self.embedding(batch.item_features["id"]).flatten(start_dim=1),
+                ],
+                dim=1,
+            )
         except KeyError as error:
             raise ContractError("pooled multimodal models require user/item IDs") from error
-        encoded = {"id": self.embedding(target_ids).flatten(start_dim=1)}
+        encoded = {"id": target_embedding}
         presence = {}
         for name in self.feature_names:
             if name == "id":

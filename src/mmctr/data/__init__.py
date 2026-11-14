@@ -6,6 +6,7 @@ from .registry import available_datasets, create_data_loader, resolve_data_loade
 
 
 _LOADER_EXPORTS = {
+    "EBNeRDLoader": "ebnerd",
     "Antm2cLoader": "antm2c",
     "MicroLensLoader": "microlens",
     "MicrolensLoader": "microlens",

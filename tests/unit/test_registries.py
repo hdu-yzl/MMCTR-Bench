@@ -11,7 +11,7 @@ from mmctr.quantization.registry import QUANTIZER_REGISTRY
 
 class RegistryTests(unittest.TestCase):
     def test_public_registries_have_unique_canonical_names(self):
-        self.assertEqual(3, len(DATASET_REGISTRY.names()))
+        self.assertEqual(4, len(DATASET_REGISTRY.names()))
         self.assertEqual(23, len(MODEL_REGISTRY.names()))
         self.assertEqual(2, len(QUANTIZER_REGISTRY.names()))
         self.assertEqual(6, len(FUSION_REGISTRY.names()))

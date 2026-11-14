@@ -60,6 +60,49 @@ def configs():
 
 
 class CanonicalComplexSequenceTests(unittest.TestCase):
+    def test_dmf_similarity_uses_frozen_input_and_trains_bucket_and_id_embeddings(self):
+        from dataclasses import replace
+
+        torch.manual_seed(71)
+        model_config, data_config = configs()
+        model = create_model("dmf", model_config, data_config)
+        batch = make_batch()
+        batch = replace(
+            batch,
+            item_features={
+                **batch.item_features,
+                "text": torch.randn(2, 3),
+                "image": torch.randn(2, 2),
+            },
+            history_features={
+                **batch.history_features,
+                "text": torch.randn(2, 2, 3),
+                "image": torch.randn(2, 2, 2),
+            },
+        )
+        target = torch.cat([batch.item_features[n] for n in ("text", "image")], -1)
+        history = torch.cat([batch.history_features[n] for n in ("text", "image")], -1)
+        expected = torch.nn.functional.cosine_similarity(target.unsqueeze(1), history, dim=-1)
+        expected = expected * batch.history_mask
+        output = model(batch)
+        self.assertTrue(torch.allclose(output.representations["similarities"], expected))
+        self.assertFalse(
+            any(
+                "projectors.text" in n or "projectors.image" in n
+                for n, _ in model.named_parameters()
+            )
+        )
+        parameters = [
+            model.embedding.embedding,
+            model.target_attention.similarity_key.embedding,
+            model.target_attention.similarity_value.embedding,
+        ]
+        before = [p.detach().clone() for p in parameters]
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+        torch.nn.functional.binary_cross_entropy_with_logits(output.logits, batch.labels).backward()
+        optimizer.step()
+        self.assertTrue(all(not torch.equal(a, b) for a, b in zip(before, parameters)))
+
     def test_dmf_and_marn_use_canonical_contract_and_backward(self):
         for name in ("dmf", "marn"):
             with self.subTest(name=name):

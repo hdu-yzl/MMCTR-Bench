@@ -63,12 +63,18 @@ class MB(_PooledMultimodalModel):
         if self.pgd_steps <= 0:
             raise ContractError("MB PGD steps must be positive")
 
-        self.user_id_encoder = torch.nn.Linear(self.latent_dim, self.projection_dim)
+        self.user_id_encoder = torch.nn.Linear(
+            self.latent_dim * (1 + self.extra_id_fields), self.projection_dim
+        )
         self.item_id_encoder = torch.nn.Linear(self.latent_dim, self.projection_dim)
-        self.id_pair_encoder = torch.nn.Linear(self.latent_dim * 2, self.projection_dim)
+        self.id_pair_encoder = torch.nn.Linear(
+            self.latent_dim * (2 + self.extra_id_fields), self.projection_dim
+        )
         self.user_modal_encoders = torch.nn.ModuleDict(
             {
-                name: torch.nn.Linear(self.latent_dim, self.projection_dim)
+                name: torch.nn.Linear(
+                    self.latent_dim * (1 + self.extra_id_fields), self.projection_dim
+                )
                 for name in self.modal_names
             }
         )
@@ -94,7 +100,7 @@ class MB(_PooledMultimodalModel):
         self, batch: Batch
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         try:
-            raw_user = self.embedding(batch.user_features["id"]).squeeze(1)
+            raw_user = self.embed_user_fields(batch)
             raw_item = self.embedding(batch.item_features["id"]).squeeze(1)
         except KeyError as error:
             raise ContractError("MB requires user and item IDs") from error

@@ -15,6 +15,10 @@ class _SequenceMultimodalModel(BaseSeqModel):
 
     def __init__(self, model_config: Mapping, data_config: Mapping) -> None:
         super().__init__(HistoryCapability.SEQUENCE_TOKENS)
+        self.extra_id_fields = int(data_config.get("extra_id_fields", 0))
+        self.id_field_widths = tuple(data_config.get("id_field_widths", ()))
+        if len(self.id_field_widths) != self.extra_id_fields:
+            raise ContractError("additional ID widths/count mismatch")
         self.latent_dim = int(model_config.get("latent_dim", 128))
         self.projection_dim = int(model_config.get("projection_dim", 128))
         self.dropout = float(model_config.get("dropout", 0.5))
@@ -40,7 +44,7 @@ class _SequenceMultimodalModel(BaseSeqModel):
         dimensions = dict(data_config.get("mm_seq_dims", data_config.get("mm_dims", {})))
         user_dimensions = dict(data_config.get("user_features_dim", {}))
         dimensions["id"] = self.latent_dim
-        user_dimensions["id"] = self.latent_dim
+        user_dimensions["id"] = self.latent_dim * (1 + self.extra_id_fields)
         missing = [name for name in self.feature_names if name not in dimensions]
         missing.extend(name for name in self.user_feature_names if name not in user_dimensions)
         if missing:
@@ -114,7 +118,7 @@ class _SequenceMultimodalModel(BaseSeqModel):
             else:
                 raise ContractError("user/context feature {!r} is missing".format(name))
             if name == "id":
-                values = self.embedding(values).squeeze(1)
+                values = self.embed_user_fields(batch)
             else:
                 presence[name] = feature_presence(values)
             encoded[name] = values

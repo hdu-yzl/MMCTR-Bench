@@ -57,3 +57,8 @@ For every source snapshot, keep an ignored record containing:
 - every transformation command and canonical manifest fingerprint.
 
 If any permission or lineage field is unknown, mark it unknown and do not redistribute the data.
+
+## EB-NeRD
+
+EB-NeRD small is available through the canonical loader and dataset catalog.
+See [processing, training and analysis](../docs/data/ebnerd.md).

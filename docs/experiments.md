@@ -27,14 +27,29 @@ test evaluation is allowed.
 
 ## Validation-only tuning
 
-Paper §3.5 and Appendix C define the formal search as Optuna random search with seed `2025`, stopping
-each model at **50 trials or 50 GPU-hours, whichever occurs first**. The current validation-only tuner and
-small example matrices do not schedule or enforce that wall-clock GPU budget; they are executable
-infrastructure/examples, not evidence that the formal paper search ran.
+The candidate-search command uses the production Trainer with test disabled for
+every trial, freezes the highest validation-AUC candidate, then loads its validation-best weights
+for exactly one final test evaluation (no retraining). It writes no `.pt` files:
+
+```bash
+<BM_PYTHON> -m mmctr.cli tune --dataset-name tiktok --model-name dmf \
+  --candidates configs/experiments/tuning.example.yaml --study-id tiktok-dmf-v2 \
+  --output-root outputs/tuning --cuda 0
+```
+
+Candidate YAML accepts `model` and `training` override mappings only. Every candidate's full
+resolved model/training/data configuration is frozen with its validation metrics. Study IDs
+cannot be reused after selection; existing artifacts are preserved. `train --validation-only`
+also makes standalone validation-only runs available. Default `train` is a final single run.
+
+The candidate-list interface evaluates the supplied configurations and records each trial.
+Paper §3.5 and Appendix C specify Optuna random search with seed `2025` and a stopping budget of
+**50 trials or 50 GPU-hours, whichever occurs first**. That search strategy and time limit require
+an external search driver; the candidate-list CLI does not schedule them.
 
 `ValidationOnlyTuner` consumes complete `TuningTrial` records and rejects any trial that already
 contains a `test*` metric. Selection uses strictly higher `val_auc`; `val_log_loss` is recorded but
-does not silently change the declared legacy tie rule. The study writes complete
+does not change the tie rule: equal AUC keeps the first candidate. The study writes complete
 `trial_history.json` plus an atomic `frozen_selection.json` containing experiment ID, selected run,
 validation metrics, seeds, data fingerprint, and the exact frozen candidate config. These files
 remain under the configured output root and are never promoted directly into tracked YAML.
@@ -74,15 +89,30 @@ it with:
 The strict config fixes the production model/data config, canonical manifest fingerprint,
 droppable modalities, affected splits, probabilities, and seeds. The command writes an atomic
 `robustness-study-matrix-v1`; `load_robustness_study_matrix` verifies its content fingerprint and
-returns tasks for `ExperimentRunner`. The former `src/analysis/modal_robustness.py` training,
-multi-GPU scheduling, and ad-hoc CSV implementation has been removed.
+returns tasks for `ExperimentRunner`. The diagnostic executor also offers a
+[joint-modality protocol](analysis/cross-dataset-diagnostics.md#modality-robustness) with explicit
+mask coupling and affected splits.
 
 ## Cold-start protocol
 
+**Paper reproduction uses `paper-mixed-graph-oov-v2`**, implemented by
+`cold_populations`, `PaperColdStartLoader` and the diagnostic executor. Follow the runnable
+workflow in [benchmark protocol](benchmark-protocol.md#cold-start-evaluation).
+It uses the user/item **union**, few-shot candidate support **<5 including zero**, zero-shot
+absence from both train targets and train histories, full train/full validation, and shared
+OOV identity indices at final evaluation only. The comparator is the full test AUC of the same
+selected weights with the same OOV policy. The executor requires matching v2 matrix and
+baseline fingerprints.
+
+The event-partition API below is an entity-support audit/planner, not the paper mixed cold-start
+execution path. Its v2 few-shot rule is also strict `<N` including zero; pass
+`max_support_interactions=5` as an exclusive threshold.
+
 `ColdStartProtocol` validates user- or item-targeted `cold_start`, `zero_shot`, and `few_shot`
 partitions from canonical event, user, and item IDs. Train and evaluation event sets must be
-disjoint. Zero-shot targets must be absent from training; every few-shot evaluation target must
-have between one and the declared maximum number of training interactions. These checks are made
+disjoint. Zero-shot targets must be absent from training; for item audits supply all training
+history IDs through `train_history_item_ids`. Every few-shot evaluation target must
+have fewer than the declared threshold of training interactions, including zero. These checks are made
 before evaluation, so an accidental warm target or duplicated event fails the experiment instead
 of being folded into a metric.
 
@@ -101,9 +131,8 @@ build the evaluation matrix with:
 ```
 
 Planning reloads and integrity-checks the audit, embeds its protocol fingerprint and file SHA-256,
-and writes `cold-start-study-matrix-v1`. The legacy 4608-dimensional TFRecord filters,
-`Trainers_fenxi.py`, and few/zero-shot subprocess schedulers were removed; cold-start evaluation
-now uses canonical dataset versions and the shared runner/training engine.
+and writes `cold-start-study-matrix-v2`. Cold-start evaluation uses canonical dataset versions
+and the shared runner/training engine.
 
 ## Efficiency protocol
 
@@ -127,10 +156,9 @@ The paper evaluates five objectives at a unified cross-modal interface: Kullback
 (`KL`), `InfoNCE`, cosine similarity (`Cosine`), maximum mean discrepancy (`MMD`), and adversarial
 alignment (`Adv`). Only the objective and its validation-selected coefficient vary.
 
-The current implementation is a strict subset: it supports `cosine` and `mse`. `MSE` is an implementation
-diagnostic and is not one of the paper five; `KL`, `InfoNCE`, `MMD`, and `Adv` are not runnable through
-the current planner. The example YAML therefore keeps only accepted runtime names rather than falsely
-advertising the complete paper study.
+The generic `plan-alignment-study` API supports `cosine` and `mse`; `MSE` is an implementation
+diagnostic. The [diagnostic executor](analysis/cross-dataset-diagnostics.md#alignment) supports
+the five-objective matrix using explicit representation adapters and optimization phases.
 
 Alignment studies use the production model unchanged. `ActivationCapture` installs temporary
 forward hooks on explicitly named modules, retains their differentiable tensor outputs for one
@@ -152,9 +180,8 @@ paths, and seeds. Build the verified matrix with:
   --output outputs/analysis/alignment/tasks.json
 ```
 
-The output uses `alignment-study-matrix-v1` and the shared task-matrix integrity protocol. The
-former `src/analysis/alignment_analysis/` wrapper model, special Trainer, subprocess scheduler,
-and ad-hoc CSV summarizer were removed. Alignment execution now injects `ActivationCapture` and
+The output uses `alignment-study-matrix-v1` and the shared task-matrix integrity protocol.
+Alignment execution injects `ActivationCapture` and
 `AlignmentAuxiliary` from the task's `analysis` config into the shared training executor.
 
 ## Plot inputs and provenance
@@ -180,8 +207,7 @@ rendering, and provenance in one operation:
 
 `render_metric_figure` accepts only completed `result-v1` inputs, groups by model/dataset/task/seed,
 uses the arithmetic mean for repeated runs, writes PNG/PDF/SVG atomically, and always emits a
-sibling provenance manifest containing the plotted values and source hashes. The 11 legacy Python
-scripts with embedded tables and the previously versioned generated figures were removed. Generated
+sibling provenance manifest containing the plotted values and source hashes. Generated
 figures belong under ignored `outputs/figures/`; runtime source under `src/` contains no static
 research artifacts.
 
@@ -193,10 +219,10 @@ fusion (`LMF`), multi-head attention fusion (`MAF`), multimodal tensor fusion ne
 `SimCEN`, and stochastic reverse cross-modal fusion (`SRC`). Standard linear projections may adapt
 dimensions; the remaining architecture and formal tuning budget stay fixed.
 
-The current generic registry exposes six operators: `concatenate`/`cat`, `sum`, `mean`, `maf`, `lmf`, and
-`mtfn`. Only `CAT`, `MAF`, `LMF`, and `MTFN` overlap the paper nine; `sum` and `mean` are runtime extras,
-while `DMF`, `DTA`, `FQ-Former`, `SimCEN`, and `SRC` are not registered generic replacements. A valid
-six-operator matrix is therefore not by itself a reproduction of the paper's nine-operator study.
+The generic registry exposes six operators: `concatenate`/`cat`, `sum`, `mean`, `maf`, `lmf`, and
+`mtfn`. `CAT`, `MAF`, `LMF`, and `MTFN` overlap the paper nine; `sum` and `mean` are additional
+runtime choices. The [diagnostic executor](analysis/cross-dataset-diagnostics.md#fusion) provides
+all nine operators through model-specific adapters with explicit substitution policies.
 
 `build_fusion_study_tasks` creates immutable ExperimentRunner tasks that vary registered fusion
 components on the production `dnn_mm`, `dnn_mm_seq`, `dmf`, and `make` implementations. Each task
@@ -221,6 +247,5 @@ materialize an immutable task matrix with:
 The command validates all model/fusion combinations through the production registries and writes
 `fusion-study-matrix-v1` atomically. The artifact includes every resolved task and a SHA-256
 integrity fingerprint; `load_fusion_study_matrix` verifies it and returns the exact
-`ExperimentTask` values accepted by `ExperimentRunner`. The old `src/analysis/fusion_analysis.py`
-and `src/analysis/fusion_analysis/` model copies were removed. They are not compatibility entry
-points: use the canonical command/API so analysis and production training share one implementation.
+`ExperimentTask` values accepted by `ExperimentRunner`. The canonical command/API shares model
+implementations with production training.

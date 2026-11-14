@@ -19,7 +19,6 @@ EXECUTABLE_PIPELINE_MODELS = frozenset(
         "autoint",
         "dcn",
         "deepfm",
-        "dmf",
         "dnn",
         "dnn_mm",
         "dnn_mm_seq",
@@ -34,6 +33,7 @@ EXECUTABLE_PIPELINE_MODELS = frozenset(
 
 _MODEL_SPECIFIC_REASONS = MappingProxyType(
     {
+        "dmf": "frozen raw-feature cosine precedes hard similarity buckets",
         "din": "Dice normalization observes padded projection bias in the current model",
         "marn": "private/shared experts, gradient reversal, and gates are model-specific",
         "em3": "FQ-Former queries and CIC require registered paper components",
@@ -123,7 +123,11 @@ def _dnn_mm_preset(
     projection_dim = int(model_config.get("projection_dim", 128))
     target_names = _names(data_config, "use_mm_features", ("id",))
     history_names = _names(data_config, "use_mm_seq_features", target_names)
-    target_dimensions = _dimensions(target_names, data_config.get("mm_dims", {}), latent_dim * 2)
+    target_dimensions = _dimensions(
+        target_names,
+        data_config.get("mm_dims", {}),
+        latent_dim * (2 + int(data_config.get("extra_id_fields", 0))),
+    )
     history_source = data_config.get("mm_seq_dims", data_config.get("mm_dims", {}))
     history_dimensions = _dimensions(history_names, history_source, latent_dim)
     fusion = _configured_fusion(model_config, "cat")
@@ -153,6 +157,7 @@ def _dnn_mm_preset(
 def _pooled_id_preset(
     model_name: str,
     model_config: Mapping[str, Any],
+    data_config: Mapping[str, Any],
 ) -> ModelPipelinePreset:
     latent_dim = int(model_config.get("latent_dim", 128))
     projection_dim = int(model_config.get("projection_dim", 128))
@@ -162,7 +167,7 @@ def _pooled_id_preset(
             branch="target",
             topology="feature_fusion",
             modalities=("id",),
-            input_dimensions={"id": latent_dim * 2},
+            input_dimensions={"id": latent_dim * (2 + int(data_config.get("extra_id_fields", 0)))},
             projection_dim=projection_dim,
             pooling=None,
             fusion=fusion,
@@ -198,7 +203,11 @@ def _pooled_fuse_then_pool_preset(
     projection_dim = int(model_config.get("projection_dim", 128))
     target_names = _names(data_config, "use_mm_features", ("id",))
     history_names = _names(data_config, "use_mm_seq_features", target_names)
-    target_dimensions = _dimensions(target_names, data_config.get("mm_dims", {}), latent_dim * 2)
+    target_dimensions = _dimensions(
+        target_names,
+        data_config.get("mm_dims", {}),
+        latent_dim * (2 + int(data_config.get("extra_id_fields", 0))),
+    )
     history_source = data_config.get("mm_seq_dims", data_config.get("mm_dims", {}))
     history_dimensions = _dimensions(history_names, history_source, latent_dim)
     rank = int(model_config.get("rank", 5 if model_name == "lmf" else 20))
@@ -244,7 +253,11 @@ def _sequence_branch_dimensions(
     item_source = data_config.get("mm_seq_dims", data_config.get("mm_dims", {}))
     item_dimensions = _dimensions(item_names, item_source, latent_dim)
     user_names = _names(data_config, "user_features", ("id",))
-    user_dimensions = _dimensions(user_names, data_config.get("user_features_dim", {}), latent_dim)
+    user_dimensions = _dimensions(
+        user_names,
+        data_config.get("user_features_dim", {}),
+        latent_dim * (1 + int(data_config.get("extra_id_fields", 0))),
+    )
     return projection_dim, item_names, item_dimensions, user_names, user_dimensions
 
 
@@ -262,7 +275,11 @@ def _qarm_preset(
         name: latent_dim if name == "id" else level_count * latent_dim for name in item_names
     }
     user_names = _names(data_config, "user_features", ("id",))
-    user_dimensions = _dimensions(user_names, data_config.get("user_features_dim", {}), latent_dim)
+    user_dimensions = _dimensions(
+        user_names,
+        data_config.get("user_features_dim", {}),
+        latent_dim * (1 + int(data_config.get("extra_id_fields", 0))),
+    )
     concatenation = ComponentConfig("concatenate")
     branches = {
         "target": ModalPipelineConfig(
@@ -303,6 +320,14 @@ def _qarm_preset(
 def _dmf_preset(
     model_config: Mapping[str, Any], data_config: Mapping[str, Any]
 ) -> ModelPipelinePreset:
+    if model_config.get("similarity_source", "frozen_features") == "frozen_features":
+        return ModelPipelinePreset(
+            "dmf",
+            {},
+            model_specific_reason=(
+                "frozen raw-feature cosine before hard buckets has no learned modal projector"
+            ),
+        )
     (
         projection_dim,
         item_names,
@@ -526,9 +551,12 @@ def default_pipeline_preset(
 ) -> ModelPipelinePreset:
     """Resolve one model's compatibility preset from validated model/data config."""
 
+    from .registry import resolve_model_config
+
+    model_config = resolve_model_config(model_config, data_config)
     name = MODEL_REGISTRY.canonical_name(model_name)
     if name in {"dnn", "dcn", "deepfm", "autoint"}:
-        return _pooled_id_preset(name, model_config)
+        return _pooled_id_preset(name, model_config, data_config)
     if name == "dnn_mm":
         return _dnn_mm_preset(model_config, data_config)
     if name == "simcen":

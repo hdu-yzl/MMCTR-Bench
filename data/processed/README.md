@@ -13,3 +13,8 @@ data/processed/
 Never download provider data directly into this directory. Put user-obtained inputs under
 `data/raw/<dataset>/` (or configure an absolute ignored local path), then write generated outputs
 here. A semantic preprocessing change must create a new version directory.
+
+## EB-NeRD
+
+EB-NeRD small is available through the canonical loader and dataset catalog.
+See [processing, training and analysis](../../docs/data/ebnerd.md).

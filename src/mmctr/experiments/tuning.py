@@ -105,6 +105,8 @@ class ValidationOnlyTuner:
             if not isinstance(value, str) or not value:
                 raise ContractError("{} must be a non-empty string".format(name))
         normalised_seeds = tuple(int(seed) for seed in seeds)
+        if Path(study_id).name != study_id or study_id in {".", ".."}:
+            raise ContractError("study_id must be a safe path component")
         if not normalised_seeds or len(set(normalised_seeds)) != len(normalised_seeds):
             raise ContractError("tuning seeds must be non-empty and unique")
         self.output_root = Path(output_root).expanduser().resolve()
@@ -132,6 +134,8 @@ class ValidationOnlyTuner:
         validation AUC, so ties retain the first candidate and never consult test data.
         """
 
+        if (self.study_dir / "frozen_selection.json").exists():
+            raise ContractError("selection is already frozen; use a new study ID")
         trial_tuple = tuple(trials)
         if not trial_tuple or any(not isinstance(trial, TuningTrial) for trial in trial_tuple):
             raise ContractError("tuning study requires at least one TuningTrial")
@@ -225,6 +229,20 @@ class ValidationOnlyTuner:
             or not selection.path.is_file()
         ):
             raise ContractError("final test requires this tuner's frozen selection")
+        payload = json.loads(selection.path.read_text(encoding="utf-8"))
+        expected = {
+            "study_id": selection.study_id,
+            "experiment_id": selection.experiment_id,
+            "data_fingerprint": selection.data_fingerprint,
+            "seeds": list(selection.seeds),
+            "selected_trial_id": selection.trial_id,
+            "selected_run_id": selection.run_id,
+            "frozen_config": _plain(selection.config),
+            "validation_auc": selection.validation_auc,
+            "validation_log_loss": selection.validation_log_loss,
+        }
+        if any(payload.get(name) != value for name, value in expected.items()):
+            raise ContractError("persisted frozen selection differs from selection provenance")
 
     def final_test_task(
         self,
@@ -265,6 +283,8 @@ class ValidationOnlyTuner:
         ):
             raise ContractError("final test result may contain only test_* metrics")
         path = self.study_dir / "final_test_result.json"
+        if path.exists():
+            raise ContractError("final test result already exists")
         _atomic_json(
             path,
             {
@@ -280,9 +300,88 @@ class ValidationOnlyTuner:
         return path
 
 
+def run_validation_search(tuner, candidates, trainer_factory):
+    """Execute candidates without test access, freeze a winner, then test its weights once.
+
+    ``trainer_factory(candidate)`` constructs the normal Trainer. Only the best model
+    state is retained on CPU; the final Trainer loads it without retraining. A study
+    lock and immutable selection prevent accidental reruns under the same identity.
+    """
+    import fcntl
+    import gc
+    import torch
+
+    tuner.study_dir.mkdir(parents=True, exist_ok=True)
+    with (tuner.study_dir / ".search.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if (tuner.study_dir / "frozen_selection.json").exists():
+            raise ValueError("study is already frozen; use a new study ID")
+        trials = []
+        best_auc = float("-inf")
+        best_state = None
+        best_epoch = 0
+        for index, candidate in enumerate(candidates):
+            trainer = trainer_factory(candidate)
+            if tuple([trainer.train_config["seed"]]) != tuner.seeds:
+                raise ContractError("executable search requires its declared single tuning seed")
+            fingerprints = [value.get("fingerprint") for value in trainer.data_config.values()]
+            if fingerprints != [tuner.data_fingerprint]:
+                raise ContractError("trial data fingerprint differs from the tuning study")
+            result = trainer.run(evaluate_test=False)
+            resolved = {
+                "candidate": _plain(candidate),
+                "model": _plain(trainer.model_config),
+                "training": _plain(trainer.train_config),
+                "data": _plain(trainer.data_config),
+            }
+            trials.append(TuningTrial(str(index), resolved, result))
+            if result.metrics["val_auc"] > best_auc:
+                best_auc = result.metrics["val_auc"]
+                best_epoch = int(result.metrics["best_epoch"])
+                best_state = {
+                    name: value.detach().cpu().clone()
+                    for name, value in trainer.model.state_dict().items()
+                }
+            del trainer
+            gc.collect()
+        selection = tuner.freeze(trials)
+        final = trainer_factory(_plain(selection.config["candidate"]))
+        try:
+            runtime = {"checkpoint_dir", "log_dir", "output_root", "cuda"}
+            frozen_train = {
+                k: v for k, v in selection.config["training"].items() if k not in runtime
+            }
+            final_train = {k: v for k, v in final.train_config.items() if k not in runtime}
+            if (
+                _plain(final.model_config) != _plain(selection.config["model"])
+                or _plain(final.data_config) != _plain(selection.config["data"])
+                or _plain(final_train) != _plain(frozen_train)
+            ):
+                raise ContractError("final configuration differs from frozen selection")
+            if best_state is None:
+                raise ContractError("no selected model weights")
+            final.model.load_state_dict(best_state)
+            final.run_context.update_metadata(
+                {
+                    "stage": "final_test",
+                    "selection_path": str(selection.path),
+                    "selected_run_id": selection.run_id,
+                }
+            )
+            with torch.no_grad():
+                result = final.evaluate_final(best_epoch)
+            tuner.record_final_test_result(selection, result)
+            final.run_context.finalize("completed", summary=dict(result.metrics))
+            return result
+        except BaseException as error:
+            final.run_context.finalize("failed", error=repr(error))
+            raise
+
+
 __all__ = [
     "FrozenSelection",
     "TUNING_SCHEMA_VERSION",
     "TuningTrial",
     "ValidationOnlyTuner",
+    "run_validation_search",
 ]

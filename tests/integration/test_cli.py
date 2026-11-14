@@ -53,7 +53,7 @@ class CliIntegrationTest(unittest.TestCase):
         self.assertIn("dnn", model_names)
         self.assertIn("psrq", model_names)
         self.assertNotIn("mcca", model_names)
-        self.assertEqual(dataset_names, ["antm2c", "microlens", "tiktok"])
+        self.assertEqual(dataset_names, ["antm2c", "ebnerd", "microlens", "tiktok"])
         self.assertEqual(quantizer_names, ["psrq", "rq"])
         self.assertNotIn(
             "tensorflow", (models.stderr + datasets.stderr + quantizers.stderr).lower()
@@ -240,7 +240,7 @@ seeds: [3]
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             audit_body = {
-                "schema": "mmctr-cold-start-audit-v1",
+                "schema": "mmctr-cold-start-audit-v2",
                 "audit": {
                     "target": "item",
                     "regime": "zero_shot",
@@ -286,7 +286,7 @@ audit_manifest: audit.json
             summary = json.loads(result.stdout)
             matrix = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertEqual(1, summary["task_count"])
-            self.assertEqual("cold-start-study-matrix-v1", matrix["schema"])
+            self.assertEqual("cold-start-study-matrix-v2", matrix["schema"])
 
     def test_cli_and_catalog_imports_do_not_load_training_frameworks(self):
         environment = os.environ.copy()

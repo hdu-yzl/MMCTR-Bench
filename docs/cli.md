@@ -16,6 +16,7 @@ Current subcommands:
 
 ```text
 train             Run isolated canonical training
+tune              Validation-only candidate search, freeze winner, then one final test
 validate-config   Validate and print a resolved training YAML file
 list-models       List registered CTR model names
 list-quantizers   List registered quantization premodels
@@ -31,10 +32,17 @@ python -m mmctr.cli list-models
 python -m mmctr.cli list-quantizers
 python -m mmctr.cli validate-config --config configs/training/default.yaml
 python -m mmctr.cli train --model-name dnn --dataset-name antm2c --cuda 0
+python -m mmctr.cli train --model-name dmf --dataset-name tiktok --validation-only --cuda 0
+python -m mmctr.cli tune --model-name dmf --dataset-name tiktok \
+  --candidates configs/experiments/tuning.example.yaml --study-id tiktok-dmf-v2 --cuda 0
 ```
 
 Use `--use-local-data` with the local path mechanism documented in
 [local-paths.md](local-paths.md). Every train invocation creates an isolated run directory.
+
+On the experiment server, replace `python` with the absolute interpreter resolved from the
+activated `bm` environment. See [benchmark protocol](benchmark-protocol.md)
+for frozen tuning artifacts, fresh study IDs, and the versioned cold experiment workflow.
 
 The CLI module is dependency-light: help, version, listing, and configuration validation do not
 import PyTorch or TensorFlow. The train command applies `--num-threads` to process environment

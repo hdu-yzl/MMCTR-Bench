@@ -1,6 +1,6 @@
 """Canonical lazy registry for production model implementations."""
 
-from typing import Any
+from typing import Any, Mapping
 
 from mmctr.core.registry import ComponentRegistry, ComponentSpec
 
@@ -215,7 +215,28 @@ def resolve_model_class(name: str):
     return MODEL_REGISTRY.resolve(name)
 
 
+def resolve_model_config(model_config, data_config):
+    """Apply the dataset-scoped identity embedding width without changing other dimensions."""
+    result = dict(model_config)
+    dimension = data_config.get("id_embedding_dim")
+    if dimension is not None:
+        if isinstance(dimension, bool) or not isinstance(dimension, int) or dimension <= 0:
+            raise ValueError("id_embedding_dim must be a positive integer")
+        result["latent_dim"] = dimension
+        dataset = str(data_config.get("name", "")).lower()
+        if isinstance(result.get(dataset), Mapping):
+            result[dataset] = {**result[dataset], "latent_dim": dimension}
+    return result
+
+
 def create_model(name: str, *args: Any, **kwargs: Any):
+    data_config = kwargs.get("data_config", args[1] if len(args) > 1 else {})
+    if data_config.get("structured_feature_dim"):
+        raise ValueError("dense residual v3 protocol is retired; use bucketed-ID canonical-v4")
+    if len(args) >= 2:
+        args = (resolve_model_config(args[0], data_config), *args[1:])
+    elif "model_config" in kwargs:
+        kwargs["model_config"] = resolve_model_config(kwargs["model_config"], data_config)
     return MODEL_REGISTRY.create(name, *args, **kwargs)
 
 
@@ -227,6 +248,7 @@ def create_model_from_artifacts(
 ):
     """Compose a pure CTR model with validated pretrained quantization artifacts."""
 
+    model_config = resolve_model_config(model_config, data_config)
     spec = model_spec(name)
     if "quantization_artifacts" not in spec.metadata:
         return create_model(name, model_config, data_config)

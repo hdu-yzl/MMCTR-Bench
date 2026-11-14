@@ -1,13 +1,13 @@
 # Data contracts
 
-New training code consumes `mmctr.core.Batch` objects from a loader implementing
+Training code consumes `mmctr.core.Batch` objects from a loader implementing
 `mmctr.data.DataLoaderProtocol`. It does not call TensorFlow or interpret positional tuples.
 `Batch.context_features` keeps interaction-owned context separate from target item features;
 models must opt in to those named fields rather than relying on concatenation offsets.
 
-All three dataset registry entries resolve to canonical named-array loaders. AntM2C uses a sharded
-layout because its interaction contexts are much larger; MicroLens and TikTok use one named array
-per split. All preserve their audited manifest and emit `Batch` without a TensorFlow or positional-
+All four dataset registry entries resolve to canonical named-array loaders. AntM2C uses a sharded
+layout because its interaction contexts are much larger; MicroLens, TikTok, and EB-NeRD use named
+arrays per split. All preserve their audited manifest and emit `Batch` without a TensorFlow or positional-
 tuple hop. Compatibility iterators remain for analysis and quantization callers during migration.
 
 Every processed dataset is described by a `DatasetManifest` containing:
@@ -46,8 +46,7 @@ embeddings are written once in an item store; target and history items gather fr
 The parquet item features are already upstream BERT/CLIP embeddings: this processor does not encode
 original video frames or raw text. Their source-file SHA-256 values were rechecked against the
 read-only reference and exactly match the canonical manifest.
-This is a new versioned split, rather than an assertion that it reproduces the legacy TFRecord
-sample assignment exactly.
+The split definition and sample assignment are recorded in the canonical-v1 manifest.
 
 The server artifact is `data/processed/microlens/canonical-v1/`. Its manifest fingerprint is
 `1e28692d5b7f5c722c6621f78533a1974eef9f9b64256a6a3e51e8a27889221f` and records 2,880,000 train,
@@ -56,20 +55,33 @@ The server artifact is `data/processed/microlens/canonical-v1/`. Its manifest fi
 ## TikTok canonical-v1
 
 `prepare_tiktok(raw_dir, output_dir)` consumes the official `train.json`, `val.json`, and
-`test.json` plus the three modality arrays. It does not use the legacy protocol that concatenated
-all three split histories and randomly split the derived CTR samples. Each official positive event
-uses only its causal prefix: validation inherits train history, and test inherits train plus
-validation history. Five deterministic negatives are sampled from items never observed by that
-user across the three source splits. The resulting manifest explicitly records this scientific
-protocol change.
+`test.json` plus the three modality arrays. Each official positive event
+uses its prefix in the supplied list order: validation inherits train history, and test inherits train plus
+validation history. Source files provide no reliable timestamps, so this is not proof of temporal
+causality. Five deterministic negatives are sampled from items never observed by that
+user across the three source splits. The manifest records the split, history, and sampling rules.
 
 The text/image/audio arrays are pre-extracted upstream features rather than raw media. All six
 source-file SHA-256 values were rechecked against the read-only reference and exactly match the
-canonical manifest; canonical-v1 regenerates CTR samples and storage layout, not the encoders.
+canonical manifest. Canonical-v1 stores generated CTR samples alongside these upstream features.
 
 The server artifact is `data/processed/tiktok/canonical-v1/`. Its manifest fingerprint is
 `a908bb25f28f899bf2cf21f81483ae67d2106adea582e0e5576a2e9cb1ff05bc` and records 357,246 train,
 18,306 validation, and 36,780 test CTR samples.
+
+The current arrays contain **412,332** samples in total, **9,308 distinct users** and
+**6,710 distinct target items** across all splits, with a positive:negative ratio of **1:5**.
+Counts below are measured from emitted arrays, rather than user keys in source JSON:
+
+| Split | CTR rows | Positives | Negatives | Distinct users | Distinct target items |
+|---|---:|---:|---:|---:|---:|
+| Train | 357,246 | 59,541 | 297,705 | 9,298 | 6,710 |
+| Validation | 18,306 | 3,051 | 15,255 | 3,051 | 6,176 |
+| Test | 36,780 | 6,130 | 30,650 | 6,130 | 6,660 |
+
+User and item counts above refer to distinct IDs in emitted candidate arrays. Source JSON user
+keys with empty positive lists do not contribute CTR rows. See the
+[benchmark protocol](benchmark-protocol.md) for evaluation and aggregation details.
 
 Both processors are idempotent for the same source fingerprint and options. They refuse to reuse
 an existing output directory built from different inputs. Raw/private arrays and generated output

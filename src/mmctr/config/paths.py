@@ -12,8 +12,9 @@ from .schema import ConfigValidationError
 
 
 PathLike = Union[str, Path]
-DATASETS = ("antm2c", "microlens", "tiktok")
+DATASETS = ("antm2c", "ebnerd", "microlens", "tiktok")
 DATASET_ENVIRONMENT_KEYS = {
+    "ebnerd": "MMCTR_EBNERD_DATA_DIR",
     "antm2c": "MMCTR_ANTM2C_DATA_DIR",
     "microlens": "MMCTR_MICROLENS_DATA_DIR",
     "tiktok": "MMCTR_TIKTOK_DATA_DIR",

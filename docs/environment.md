@@ -26,7 +26,7 @@ The checked-in `bm_env.yml` contains a full Conda export from a Linux server. Th
 | PyTorch stack | `torch 1.13.1+cu117`, `torchvision 0.14.1+cu117`, `torchaudio 0.13.1+cu117` | Retained and validated with the server driver and CUDA runtime |
 | TensorFlow | `tensorflow 2.4.0` | Historical snapshot only; the working `bm` environment is aligned to TensorFlow 2.12.1 |
 | Numeric stack | `numpy 1.23.5`, `pandas 2.0.3`, `scipy 1.10.1`, `scikit-learn 1.3.2` | Exact installed state is retained only in the snapshot pending compatibility tests |
-| Data/search stack | `pyarrow 17.0.0`, `lmdb 1.3.0`, `optuna 3.6.1` | Candidate runtime dependencies for `ENV-002` |
+| Data/search stack | `pyarrow 17.0.0`, `lmdb 1.3.0`, `optuna 3.6.1` | Install through the matching optional dependency groups |
 | Model stack | `transformers 4.46.3`, `sentence-transformers 3.2.1`, `cn-clip 1.5.1`, `faiss-gpu 1.7.2` | Treat as optional heavy groups and validate wheel/channel availability |
 | Channels | Five Tsinghua mirror URLs, including duplicates and the retired `free` channel | Replaced by the named `conda-forge` channel in the bootstrap |
 | Platform packages | Linux libc, compiler runtime, ncurses, readline, and related build pins | Excluded; the target Linux solver selects platform packages |
@@ -80,83 +80,18 @@ The expected full installation shape is:
 <SERVER_ENV>/bin/python -m build
 ```
 
-These commands remain the clean-bootstrap protocol. The existing `bm` execution evidence is
-recorded below with its actual interpreter, OS, GPU, driver, CUDA, framework versions, and results.
+For an existing experiment environment, activate `bm` and use the absolute interpreter returned
+by `command -v python`. Keep data, caches, temporary artifacts, and validation logs on the project
+filesystem. Store machine-specific paths in ignored `configs/local/paths.yaml` or environment
+variables.
 
-## Maintainer server handoff
+## Reference runtime
 
-Refactoring continues in VS Code on the Linux experiment server. The maintainer supplied and the
-current session confirmed the following operating rules on 2026-07-31:
+The reference Linux stack uses Python 3.8.20, PyTorch 1.13.1+cu117 (CUDA 11.7 build),
+TensorFlow 2.12.1, NumPy 1.23.5, scikit-learn 1.3.2, and JAX/JAXlib 0.4.13. GPU experiments
+use Tesla V100-SXM2-32GB hardware with an NVIDIA driver compatible with the selected CUDA build.
+Choose a PyTorch build appropriate for the target server before installing optional dependencies.
 
-- Activate the existing environment with `conda activate bm`. Do not create a replacement
-  environment automatically. After activation, record the absolute path reported by
-  `command -v python` and use that interpreter for Python-related commands.
-- Keep every new package download, package cache, model/data download, build dependency, and
-  temporary artifact on the same filesystem as the current project clone. Repository-local
-  `.cache/`, `.tmp/`, and `downloads/` directories are ignored by Git for this purpose.
-- `<ORIGINAL_REFERENCE_ROOT>` is the original pre-refactoring project. Use it as a read-only
-  reference when locating data or reconstructing historical path/configuration conventions.
-  Never modify that directory or copy its private data and machine-specific configuration into
-  tracked files.
-
-Before downloading anything on the server, run the equivalent of the following from the new
-clone's root (do not assume that the clone itself has a fixed absolute path):
-
-```bash
-conda activate bm
-MMCTR_PROJECT_ROOT="$(pwd -P)"
-export PIP_CACHE_DIR="$MMCTR_PROJECT_ROOT/.cache/pip"
-export CONDA_PKGS_DIRS="$MMCTR_PROJECT_ROOT/.cache/conda-pkgs"
-export HF_HOME="$MMCTR_PROJECT_ROOT/.cache/huggingface"
-export TORCH_HOME="$MMCTR_PROJECT_ROOT/.cache/torch"
-export TMPDIR="$MMCTR_PROJECT_ROOT/.tmp"
-mkdir -p "$PIP_CACHE_DIR" "$CONDA_PKGS_DIRS" "$HF_HOME" "$TORCH_HOME" "$TMPDIR"
-MMCTR_PYTHON="$(command -v python)"
-"$MMCTR_PYTHON" --version
-```
-
-Once `command -v python` has resolved the `bm` interpreter, use `"$MMCTR_PYTHON"` in
-recorded validation commands. Actual data paths belong in ignored `configs/local/paths.yaml`,
-environment variables, or explicit CLI overrides—not in published configuration.
-
-## Linux-only validation boundary
-
-All subsequent editing and validation runs on this Linux server with the absolute `bm`
-interpreter. Windows results in the historical task log are retained as provenance but are not
-rerun and do not satisfy any current gate.
-
-## Server validation record
-
-The Linux validation and dependency alignment were completed on 2026-07-31. GPU checks were run
-outside the filesystem/network sandbox so that the process could access the real NVIDIA devices.
-`ENV-001` is `DONE`; no bootstrap environment was created and the PyTorch/NumPy/CUDA main stack
-was not changed.
-
-| Check | Result |
-|---|---|
-| Conda executable absolute path | `/root/anaconda3/bin/conda` |
-| Active environment | Existing maintainer-provided `bm`; no bootstrap environment was created |
-| Python executable | `<BM_PYTHON>` resolved from `conda activate bm` (validated with Python 3.8.20) |
-| OS/kernel | Ubuntu 20.04.6 LTS; Linux 5.15.0-139-generic; host `ESC8000-G4` |
-| GPU and driver | `nvidia-smi` reports driver 535.183.01, CUDA 12.2 compatibility, and 8× Tesla V100-SXM2-32GB |
-| Framework builds | PyTorch 1.13.1+cu117; TensorFlow 2.12.1 built with CUDA support; NumPy remains 1.23.5 |
-| PyTorch GPU smoke | Enumerated all 8 GPUs; 256×256 matmul, backward, and synchronize passed with finite gradients |
-| TensorFlow GPU smoke | Enumerated and created all 8 GPU devices; 256×256 matmul on `/GPU:0` passed |
-| TensorFlow data smoke | TFRecord write/read/parse round trip passed; AntM2C, MicroLens, and TikTok loader modules import with TensorFlow 2.12.1 |
-| Dependency consistency | `pip check`: `No broken requirements found`; JAX/JAXlib 0.4.13 import and CPU tensor smoke passed |
-| CPU regression | Unit+smoke: 25 passed with `RuntimeWarning` treated as errors; complete pytest: 35 passed; coverage 83.80% |
-| Static/build gates | Ruff: 34 scoped files formatted and lint-clean; mypy 1.10.1: 14 files clean; isolated sdist+wheel build passed |
-
-The resolver-aligned packages are:
-
-- TensorFlow 2.4.0 → 2.12.1; Keras 2.15.0 → 2.12.0; estimator 2.4.0 → 2.12.0;
-  tensorboard 2.11.2 → 2.12.3.
-- h5py 2.10.0 → 3.10.0, removing a reproducible NumPy C-ABI warning.
-- typing-extensions 4.13.2 → 4.5.0; mypy 1.14.1 → 1.10.1; SQLAlchemy 2.0.31 →
-  2.0.20; exceptiongroup 1.3.1 → 1.1.3.
-- JAX/JAXlib 0.4.13 were paired explicitly because the archived Python 3.8 JAX metadata did not
-  install jaxlib automatically. TensorFlow also added/updated its normal transitive packages such
-  as flatbuffers, grpcio, libclang, ml-dtypes, tensorflow-io-gcs-filesystem, and absl-py.
-
-TensorRT remains absent and TensorFlow emits an informational TF-TRT warning; MMCTR does not use
-TensorRT, so this is not a failed gate.
+TensorRT is optional and is not required by MMCTR-Bench. Retain the actual interpreter,
+framework versions, driver, device, dependency check, and command outcomes in local run metadata.
+See [quality gates](quality-gates.md) for validation commands.

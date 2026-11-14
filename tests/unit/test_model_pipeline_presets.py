@@ -413,6 +413,7 @@ class ModelPipelinePresetTests(unittest.TestCase):
             "user_features": ["id"],
             "user_features_dim": {},
         }
+        model_config["similarity_source"] = "legacy_projected"
         model = create_model("dmf", model_config, data_config)
         pipelines = default_pipeline_preset("dmf", model_config, data_config).build()
         for name in model.non_id_features:
