@@ -4,236 +4,64 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8-blue.svg)](pyproject.toml)
 
-MMCTR-Bench is a reproducible benchmark for click-through-rate prediction with ID, sequential,
-text, image, and audio features. It provides one canonical Python package, strict dataset and
-training contracts, isolated experiment outputs, and one-click scripts for single-model and
-multi-GPU training.
+MMCTR-Bench compares click-through-rate models that use IDs, interaction histories, text,
+images, and audio. It provides a common training and evaluation workflow for AntM2C, MicroLens,
+TikTok, and EB-NeRD. The benchmark covers five ID-only baselines and 16 multimodal models across
+TMIE, CSAQ, GFFI, and RDRR, plus two reference variants in the software.
 
 This project was refactored with the assistance of AI.
 
-Current TikTok canonical-v1 contains **357,246 / 18,306 / 36,780** train/validation/test
-CTR samples (**412,332 total**, 9,308 users, 6,710 target items across splits, positive:negative
-ratio 1:5). See [measured per-split counts](docs/data.md#tiktok-canonical-v1) and
-[benchmark protocol](docs/benchmark-protocol.md).
-
-## What is included
-
-- Four dataset adapters: **AntM2C**, **MicroLens**, **TikTok**, and **EB-NeRD**.
-- The paper evaluation covers five ID-only baselines (`dnn`, `deepfm`, `din`, `autoint`, and
-  `dcn`) and 16 multimodal models organized into four paradigms:
-  - **TMIE**: `mmmlp`, `diff_msin`, and `dmf`;
-  - **CSAQ**: `make`, `m3srec`, `em3`, `psrq`, and `qarm`;
-  - **GFFI**: `naml`, `mb`, `lmf`, `simcen`, and `mtfn`;
-  - **RDRR**: `pamd`, `gmmf`, and `marn`.
-- The software registry additionally exposes `dnn_mm` and `dnn_mm_seq` as reference variants; they
-  are not additional paper-benchmarked models. The canonical `psrq` entry implements the paper's
-  PSRQ pretraining and downstream MCCA consumer; `mcca` remains only a backward-compatible alias.
-  RQ analogously supplies pretrained artifacts to `qarm`.
-- Canonical training, validation-only selection, experiment planning, robustness/alignment/
-  cold-start analysis, plotting, and versioned result protocols.
-- Apache-2.0 licensed repository code and documentation. Third-party datasets and checkpoints are
-  not redistributed or relicensed.
-
-The public runtime namespace is `mmctr`; data processing, models, training, and analysis share
-its canonical interfaces.
+- [Datasets](docs/data.md): sources, splits, and preparation.
+- [Methods](docs/models.md): what each model does and its reference.
+- [Experiments](docs/benchmark-protocol.md): tuning, evaluation, and single-setting diagnostics.
 
 ## Installation
 
-Linux and Python 3.8 are the validated environment. Select the server-compatible PyTorch/CUDA
-build first; the optional dependencies intentionally do not choose a GPU build for you.
+Use Linux, Python 3.8, and a PyTorch build compatible with your device. Activate an existing
+project environment if one is available. For a fresh setup:
 
 ```bash
-git clone https://github.com/hdu-yzl/MMCTR-Bench.git
-cd MMCTR-Bench
-
 conda env create -n bm -f environment.yml
 conda activate bm
-python -m pip install --editable '.[training,data,multimodal,analysis,tuning]'
-python -m pip check
-
-# Keep the interpreter explicit for every launcher.
 export MMCTR_PYTHON="$(command -v python)"
-"$MMCTR_PYTHON" -m mmctr.cli --version
+"$MMCTR_PYTHON" -m pip install --editable '.[training,data]'
+"$MMCTR_PYTHON" -m mmctr.cli --help
 ```
 
-Maintainers of the validated experiment server should activate the existing `bm` environment; do
-not create or replace it. See [docs/environment.md](docs/environment.md) for the tested dependency
-matrix.
+Install `.[multimodal]` if you need to extract AntM2C embeddings from local encoder checkpoints.
 
 ## Prepare the data
 
-MMCTR-Bench does not download or publish third-party data. Obtain each dataset from its provider,
-review its terms, record local provenance and SHA-256 values, and place the inputs under:
-
-```text
-data/raw/antm2c/
-data/raw/microlens/
-data/raw/tiktok/
-data/raw/ebnerd/
-```
-
-The exact required files are documented in:
-
-- [data/raw/antm2c/README.md](data/raw/antm2c/README.md): event shards, image archive, BERT and
-  ChineseCLIP checkpoints;
-- [data/raw/microlens/README.md](data/raw/microlens/README.md): interaction and item-feature
-  Parquet files;
-- [data/raw/tiktok/README.md](data/raw/tiktok/README.md): official JSON splits and upstream text,
-  image, and audio arrays;
-- [data/raw/ebnerd/README.md](data/raw/ebnerd/README.md): EB-NeRD behaviors, histories, article metadata,
-  and upstream text/image embeddings.
-
-Canonical processors write ignored payloads to:
-
-```text
-data/processed/antm2c/canonical-v1/
-data/processed/microlens/canonical-v1/
-data/processed/tiktok/canonical-v1/
-data/processed/ebnerd/canonical-v4/
-```
-
-Tracked manifests describe the data version, schema, split statistics, fingerprints, and source
-hashes without publishing the payload. For data stored elsewhere, copy
-`configs/local/paths.example.yaml` to ignored `configs/local/paths.yaml` and use the
-`--use-local-data` launcher option. See [data/README.md](data/README.md) and
-[docs/data.md](docs/data.md) for acquisition and format details.
-
-### EB-NeRD
-
-EB-NeRD small is available through the canonical loader and dataset catalog.
-See [processing, training and analysis](docs/data/ebnerd.md).
-
-EB-NeRD canonical-v4 uses 56 additional categorical/bucketed ID fields in the existing
-ID embedding branches, with the same latent width as user/item IDs and no residual predictor.
-See [the EB-NeRD ID schema](docs/data/ebnerd.md#canonical-v4-categorical-and-bucketed-id-fields-current).
+Follow the [dataset guide](docs/data.md) and [source file layouts](data/README.md).
+The default input directories are `data/raw/antm2c`, `data/raw/microlens`,
+`data/raw/tiktok`, and `data/raw/ebnerd`. For data stored elsewhere, copy
+[the local paths template](configs/local/paths.example.yaml) to ignored
+`configs/local/paths.yaml`, set absolute paths, and run with `--use-local-data`.
 
 ## One-click training
 
-All launchers resolve the repository root themselves, validate dataset/model names, and delegate
-to the canonical `mmctr` entry points. Use `--dry-run` first to inspect a command without loading
-data or starting training.
-
-### Train one model
+Run from the repository root. Add `--dry-run` to preview model commands and prerequisites.
 
 ```bash
-scripts/train_model.sh \
-  --dataset antm2c \
-  --model dnn_mm_seq \
-  --gpu 0 \
-  --dry-run
-
-scripts/train_model.sh --dataset antm2c --model dnn_mm_seq --gpu 0
-```
-
-Useful overrides:
-
-```bash
-scripts/train_model.sh \
-  --dataset microlens \
-  --model deepfm \
-  --gpu 1 \
-  --num-threads 8 \
-  --output-root outputs
-```
-
-Run `scripts/train_model.sh --help` for every option. Training hyperparameters come from
-`configs/training/default.yaml`; model and dataset definitions come from the two catalog files
-under `configs/models/` and `configs/datasets/`.
-
-### Train all standard models on multiple GPUs
-
-```bash
-# Preview 21 commands and their GPU assignment.
-scripts/train_all_models.sh --dataset antm2c --gpus 0,1,2,3,4,5,6,7 --dry-run
-
-# One sequential worker per GPU; a worker takes its next model after the previous one finishes.
-scripts/train_all_models.sh --dataset antm2c --gpus 0,1,2,3,4,5,6,7
-```
-
-The default batch intentionally excludes `qarm` and `psrq` because they require pretrained RQ and
-PSRQ artifacts, respectively. The canonical `psrq` model uses PSRQ-pretrained semantic codes in its
-internal downstream MCCA consumer. Train a selected subset with:
-
-```bash
-scripts/train_all_models.sh \
-  --dataset tiktok \
-  --gpus 0,1 \
-  --models dnn,dcn,deepfm,din,autoint
-```
-
-Each GPU has at most one worker, duplicate GPU indices are rejected, and any failed worker makes
-the launcher return a non-zero exit code.
-
-### Main-table mean and standard deviation on eight GPUs
-
-Activate the existing `bm` environment and record its absolute interpreter:
-
-```bash
-conda activate bm
-command -v python
-export MMCTR_PYTHON="$(command -v python)"
-scripts/run_main_table.sh --dry-run
-scripts/run_main_table.sh --gpus 0,1,2,3,4,5,6,7
-# After an interruption/failure, reuse completed seeds and retry the others:
-scripts/run_main_table.sh --gpus 0,1,2,3,4,5,6,7 --resume
-```
-
-Defaults: AntM2C, MicroLens, TikTok and EB-NeRD (canonical-v4, 10% test impressions, 58 ID fields); the **21 paper models** (including QARM and PSRQ,
-excluding the `dnn_mm`/`dnn_mm_seq` reference variants); seeds **2025–2029**. This creates
-**420 training runs**, with one independent process per GPU and dynamic assignment when a
-GPU becomes free. The current model/dataset catalogs and training defaults are reused,
-including dataset-specific model settings. Each run uses validation-based checkpoint selection
-and evaluates test once; the launcher changes only the seed and runtime placement.
-
-`outputs/main_table/main_table.csv` contains one row per dataset/model, test AUC and LogLoss
-(`test_loss`) mean, **sample standard deviation (`ddof=1`)**, formatted `mean ± std`, success/failure
-counts and each seed's raw scores. `main_table.json` additionally preserves configuration,
-source/data-manifest/quantizer hashes, every attempt, errors and artifact paths. Both are updated
-atomically after each completion. Incomplete rows retain raw scores and counts but leave mean/std
-blank until all five seeds succeed. Failed jobs do not cancel unrelated jobs, and any failure
-returns a nonzero exit status. SIGINT/SIGTERM stops active training children.
-
-Resume requires matching code, configuration, input fingerprints, seed set and interpreter;
-completed results are checked before reuse. Keep code, data and pretrained artifacts fixed during
-the experiment. A new configuration requires a new `--output-dir`. A lock prevents two launchers
-from writing the same report. Each attempt retains its own logs and resolved config.
-Use `--no-checkpoints` to retain validation-selected best weights only in CPU memory and
-write no `.pt` files. Test evaluation still uses the best validation epoch. Interrupted seeds
-restart from the beginning in this mode; completed metrics remain reusable.
-Use `--jobs-per-gpu 2 --num-threads 4` for two independent workers per GPU when measured
-GPU memory and CPU capacity permit. Concurrency timings are not isolated efficiency benchmarks.
-
-Use `--datasets tiktok`, `--models dnn,din`, `--models all` (23 registry models),
-`--seeds 42,43,44,45,46`, `--num-threads 4`, `--output-dir outputs/main_table_v2`, or
-`--use-local-data` as needed. GPU identifiers are physical indices or full GPU UUIDs;
-by default the launcher honors `CUDA_VISIBLE_DEVICES`, otherwise it uses indices 0–7.
-The launcher sets repository-local cache/temporary directories and uses `MMCTR_PYTHON`.
-`--dry-run` prints the full plan and missing prerequisites without training or writing reports.
-
-QARM/PSRQ reuse fixed pretrained artifacts across seeds. Missing artifacts are reported before
-any training starts by default. With `--wait-for-inputs`, ready jobs proceed while
-missing artifacts are generated separately; consumers wait for atomic publication and SHA-256
-registration (two-hour timeout). Generate them for each affected dataset using the existing entry point:
-
-```bash
-scripts/pretrain_quantizers.sh --dataset microlens --gpu 0
-```
-
-### Pretrain quantizers and include QARM/PSRQ
-
-```bash
-scripts/pretrain_quantizers.sh --dataset tiktok --gpu 0 --dry-run
+scripts/train_model.sh --dataset tiktok --model dmf --gpu 0
+scripts/train_all_models.sh --dataset tiktok --gpus 0,1
 scripts/pretrain_quantizers.sh --dataset tiktok --gpu 0
-
-scripts/train_all_models.sh \
-  --dataset tiktok \
-  --gpus 0,1,2,3 \
-  --include-quantized
+scripts/train_all_models.sh --dataset tiktok --gpus 0,1 --include-quantized
 ```
 
-RQ artifacts are written to `outputs/quantization/artifacts/rq/<dataset>/`; PSRQ is written to
-`outputs/quantization/artifacts/psrq/<dataset>/`. Their lifecycle and compatibility checks are
-described in [docs/quantization.md](docs/quantization.md).
+QARM and PSRQ require their dataset's pretrained quantizer artifacts. The standard batch skips
+them unless you pass `--include-quantized`. Dataset and model settings come from the catalogs
+under `configs/`; shared run settings come from `configs/training/default.yaml`.
+
+```bash
+bash scripts/run_main_table.sh --dry-run
+bash scripts/run_main_table.sh --gpus 0,1,2,3,4,5,6,7
+```
+
+The main-table launcher runs 21 models on four datasets with seeds 2025–2029. Use `--resume`
+with the same settings to reuse completed runs. Reports go under `outputs/main_table/`; ordinary
+training creates isolated runs under `outputs/training/`. See the
+[experiment guide](docs/benchmark-protocol.md) for manual tuning and test evaluation.
 
 <!-- MAIN_TABLE_SNAPSHOT_START -->
 ## Reference results
@@ -349,82 +177,12 @@ AntM2C / MicroLens / TikTok use canonical-v1; EB-NeRD uses canonical-v4 (history
 Source: `outputs/main_table_ebnerd/main_table.json`. Regenerate the tables with `"$MMCTR_PYTHON" scripts/update_readme_main_table.py`.
 <!-- MAIN_TABLE_SNAPSHOT_END -->
 
-## Runs and results
+## Citation and contributions
 
-Every invocation creates an isolated directory:
-
-```text
-outputs/training/<dataset>/<model>/<run_id>/
-├── resolved_config.yaml
-├── run_metadata.json
-├── metrics.jsonl
-├── run.log
-├── summary.json
-└── checkpoints/
-    ├── best.pt
-    └── last.pt
-```
-
-The run ID contains a timestamp, configuration hash, and random entropy. Runs never share logs or
-checkpoints. Validation controls early stopping and model selection; test evaluation occurs only
-after the selected checkpoint is frozen. See [docs/run-layout.md](docs/run-layout.md) and
-[docs/training.md](docs/training.md).
-
-## CLI
-
-The scripts are convenience wrappers around the public CLI:
-
-```bash
-"$MMCTR_PYTHON" -m mmctr.cli --help
-"$MMCTR_PYTHON" -m mmctr.cli list-models
-"$MMCTR_PYTHON" -m mmctr.cli list-datasets
-"$MMCTR_PYTHON" -m mmctr.cli list-quantizers
-"$MMCTR_PYTHON" -m mmctr.cli validate-config --config configs/training/default.yaml
-"$MMCTR_PYTHON" -m mmctr.cli train --dataset-name antm2c --model-name dnn --cuda 0
-```
-
-See the [analysis experiment guide](docs/analysis/cross-dataset-diagnostics.md) for
-single-setting diagnostics and how to tune their controls. Matrix planning and plotting
-commands are documented in [docs/cli.md](docs/cli.md) and [docs/experiments.md](docs/experiments.md).
-
-## Repository layout
-
-```text
-configs/          Dataset/model catalogs, training defaults, experiment examples, local template
-data/raw/         Provider inputs supplied by the user; payloads are ignored
-data/processed/   Versioned canonical stores; payloads are ignored, small manifests are tracked
-scripts/          One-click single-model, multi-GPU, and quantization launchers
-src/mmctr/        The only runtime package: data, models, training, analysis, CLI, and utilities
-outputs/          Ignored runs, checkpoints, logs, quantization artifacts, figures, and results
-tests/            Unit, integration, regression, and smoke gates
-docs/             Architecture, protocols, configuration, data, and release documentation
-```
-
-## Development and validation
-
-```bash
-"$MMCTR_PYTHON" -m ruff format --check src/mmctr tests
-"$MMCTR_PYTHON" -m ruff check src/mmctr tests
-"$MMCTR_PYTHON" -m mypy src/mmctr
-"$MMCTR_PYTHON" -m pytest -q tests/unit tests/smoke
-"$MMCTR_PYTHON" -m pytest --cov=mmctr --cov-report=term-missing --cov-fail-under=80
-"$MMCTR_PYTHON" -m build --no-isolation
-```
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing public contracts. The exact Linux gates
-and release audit are in [docs/quality-gates.md](docs/quality-gates.md) and
-[docs/release-checklist.md](docs/release-checklist.md).
-
-## Citation and references
-
-Use [CITATION.cff](CITATION.cff) when citing MMCTR-Bench. Dataset provenance and the mapping for
-all 23 software registry entries are documented in [docs/references.md](docs/references.md), including
-21 paper evaluation entries (five ID-only and 16 multimodal) plus the two DNN multimodal reference
-variants.
+Use [CITATION.cff](CITATION.cff) to cite MMCTR-Bench. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for development and validation.
 
 ## License
 
-Repository-owned source code, configuration, and documentation are licensed under the
-[Apache License 2.0](LICENSE). Third-party datasets and checkpoints are not covered by this
-software license; the same exclusion applies to third-party media and derived arrays. None of
-these payloads are redistributed by this repository.
+Repository code and documentation use the [Apache-2.0 license](LICENSE).
+Third-party datasets and checkpoints are not covered by this software license or redistributed here.

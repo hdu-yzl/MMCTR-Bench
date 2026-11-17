@@ -1,187 +1,64 @@
-# Model contract and migration
+# Methods
 
-The shared projection, dimension, sequence-mask, and missing-modality rules are specified in
-[`model-components.md`](model-components.md). Canonical backbones consume those public components;
-pooling and fusion remain separate staged interfaces.
+MMCTR-Bench evaluates five ID-only baselines and 16 multimodal methods. Two additional DNN
+variants are available for comparison. Use the table names as `--model` values in the launchers.
 
-## Paper-wide representation defaults
+## ID-only baselines (5)
 
-Under paper §3.5 and Table 4, sparse ID embeddings use dimension `128`, every non-ID modality is
-projected to dimension `128`, and the shared prediction MLP is `[1024, 512, 256]` unless a model's
-original architecture requires a documented exception. The model catalog exposes these values.
-The paper protocol also requires Xavier initialization. Initialization is model-owned in the current
-runtime: explicit Xavier calls exist in several components, but there is no global post-construction
-initializer proving that every registered parameter follows the paper rule. Formal reproduction must audit
-that model-specific boundary rather than infer compliance from the YAML dimensions.
+| Registry name | Method in this benchmark | Reference |
+|---|---|---|
+| `dnn` | An MLP scores user and target IDs with pooled history IDs. | — |
+| `deepfm` | Combines factorization-machine pairwise terms with a deep prediction branch. | Huifeng Guo et al., [*DeepFM: A Factorization-Machine based Neural Network for CTR Prediction*](https://doi.org/10.24963/ijcai.2017/239), 2017. |
+| `din` | Uses the target item to attend to relevant interactions in the user's history. | Guorui Zhou et al., [*Deep Interest Network for Click-Through Rate Prediction*](https://doi.org/10.1145/3219819.3219823), 2018. |
+| `autoint` | Learns feature interactions with self-attention across fields. | Weiping Song et al., [*AutoInt: Automatic Feature Interaction Learning via Self-Attentive Neural Networks*](https://doi.org/10.1145/3357384.3357925), 2019. |
+| `dcn` | Combines explicit feature crosses with an MLP. | Ruoxi Wang et al., [*Deep & Cross Network for Ad Click Predictions*](https://doi.org/10.1145/3124749.3124754), 2017. |
 
-## Default modal-pipeline presets
+## TMIE — Target-aware Multimodal Interest Enhancement (3)
 
-`mmctr.models.default_pipeline_preset(model_name, model_config, data_config)` resolves a model's
-default branch behavior after configuration merging. The returned frozen `ModelPipelinePreset`
-either builds a `ModalPipelineSet` or records why a paper-specific path cannot yet be expressed by
-the public components. `model_pipeline_coverage()` covers every canonical registry name, and the
-legacy alias `dnn_seq` resolves to the `dnn_mm_seq` preset.
+| Registry name | Method in this benchmark | Reference |
+|---|---|---|
+| `mmmlp` | Mixes modalities and history positions with MLP blocks. | Jiahao Liang et al., *MMMLP: Multi-Modal Multilayer Perceptron for Sequential Recommendations*, 2023. |
+| `diff_msin` | Combines shared and modality-specific experts with stochastic reverse fusion and gated interactions. | Xiaoxi Cui et al., [*Diffusion-Based Multi-Modal Synergy Interest Network for Click-Through Rate Prediction*](https://arxiv.org/abs/2508.21460), 2025. |
+| `dmf` | Combines target-aware ID attention with bucketed similarity from frozen multimodal vectors. | Alin Fan et al., [*Decoupled Multimodal Fusion for User Interest Modeling in Click-Through Rate Prediction*](https://arxiv.org/abs/2510.11066), 2025. |
 
-Thirteen models currently have executable, numerically checked presets:
+## CSAQ — Content Semantic Alignment and Quantization (5)
 
-- `dnn`, `dcn`, `deepfm`, and `autoint`: separate target/history ID projection with masked mean
-  history pooling before each model-specific interaction head;
-- `dnn_mm` and `dnn_mm_seq`: target fusion plus per-modality mean history pooling before fusion;
-- `lmf` and `mtfn`: target fusion plus token fusion before masked mean history pooling;
-- `naml`: shared target/history MAF and learned attention history pooling;
-- `make`: shared configurable fusion and target-aware DIN history pooling;
-- `simcen`: ordered projected target/history fields before its private segmentation and expert body;
-- `qarm`: quantized target fields plus per-field masked mean history pooling after code embedding.
-- `dmf`: shared non-ID target/history modality-center projection and fusion before its private DTA
-  and similarity-tier head, plus the canonical user branch.
+| Registry name | Method in this benchmark | Reference |
+|---|---|---|
+| `make` | Combines target-aware history attention with counts in multimodal similarity tiers. | MAKE adaptation of Xiang-Rong Sheng et al., *Enhancing Taobao Display Advertising with Multimodal Representations: Challenges, Approaches and Insights*, 2024. |
+| `m3srec` | Uses shared self-attention and a mixture of experts to refine multimodal histories. | Shuqing Bian et al., *Multi-Modal Mixture of Experts Representation Learning for Sequential Recommendation*, 2023. |
+| `em3` | Compresses content with learned queries and aligns content and item IDs through a contrastive loss. | Xiuqi Deng et al., [*End-to-End Training of Multimodal Model and Ranking Model*](https://arxiv.org/abs/2404.06078), 2024. |
+| `psrq` | Pools history with attention over item representations from pretrained modality and joint codebooks. | Shijia Wang et al., [*Progressive Semantic Residual Quantization for Multimodal-Joint Interest Modeling in Music Recommendation*](https://arxiv.org/abs/2508.20359), 2025. |
+| `qarm` | Embeds residual modality codes, pools their histories, and scores with a cross-and-deep head. | Xinchen Luo et al., *QARM: Quantitative Alignment Multi-Modal Recommendation at Kuaishou*, 2025. |
 
-Sequence presets retain the existing shared target/history projector. NAML, MAKE, and DMF also
-retain their shared fusion instance; this is part of parameter semantics, not an implementation detail.
-Preset regression tests load the existing branch weights into the equivalent pipeline and compare
-target, history, and user representations at `1e-7` absolute tolerance.
+## GFFI — General Fusion and Feature Interaction (5)
 
-All other registered models have an explicit non-executable decision with a concrete reason. This
-includes paper-private SRC/FQ-Former, expert/MoE, PGD, decomposition, quantization, or GMMF DSN
-fusion paths. DIN also remains model-specific: a regression attempt found that its current
-Dice normalization observes padded-position projection bias, while the public pipeline masks that
-bias before pooling; the resulting effective representation difference is not silently accepted as
-compatible. Calling `build()` on a non-executable preset raises `ContractError`. Such models must
-not be approximated with a convenient public mean/cat component; the corresponding algorithm or
-compatibility decision must first gain checkpoint and numeric regression coverage.
+| Registry name | Method in this benchmark | Reference |
+|---|---|---|
+| `naml` | Fuses content views and uses learned attention to pool user history before scoring the target. | Chuhan Wu et al., [*Neural News Recommendation with Attentive Multi-View Learning*](https://doi.org/10.24963/ijcai.2019/536), 2019. |
+| `mb` | Learns modality weights and uses an auxiliary objective to balance modalities. | Yu Shang et al., *Enhancing Adversarial Robustness of Multi-Modal Recommendation via Modality Balancing*, 2023. |
+| `lmf` | Uses low-rank tensor fusion on target and history modalities. | Zhun Liu et al., *Efficient Low-Rank Multimodal Fusion with Modality-Specific Factors*, 2018. |
+| `simcen` | Uses segmented feature experts and a contrastive objective across two views. | Honghao Li et al., *SimCEN: Simple Contrast-Enhanced Network for CTR Prediction*, 2024. |
+| `mtfn` | Models cross-modal interactions through factorized tensor fusion. | Tan Wang et al., *Matching Images and Text with Multi-Modal Tensor Fusion and Re-Ranking*, 2019. |
 
-The only public model base is `mmctr.models.BaseSeqModel`. Despite the name, it supports both
-non-sequential models that consume pooled history and models that retain sequence tokens. Each
-model declares exactly one `HistoryCapability`:
+## RDRR — Representation Disentanglement and Redundancy Reduction (3)
 
-- `pooled_history`: use `BaseSeqModel.masked_pool` to reduce `[B, L, D]` before the model-specific
-  body;
-- `sequence_tokens`: retain `[B, L, D]` and use `Batch.history_mask` in sequence interactions.
+| Registry name | Method in this benchmark | Reference |
+|---|---|---|
+| `pamd` | Disentangles modality pairs and uses ranking and orthogonality losses. | Tengyue Han et al., *Modality Matches Modality: Pretraining Modality-Disentangled Item Representations for Recommendation*, 2022. |
+| `gmmf` | Uses modality decomposition and adversarial generation with alternating optimizer phases. | Fangxiong Xiao et al., *From Abstract to Details: A Generative Multimodal Fusion Framework for Recommendation*, 2022. |
+| `marn` | Separates modality-specific information from adversarially learned modality-invariant interests. | Xiang Li et al., [*Adversarial Multimodal Representation Learning for Click-Through Rate Prediction*](https://arxiv.org/abs/2003.07162), WWW 2020. |
 
-The base owns no optimizer, device selection, logger, metric implementation, checkpoint path, or
-training loop. Its public forward signature is always `forward(batch: Batch) -> ModelOutput`.
+## Software-only reference variants (2)
 
-The former `models` package, dual training-owning bases, and forward-signature adapter are no
-longer distributed. Historical numerical evidence is retained as fixed canonical fixtures instead
-of keeping a second executable model implementation in the wheel.
+These two software baselines are outside the paper's 21-model evaluation set.
 
-## Migrated baseline family
+| Registry name | Method in this benchmark | Reference |
+|---|---|---|
+| `dnn_mm` | An MLP reference that combines ID and multimodal target and pooled-history features. | — |
+| `dnn_mm_seq` | A multimodal DNN reference with separate user, target, and history branches. | — |
 
-The formal registry resolves `dnn`, `dcn`, `deepfm`, `autoint`, and `din` directly to
-`mmctr.models.<model_name>` modules. Shared baseline layers remain under `mmctr.models.common.baseline`.
-DNN/DCN/DeepFM/AutoInt concatenate separate user and target-item IDs, then apply mask-aware mean
-history pooling before their original model-specific body. DIN retains history tokens and applies
-its target-aware attention with the explicit history mask. All five keep logits at `[B]`, including
-batch size one.
+## Quantizer requirements
 
-Callers construct models with `mmctr.models.common.registry.create_model(model_name, model_config,
-data_config)` and let `TrainingEngine` own optimizer, device, checkpoint, metrics, and run state.
-The DNN migration fixture still reproduces the pre-migration logits, loss, and 205-parameter count.
-
-## Migrated simple multimodal family
-
-The formal registry resolves `dnn_mm`, `lmf`, `mtfn`, `simcen`, and `dnn_mm_seq` directly to their
-same-named modules under `mmctr.models`. Shared pooled projection and fusion support lives in the
-non-model `_multimodal_base` module. All project target and history features by name, zero projected
-padding tokens explicitly, and pool or attend with `Batch.history_mask`. `dnn_mm_seq` keeps user,
-target item, and history fields separate and never uses rank-destroying bare `squeeze()`.
-
-The currently required cat/add/mean/MAF/LMF/MTFN operations are private migration components, not
-the future public fusion registry. This preserves the `FUSE-001` boundary while allowing the four
-models to leave the former training-owning bases.
-
-`simcen` is the first complex auxiliary-loss migration. Its segmentation and multi-level experts
-remain model-private, while contrastive training is exposed as the scalar named loss
-`simcen_contrastive` and its ego/two-view tensors are returned through `ModelOutput.representations`.
-The stable log-sum-exp formulation avoids the legacy exponentiation overflow path.
-
-## Migrated sequence-token family
-
-`dnn_mm_seq`, `naml`, and `make` each live in a same-named model module and share the pure encoding
-boundary in the non-model `mmctr.models.common.sequence` module. The boundary projects user,
-target-item, and history fields by name, preserves `[B, L, D]` history tensors, applies the explicit
-boolean history mask after projection, and never mutates the input batch.
-
-NAML keeps its MAF target/history fusion and learned user-interest attention, but padded tokens are
-excluded with masked softmax and an all-padding row returns zero interest. MAKE keeps configurable
-migration fusion, target-aware DIN pooling, cosine similarity tiers, and its MLP head; both DIN and
-the tier histogram consume the same mask. Similarity diagnostics are returned as representations,
-not written by the model. The formal registry points only to these canonical implementations.
-
-DMF and MARN also use this sequence boundary. DMF preserves its non-ID modality-center similarity,
-discretised similarity embeddings, decoupled target attention, tier histogram, and weighted dual
-interest branches. Its DTA and tier counts now consume `Batch.history_mask`, so padded buckets do
-not contribute. MARN preserves modality-specific/shared projections, domain uncertainty weighting,
-gradient reversal, MAF, and target-aware history attention. Its three training objectives are named
-`marn_domain_classifier`, `marn_adversarial_invariance`, and `marn_specific_classifier` in
-`ModelOutput.auxiliary_losses`; the configured `lambda0` weight is applied exactly where the legacy
-total applied it. The canonical module does not enable global autograd anomaly detection or create
-training state during import/construction.
-
-## Migrated advanced sequence family
-
-`em3` and `diff_msin` live in `mmctr.models.mm_models.em3` and `mmctr.models.mm_models.diff_msin`, respectively, and
-reuse the shared named projection boundary. EM3 preserves its learned FQ-Former query tokens,
-target-aware DIN history pooling, content projection, and bidirectional content/item CIC objective.
-Fused padded history positions are explicitly zeroed before masked DIN pooling, and the weighted CIC
-term is exposed as `em3_content_item_contrastive`.
-
-Diff-MSIN preserves per-modality DIN pooling, specific/shared experts, modal gates, stochastic
-reverse cross-modal fusion, the final gate/cross network, and label-aware synthesis hinge loss.
-Its former aggregate `au_loss` is exposed as the weighted scalar terms `diff_msin_synthesis` and
-`diff_msin_contrastive`; labels come directly from `Batch.labels`.
-
-GMMF now lives in `mmctr.models.mm_models.gmmf` as a pure canonical model. It preserves its modality
-autoencoders, conditional generators/discriminators, automatic difference modules, cosine-weighted
-history interests, user-conditioned gates, and weighted reconstruction objective. Reconstruction
-is exposed as `gmmf_reconstruction`; discriminator and generator objectives are explicit scalar
-methods consumed by the training composition. A checkpoint-compatible phased Adam preserves the
-legacy per-batch main → discriminator → generator order and the inclusive `epoch >= N` start rule.
-The fixed-seed formula fixture freezes canonical logits, reconstruction, discriminator, generator
-losses, and parameter count at `1e-7`. Padded histories are additionally masked in the canonical
-path. The DSN/CGAN fusion remains model-specific until it becomes a registered public
-fusion component, so GMMF's modal-pipeline preset is still intentionally non-executable.
-
-## Migrated specialized model family
-
-`mb`, `pamd`, `mmmlp`, and `m3srec` are implemented in their same-named modules under
-`mmctr.models.mm_models`. MB keeps its ID and modality scoring branches,
-attention fusion, and training-only PGD modality-balancing objective. The weighted
-objective is exposed as `mb_modality_balance`, while modality weights and branch
-scores are available through `ModelOutput.representations`.
-
-PAMD keeps pairwise common/specific decomposition, cross reconstruction,
-orthogonality and ranking terms for both target and pooled history. Their weighted
-sum is exposed as `pamd_disentanglement`. MMMLP retains modality-specific and fused
-MLP-Mixer stacks. M3SRec retains shared self-attention, modality-specific MoE,
-cross-modal attention/MoE, positional/modality embeddings, and attention fusion.
-
-All four models consume the canonical `Batch` without mutation. Pooled models use
-explicit masked history means; token models mask padded tokens throughout their
-sequence path and locate the last valid token from mask positions, including
-left-padded histories. Registry metadata names only the canonical implementation and capabilities.
-
-## Quantization premodels and quantized CTR models
-
-RQ and PSRQ are pretraining components under `mmctr.quantization`, not CTR
-`BaseSeqModel` subclasses. The model and quantizer registries are separate namespaces: the
-quantizer name `psrq` produces semantic-code artifacts, while the canonical CTR model name `psrq`
-uses those artifacts through an internal MCCA consumer. The legacy CTR name `mcca` is an alias only.
-RQ fits deterministic residual K-means codebooks and keeps the resulting
-`[levels, codes, dimension]` tensor as a registered buffer. PSRQ pretraining owns modality and joint
-autoencoders and returns a `PSRQOutput` containing reconstruction/quantization objectives and codes;
-it deliberately does not emit click logits or own an optimizer, device, checkpoint path, or training loop.
-
-QARM and the PSRQ CTR model are canonical sequence-token predictors in `mmctr.models.mm_models.qarm` and
-`mmctr.models.mm_models.psrq`. Their constructors accept already-loaded RQ/PSRQ dependencies. They never
-resolve paths, create directories, or load checkpoints.
-`create_model_from_artifacts` is the composition boundary used by the main
-Trainer: it loads the dataset-specific artifacts, validates modalities, raw
-dimensions, level count, codebook size and PSRQ architecture, then injects them.
-
-Both models preserve the original discrete-code embedding bodies while using the
-canonical `Batch.history_mask`. QARM performs masked mean pooling. The PSRQ model's internal MCCA consumer applies a
-masked query/history attention and pins its frozen PSRQ encoder in evaluation mode
-even while the CTR head trains. Original zero-valued modalities stay zero after
-code lookup, so a nearest code cannot silently turn a missing modality into a
-present one. Validation-only tuning and canonical RQ/PSRQ artifact training replace the removed
-legacy codebook tuner.
+QARM requires pretrained RQ artifacts; PSRQ requires pretrained PSRQ artifacts. Train them
+for the same dataset used by the CTR run. See the [training commands](../README.md#one-click-training).

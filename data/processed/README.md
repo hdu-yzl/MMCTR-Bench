@@ -17,4 +17,4 @@ here. A semantic preprocessing change must create a new version directory.
 ## EB-NeRD
 
 EB-NeRD small is available through the canonical loader and dataset catalog.
-See [processing, training and analysis](../../docs/data/ebnerd.md).
+See [EB-NeRD preparation](../../docs/data.md#eb-nerd).

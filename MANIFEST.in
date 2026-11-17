@@ -6,16 +6,15 @@ include environment.yml
 include bm_env.yml
 include data/README.md
 recursive-include data *.md
-include docs/references.md
-include docs/release-checklist.md
-recursive-include docs *.md *.json
+include docs/data.md
+include docs/models.md
+include docs/benchmark-protocol.md
 recursive-include configs *.yaml
 recursive-include scripts *.sh *.py
 recursive-include tests *.py *.json
 prune configs/local
+include configs/local/paths.example.yaml
 exclude scripts/run_ebnerd_id16*_once.py
-exclude docs/legacy_tuning_history.yaml
-exclude docs/data/antm2c-format-benchmark.json
 global-exclude MMCTR_Benchmark*.pdf
 global-exclude *.py[cod]
 global-exclude __pycache__

@@ -17,6 +17,6 @@ artifacts/
 
 All payloads remain ignored. Source URLs, HTTP headers, download dates and archive/extracted
 SHA-256 values are recorded locally. macOS archive metadata is not used.
-See [the processing protocol](../../../docs/data/ebnerd.md) for the approved local test
+See [the processing protocol](../../../docs/data.md#eb-nerd) for the approved local test
 definition, missing images and conversion commands. No dataset redistribution permission
 is inferred from the software license.

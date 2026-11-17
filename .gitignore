@@ -76,6 +76,7 @@ ray_results/
 *.ckpt
 
 # Local experiment drivers and development reports
+/local/archive/
 /scripts/run_ebnerd_id16*_once.py
 /docs/legacy_tuning_history.yaml
 /docs/data/antm2c-format-benchmark.json

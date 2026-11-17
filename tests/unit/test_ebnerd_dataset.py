@@ -16,7 +16,6 @@ from mmctr.data.datasets.ebnerd.preprocessing import (
     validate_ebnerd,
 )
 from mmctr.models.common.registry import create_model
-from mmctr.analysis.robustness import ModalityDropout
 
 
 def _parquet(path, rows):
@@ -164,7 +163,7 @@ def test_invalid_sources_rejected_without_publishing(raw, tmp_path, problem):
     assert not out.exists()
 
 
-def test_models_and_robustness_consume_canonical_batch(raw, tmp_path):
+def test_models_consume_canonical_batch(raw, tmp_path):
     out = tmp_path / "canonical"
     manifest = prepare_ebnerd(raw, out)
     config = dataset_config(manifest, out)
@@ -188,9 +187,6 @@ def test_models_and_robustness_consume_canonical_batch(raw, tmp_path):
         loss = torch.nn.functional.binary_cross_entropy_with_logits(output.logits, batch.labels)
         (loss + output.auxiliary_loss()).backward()
         assert torch.isfinite(output.logits).all()
-    transformed = ModalityDropout(("image",), probability=1.0, seed=42)(batch)
-    assert torch.count_nonzero(transformed.item_features["image"]) == 0
-    assert torch.equal(batch.labels, transformed.labels)
     with pytest.raises(ContractError, match="config/manifest"):
         EBNeRDLoader({**config, "seq_len": 99}, 4)
 

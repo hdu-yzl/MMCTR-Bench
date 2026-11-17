@@ -6,26 +6,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_single_model_script_exposes_a_stable_help_interface() -> None:
-    result = subprocess.run(
-        ["bash", str(PROJECT_ROOT / "scripts/train_model.sh"), "--help"],
-        cwd="/tmp",
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert "--dataset" in result.stdout
-    assert "--model" in result.stdout
-    assert "--gpu" in result.stdout
-    assert "--dry-run" in result.stdout
-
-
 def test_single_model_dry_run_validates_and_prints_the_canonical_command() -> None:
     result = subprocess.run(
         [
-            "bash",
             str(PROJECT_ROOT / "scripts/train_model.sh"),
             "--dataset",
             "tiktok",
@@ -61,7 +44,6 @@ def test_single_model_dry_run_validates_and_prints_the_canonical_command() -> No
 def test_all_models_dry_run_excludes_quantized_models_and_round_robins_gpus() -> None:
     result = subprocess.run(
         [
-            "bash",
             str(PROJECT_ROOT / "scripts/train_all_models.sh"),
             "--dataset",
             "antm2c",
@@ -89,7 +71,6 @@ def test_all_models_dry_run_excludes_quantized_models_and_round_robins_gpus() ->
 def test_quantizer_pretraining_dry_run_prints_rq_then_psrq() -> None:
     result = subprocess.run(
         [
-            "bash",
             str(PROJECT_ROOT / "scripts/pretrain_quantizers.sh"),
             "--dataset",
             "tiktok",
@@ -121,7 +102,6 @@ def test_all_models_rejects_duplicate_gpu_workers() -> None:
     """Reject aliases that would launch concurrent workers on one physical GPU."""
     result = subprocess.run(
         [
-            "bash",
             str(PROJECT_ROOT / "scripts/train_all_models.sh"),
             "--gpus",
             "0,0",

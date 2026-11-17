@@ -1,84 +1,122 @@
-# Benchmark protocol
-
-MMCTR-Bench uses versioned canonical datasets, validation-based model selection, and isolated
-run artifacts. The [README reference tables](../README.md#reference-results) provide reference
-results after dataset restructuring, with five-seed mean and sample standard deviation.
+# Run and evaluate experiments
 
 ## Model selection and final evaluation
 
-Training fits model parameters on the training split. Validation AUC controls early stopping,
-checkpoint selection, and hyperparameter selection. Test evaluation follows configuration and
-checkpoint freezing.
+Fit parameters on training data. Use validation AUC for early stopping, checkpoint selection,
+and hyperparameter selection. Freeze the configuration and weights before computing test AUC
+and LogLoss. The candidate-search CLI evaluates a predeclared
+list. To implement the paper's Optuna random search (seed 2025, up to 50 trials or 50 GPU-hours)
+with an external driver, install `.[optuna]`.
 
-`mmctr.cli tune` accepts a predeclared list of candidate configurations and runs each with the
-production Trainer. Every candidate records full-validation AUC and LogLoss; the highest
-validation AUC wins, with ties keeping the first candidate. Test evaluation is disabled during
-candidate search. A fresh Trainer loads the exact selected weights, including buffers, and
-evaluates test once without retraining.
+## Datasets and reference results
 
-The study stores candidate configurations and validation metrics, an immutable frozen selection,
-and a separate final-test result. A study lock and provenance checks prevent selection artifacts
-from being overwritten. See [experiment commands](experiments.md#validation-only-tuning).
-The candidate-list interface runs the supplied configurations; it does not implement the
-paper's Optuna 50-trial / 50-GPU-hour stopping rule.
+Use the dataset versions and split definitions in the [data guide](data.md). Each of the four
+[README reference tables](../README.md#reference-results) covers 21 models and seeds 2025–2029.
+AUC and LogLoss are reported as mean ± sample standard deviation (`ddof=1`). Keep per-seed
+scores, resolved settings, and the data fingerprint with the run records.
 
-## Dataset versions
+## Tune one model
 
-AntM2C, MicroLens, and TikTok use canonical-v1. EB-NeRD reference results use canonical-v4 with
-history length 5, ID embedding width 16, and 10% of local-test impressions. EB-NeRD uses the
-provider's validation split as local test; this is not the official challenge test. Dataset
-manifests and per-run metadata retain fingerprints and resolved configurations.
+Set `MMCTR_PYTHON` to the active environment's absolute interpreter and run from the repository
+root:
 
-TikTok canonical-v1 contains 9,308 users, 6,710 target items, and 412,332 binary CTR instances:
-357,246 training, 18,306 validation, and 36,780 test rows. The positive:negative ratio is 1:5.
-See the [array-measured breakdown](data.md#tiktok-canonical-v1).
+```bash
+"$MMCTR_PYTHON" -m mmctr.cli tune --dataset-name tiktok --model-name dmf \
+  --candidates configs/experiments/tuning.example.yaml --study-id tiktok-dmf-search \
+  --output-root outputs/tuning --cuda 0
+```
 
-TikTok uses the supplied split files and list-prefix histories. Source files lack reliable
-timestamps, so list order does not establish temporal causality. Negative sampling excludes
-all supplied positives for each user across the three splits, including later-split positives.
-This exclusion policy does not provide an online causal negative-sampling guarantee.
+Candidate YAML accepts `model` and `training` overrides. Ties keep the first candidate;
+the selected weights are tested without retraining. Use a fresh study ID for each search.
 
-## Reference result aggregation
+## Diagnostic experiments
 
-Each of the four README tables contains 21 models evaluated with seeds 2025–2029. AUC and
-LogLoss are arithmetic mean ± sample standard deviation (`ddof=1`), computed from all five
-per-seed scores. The table generator validates matrix completeness and agreement between raw
-scores and report aggregates before writing any table. Per-seed results, configuration, data
-fingerprints, and implementation provenance remain in the source report's job records.
+Each invocation runs one dataset, model, seed, and setting. Cold start and the native control
+are available on all four datasets. Robustness, alignment, and fusion runs use MicroLens or
+TikTok.
 
-## Cold-start evaluation
+### Tuning and comparisons
 
-Protocol identity: `paper-mixed-graph-oov-v2`, based on benchmark Appendix C (pp. 11–12).
+Declare the candidate hyperparameters before running each setting and independently tune its
+matched `control`. Use the same dataset fingerprint, backbone, and paired seeds, with comparable
+search spaces and budgets. Select by validation AUC (ties keep the first candidate), freeze
+the best weights, and compare final test results. Do not reuse the main table's settings or
+scores. This CLI searches the supplied candidates; it does not schedule an Optuna budget.
 
-- Train on the complete training set and select the checkpoint using **full validation**.
-- Few-shot: include a test row if its user **or** item has fewer than 5 training candidate
-  interactions, including zero. Positive and sampled negative rows both count. History
-  appearances do not add candidate-interaction counts.
-- Zero-shot: include a test row if its user **or** item is absent from the training graph.
-  Item exposure includes both training candidates and valid training-history positions.
-- After freezing the selected weights, append distinct user/item OOV indices with deterministic
-  zero vectors. Map unseen users, target items, and valid history IDs consistently. Preserve
-  non-ID features, context, labels, padding, and history masks. No fine-tuning follows OOV
-  reservation. AntM2C user ID zero remains valid.
-- Evaluate the subset and the complete test set with the same selected weights and OOV policy.
-  Report signed AUC change and `100 * (subset_auc - full_test_auc) / full_test_auc`. Subset
-  composition contributes to this difference; it is not an isolated measure of model degradation.
-- Empty or single-class test subsets are `not_evaluable`. Report a subset that covers the full
-  test set as such, without changing its threshold or the dataset split.
+For each seed, record test AUC, LogLoss, the signed AUC difference (`setting - control`), and the
+selected configurations. Use mean and sample standard deviation for paired differences across
+seeds. Relative AUC change is undefined if the control AUC is zero.
 
-The canonical-v1 population audit gives:
+### Modality robustness
 
-| Dataset | Zero-shot mixed test rows | Few-shot mixed test rows (<5) |
+The executor jointly masks all non-ID target and history modalities per sampled row in
+train and test. Validation stays clean. Use `--probability 0.1|0.3|0.5|0.7` with one value
+per setting. The mask seed is 42; keep the batch size fixed across rates to reuse the same
+test draws.
+
+### Alignment and fusion
+
+Use `alignment --method` with `kl`, `contrastive` (InfoNCE), `cosine`, `mmd`, or
+`adversarial`, and `--weight` with 0.1, 0.3, 0.5, or 0.7. Keep Adam fixed. Alignment
+uses projected target features, or masked, pooled codebook histories for QARM and PSRQ.
+
+Use `fusion --method` with CAT, MAF, LMF, MTFN, SRC, FQ-Former, SimCEN, DTA, or DMF.
+SRC needs at least two inputs and is unavailable for MicroLens PAMD. LMF, MTFN, GMMF, and
+SimCEN fusion studies use a shared wrapper, so differences from a native control can also
+reflect the wrapper. To isolate an operator, tune a reference within the same wrapper and
+substitution site.
+
+For a **DMF backbone**, set `model: {similarity_source: legacy_projected}` in every alignment
+or fusion candidate and in its matching control. These diagnostics use projected features;
+the default frozen-feature configuration is used for ordinary training.
+
+### Run one setting
+
+From the repository root, use the active environment's absolute interpreter:
+
+```bash
+MMCTR_PYTHON="$(command -v python)"
+
+"$MMCTR_PYTHON" -m mmctr.analysis.diagnostic_execution robustness \
+  --dataset-name tiktok --model-name dmf --probability 0.3 --seed 2025 \
+  --candidates configs/experiments/diagnostic-tuning.example.yaml \
+  --study-id tiktok-dmf-drop03-s2025 --output-root outputs/analysis --cuda 0
+
+"$MMCTR_PYTHON" -m mmctr.analysis.diagnostic_execution control \
+  --dataset-name tiktok --model-name dmf --seed 2025 \
+  --candidates configs/experiments/diagnostic-tuning.example.yaml \
+  --study-id tiktok-dmf-control-s2025 --output-root outputs/analysis --cuda 0
+```
+
+Use a unique study ID for each setting and seed. Each study writes `trial_history.json`,
+`frozen_selection.json`, and `final_test_result.json` under `<output-root>/<study-id>/`.
+Use these JSON files for reporting and visualization with external tools.
+Cold-start results include full-test metrics and the subset audit. Pass `--dataset-config`
+for a local catalog and see each subcommand's `--help` for its arguments.
+
+### Cold-start evaluation
+
+The mixed user/item protocol (`paper-mixed-graph-oov-v2`) trains on the full training split
+and selects hyperparameters and checkpoints on full validation.
+
+- **Few-shot:** include rows whose user or item appears in fewer than five training candidate
+  rows, including zero. Count both positive and negative candidates; history appearances do
+  not add to these counts.
+- **Zero-shot:** include rows whose user or item is absent from the training graph. For items,
+  the graph includes candidate rows and valid history positions.
+
+After selection, map unseen user and item IDs to separate zero-initialized OOV embeddings.
+Use the same mapping and frozen weights for the full test and the subset. Retain non-ID
+features and padding. Report the subset counts and AUC change; empty or single-class subsets
+are `not_evaluable`. The difference also reflects the subset's composition.
+
+| Dataset | Zero-shot rows | Few-shot rows |
 |---|---:|---:|
 | AntM2C | 386,775 | 410,705 |
 | MicroLens | 2,862 | 360,000 (full test) |
 | TikTok | 30 | 30 |
 
-TikTok's two subsets coincide and contain five positives and 25 negatives. Their size limits
-the strength of cold-start conclusions. These are population counts, not model scores.
-
-Run one cold-start setting with a predeclared candidate list. Set `MMCTR_PYTHON` to the
-absolute interpreter path in your experiment environment:
+TikTok's two subsets are identical, with five positive and 25 negative rows.
 
 ```bash
 "$MMCTR_PYTHON" -m mmctr.analysis.diagnostic_execution cold-start \
@@ -87,28 +125,4 @@ absolute interpreter path in your experiment environment:
   --study-id tiktok-dmf-cold-zero-s2025 --output-root outputs/analysis --cuda 0
 ```
 
-Use `--regime low_lt5` for few-shot. Both hyperparameter and checkpoint selection use full
-validation; the final result compares the selected weights on the full and subset tests.
-See the [analysis experiment guide](analysis/cross-dataset-diagnostics.md) for candidate
-files, other analysis settings, and reporting.
-
-`ColdStartProtocol` is a separate entity-support audit API. Its v2 few-shot constraint is strict
-`<N` including zero; item zero-shot audits accept training-history IDs. Its audit and matrix
-loaders require v2 schemas. See [the audit workflow](experiments.md#cold-start-protocol).
-
-## DMF configuration
-
-The default `similarity_source: frozen_features` selects `dmf-frozen-features-v2`.
-[DMF IV-A / Eq. 10](https://arxiv.org/html/2510.11066) computes cosine similarity from frozen
-pretrained multimodal vectors; IV-C uses discrete similarity-bucket embedding lookups.
-
-The native benchmark model computes cosine from concatenated upstream modality vectors.
-ID projections, ID embeddings, similarity key/value embeddings, and prediction heads are
-trainable. The DTA buckets and histograms remain discrete; no surrogate bucket gradient is used.
-The benchmark consumes pre-extracted features and does not perform DMF's additional contrastive
-encoder fine-tuning.
-
-`similarity_source: legacy_projected` selects the compatibility implementation with projected
-modality similarity. Checkpoints require matching implementation and pipeline settings for
-strict loading. Alignment and fusion studies also record their own representation and adapter
-settings; see [diagnostic protocols](analysis/cross-dataset-diagnostics.md).
+Use `--regime low_lt5` for few-shot.

@@ -17,7 +17,7 @@ from mmctr.data.datasets.arrays import load_manifest, save_manifest, sha256_file
 from mmctr.data.manifest import DatasetManifest, SplitStatistics
 
 from .array_store import LEGACY_USER_TEXT_CONTEXT
-from .benchmark import LegacyAntM2CLayout, discover_legacy_records
+from .tfrecord_layout import LegacyAntM2CLayout, discover_legacy_records
 
 
 CANONICAL_SCHEMA_VERSION = 1

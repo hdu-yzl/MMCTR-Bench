@@ -20,4 +20,4 @@ canonical arrays belong under `data/processed/`, never under `data/raw/`.
 ## EB-NeRD
 
 EB-NeRD small is available through the canonical loader and dataset catalog.
-See [processing, training and analysis](../../docs/data/ebnerd.md).
+See [EB-NeRD preparation](../../docs/data.md#eb-nerd).

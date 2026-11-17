@@ -1,88 +1,121 @@
-# Data contracts
+# Datasets
 
-Training code consumes `mmctr.core.Batch` objects from a loader implementing
-`mmctr.data.DataLoaderProtocol`. It does not call TensorFlow or interpret positional tuples.
-`Batch.context_features` keeps interaction-owned context separate from target item features;
-models must opt in to those named fields rather than relying on concatenation offsets.
+Obtain data from the providers below and see the [input layout](../data/raw/README.md).
+The benchmark does not redistribute data. Each processed dataset has a manifest with its
+split counts, dimensions, and fingerprint.
 
-All four dataset registry entries resolve to canonical named-array loaders. AntM2C uses a sharded
-layout because its interaction contexts are much larger; MicroLens, TikTok, and EB-NeRD use named
-arrays per split. All preserve their audited manifest and emit `Batch` without a TensorFlow or positional-
-tuple hop. Compatibility iterators remain for analysis and quantization callers during migration.
+| Dataset | Canonical directory | Train / validation / test rows |
+|---|---|---:|
+| [AntM2C](#antm2c) | `data/processed/antm2c/canonical-v1/` | 8,536,558 / 721,500 / 1,932,927 |
+| MicroLens | `data/processed/microlens/canonical-v1/` | 2,880,000 / 360,000 / 360,000 |
+| [TikTok](#tiktok-canonical-v1) | `data/processed/tiktok/canonical-v1/` | 357,246 / 18,306 / 36,780 |
+| [EB-NeRD](#eb-nerd) | `data/processed/ebnerd/canonical-v4/` | 2,325,624 / 260,123 / 292,271 |
 
-Every processed dataset is described by a `DatasetManifest` containing:
+## AntM2C
 
-- schema, dataset, and data versions;
-- storage format and sequence length;
-- padding/OOV IDs and explicit ID offsets;
-- named feature dimensions;
-- per-split counts and optional SHA-256 digests;
-- a stable manifest fingerprint used in run metadata.
+[ATEC dataset portal](https://www.atecup.cn/OfficalDataSet) · Huan et al., *Exploring
+Multi-Scenario Multi-Modal CTR Prediction with a Large-Scale Dataset*, SIGIR 2024.
 
-Manifests synthesized from current YAML are marked `legacy-config-only`. They are compatibility
-metadata, not proof that source files or split statistics were audited.
+Titles and images are shared by item; service, query, bill, entity, and time features are
+per interaction. A history includes only earlier positive events. Train runs through
+2023-08-03 00:00:00, validation through 2023-08-05 00:00:00, and test covers later events.
 
-AntM2C also has a restartable batch-extraction boundary and a sharded named-array publisher.
-Extraction loads an encoder once per unfinished job, atomically checkpoints each shard, validates
-shape/finiteness/checksums, records missing keys, and resumes only when source fingerprints match.
-The canonical store writes every interaction context independently and title/image once in a shared
-item store. Its loader memory-maps those arrays, gathers target/history modalities from the same
-rows, preserves padding while applying explicit ID offsets, and yields canonical batches. Published
-shards and logical source files carry SHA-256 evidence, and incomplete conversion state cannot be
-opened as the final dataset.
+Set `ANTM2C_TFRECORD_DIR` to the directory with the split TFRecords and the shared
+`text_feature.npy` and `image_feature.npy` item arrays. The output uses about 161 GiB:
 
-The full Linux artifact is `data/processed/antm2c/canonical-v1/`, fingerprint
-`ece3afcc876853caadd4e277421c938a59426e2e003577b1fd02b90e2d3b2aca`. It contains 8,536,558
-train, 721,500 validation, and 1,932,927 test events in 1,059/91/239 atomic shards. Its 15,284 files
-occupy 173,233,549,382 bytes. The manifest anchors both item feature hashes and the aggregate shard
-metadata hash; the full verifier checks every file's hash, size, dtype, shape, and split count.
+```bash
+"$MMCTR_PYTHON" -m mmctr.data.datasets.antm2c.canonical \
+  --source-dir "$ANTM2C_TFRECORD_DIR" --output-dir data/processed/antm2c/canonical-v1
+```
 
-## MicroLens canonical-v1
+See [AntM2C source files](../data/raw/antm2c/README.md) for raw events and encoder inputs.
 
-`prepare_microlens(raw_dir, output_dir)` consumes `item_feature.parquet` and `train.parquet`.
-It streams the 3.6M interactions, keeps the last five source history items, shifts item IDs by
-1,000,000, and creates a deterministic 80/10/10 interaction split with seed 42. Text and image
-embeddings are written once in an item store; target and history items gather from the same rows.
-The parquet item features are already upstream BERT/CLIP embeddings: this processor does not encode
-original video frames or raw text. Their source-file SHA-256 values were rechecked against the
-read-only reference and exactly match the canonical manifest.
-The split definition and sample assignment are recorded in the canonical-v1 manifest.
+## MicroLens
 
-The server artifact is `data/processed/microlens/canonical-v1/`. Its manifest fingerprint is
-`1e28692d5b7f5c722c6621f78533a1974eef9f9b64256a6a3e51e8a27889221f` and records 2,880,000 train,
-360,000 validation, and 360,000 test interactions.
+[Official repository](https://github.com/westlake-repl/MicroLens) · Ni et al.,
+*A Content-Driven Micro-Video Recommendation Dataset at Scale*, CIKM 2025.
+
+`prepare_microlens(raw_dir, output_dir)` reads `train.parquet` and
+`item_feature.parquet`. It keeps up to five source history items and creates a deterministic
+80/10/10 interaction split (seed 42). Target and history items share an item store with
+upstream BERT/CLIP embeddings.
 
 ## TikTok canonical-v1
 
-`prepare_tiktok(raw_dir, output_dir)` consumes the official `train.json`, `val.json`, and
-`test.json` plus the three modality arrays. Each official positive event
-uses its prefix in the supplied list order: validation inherits train history, and test inherits train plus
-validation history. Source files provide no reliable timestamps, so this is not proof of temporal
-causality. Five deterministic negatives are sampled from items never observed by that
-user across the three source splits. The manifest records the split, history, and sampling rules.
+[HKUDS/MMSSL](https://github.com/HKUDS/MMSSL) · Wei et al.,
+*Multi-Modal Self-Supervised Learning for Recommendation*, WWW 2023.
 
-The text/image/audio arrays are pre-extracted upstream features rather than raw media. All six
-source-file SHA-256 values were rechecked against the read-only reference and exactly match the
-canonical manifest. Canonical-v1 stores generated CTR samples alongside these upstream features.
+`prepare_tiktok(raw_dir, output_dir)` uses the official train, validation and test JSON
+files and upstream text, image, and audio arrays. Histories follow source list order:
+validation inherits train history, and test inherits train and validation history. The
+source lacks reliable timestamps, so this order does not establish temporal causality.
+Each positive has five deterministic sampled negatives, excluding items observed by the user
+in any supplied split.
 
-The server artifact is `data/processed/tiktok/canonical-v1/`. Its manifest fingerprint is
-`a908bb25f28f899bf2cf21f81483ae67d2106adea582e0e5576a2e9cb1ff05bc` and records 357,246 train,
-18,306 validation, and 36,780 test CTR samples.
+The processed data contains **412,332 CTR rows**, **9,308 users**, and **6,710 target items**.
+User and item counts below are distinct IDs in the emitted rows.
 
-The current arrays contain **412,332** samples in total, **9,308 distinct users** and
-**6,710 distinct target items** across all splits, with a positive:negative ratio of **1:5**.
-Counts below are measured from emitted arrays, rather than user keys in source JSON:
-
-| Split | CTR rows | Positives | Negatives | Distinct users | Distinct target items |
+| Split | CTR rows | Positives | Negatives | Users | Target items |
 |---|---:|---:|---:|---:|---:|
 | Train | 357,246 | 59,541 | 297,705 | 9,298 | 6,710 |
 | Validation | 18,306 | 3,051 | 15,255 | 3,051 | 6,176 |
 | Test | 36,780 | 6,130 | 30,650 | 6,130 | 6,660 |
 
-User and item counts above refer to distinct IDs in emitted candidate arrays. Source JSON user
-keys with empty positive lists do not contribute CTR rows. See the
-[benchmark protocol](benchmark-protocol.md) for evaluation and aggregation details.
+## EB-NeRD
 
-Both processors are idempotent for the same source fingerprint and options. They refuse to reuse
-an existing output directory built from different inputs. Raw/private arrays and generated output
-remain ignored by Git; only the schema, code, protocol, and manifest evidence are versioned.
+The benchmark uses [EB-NeRD small](https://recsys.eb.dk/dataset/) at
+`data/processed/ebnerd/canonical-v4/`, with five history items, 16-dimensional ID
+embeddings, and article text (768 dimensions) and image (1,024 dimensions) embeddings.
+See [the input layout](../data/raw/ebnerd/README.md) for the seven Parquet files.
+
+The official training impressions are sorted by timestamp and impression ID and split locally
+at the 90% timestamp boundary, keeping timestamp ties together. Local test samples **10% of
+official validation impressions** uniformly without replacement (seed 2025; 24,465 impressions).
+This is a labeled holdout; it does not use the official challenge test.
+
+Every displayed candidate contributes one binary CTR row, labeled by membership in the clicked
+list. All candidates in an impression stay together, with no added negatives. Histories use the
+provider's fixed clicks from before the source split, keep the last five items, and left-pad
+with zeros. Missing embeddings are zero-filled without dropping rows or valid history positions.
+The benchmark reports candidate-level ROC-AUC and LogLoss.
+
+The dataset has **58 ID fields**: user and article IDs plus 19 categorical and 37 bucketed
+article, history, and impression fields. Category vocabularies are fitted on training inputs
+only; unseen categories use field-specific OOV IDs. Numeric fields use fixed bucket edges.
+Missing categories, unknown categories, and padding have distinct IDs.
+
+The loader exposes the additional fields as `Batch.user_features["attribute_ids"]` with shape
+`[B, 56, 16]` (up to 16 token slots per field). Tokens use the shared ID embedding table and are
+mean-pooled within each field, ignoring padding. Pooled models use the existing target ID
+projection; sequence models use the existing user ID projection and retain separate target and
+history article IDs.
+
+### Prepare EB-NeRD
+
+From the repository root, activate the project environment and set `MMCTR_PYTHON` to its absolute
+interpreter path. The first three commands prepare intermediate inputs for the final ID store:
+
+```bash
+(
+  set -e
+  raw=data/raw/ebnerd
+  stage=.tmp/ebnerd-prepare
+  output=data/processed/ebnerd/canonical-v4
+  mkdir -p "$stage"
+  "$MMCTR_PYTHON" -m mmctr.data.datasets.ebnerd \
+    --raw-dir "$raw" --output-dir "$stage/impressions" --sequence-length 5
+  "$MMCTR_PYTHON" -m mmctr.data.datasets.ebnerd \
+    --sample-test-from "$stage/impressions" --output-dir "$stage/sampled" \
+    --test-fraction 0.1 --sampling-seed 2025
+  "$MMCTR_PYTHON" -m mmctr.data.datasets.ebnerd \
+    --enrich-from "$stage/sampled" --raw-dir "$raw" --output-dir "$stage/attributes"
+  "$MMCTR_PYTHON" -m mmctr.data.datasets.ebnerd \
+    --ids-from "$stage/attributes" --raw-dir "$raw" --output-dir "$output" \
+    --config-output "$stage/catalog.yaml"
+  "$MMCTR_PYTHON" -m mmctr.data.datasets.ebnerd --output-dir "$output" --verify-only
+)
+```
+
+Use the tracked catalog for the benchmark dataset. For a custom build, pass the generated
+catalog with `--dataset-config`; it records the actual dimensions, ID ranges, and fingerprint.
+Keep generated arrays, mappings, and fitted vocabularies local.

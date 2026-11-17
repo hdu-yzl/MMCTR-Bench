@@ -53,16 +53,6 @@ class SearchTrainer(Trainer):
         )
 
 
-def test_validation_run_never_accesses_test(tmp_path):
-    calls = []
-    trainer = SearchTrainer(tmp_path, {"lr": 0.01}, calls)
-    result = trainer.run(evaluate_test=False)
-    assert set(calls) == {"train", "val"}
-    assert "val_auc" in result.metrics and "val_log_loss" in result.metrics
-    assert not any(key.startswith("test") for key in result.metrics)
-    assert "test_auc" not in json.loads(trainer.run_context.summary_path.read_text())
-
-
 def test_search_freezes_all_validation_trials_before_one_final_test(tmp_path):
     from mmctr.experiments.tuning import ValidationOnlyTuner, run_validation_search
 

@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 
 from mmctr.core import ContractError
-from mmctr.data.datasets.antm2c.benchmark import LegacyAntM2CLayout
+from mmctr.data.datasets.antm2c.tfrecord_layout import LegacyAntM2CLayout
 from mmctr.data.datasets.antm2c.canonical import (
     convert_legacy_to_canonical,
     verify_canonical_dataset,

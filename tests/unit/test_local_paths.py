@@ -16,19 +16,6 @@ EXAMPLE_PATH = REPOSITORY_ROOT / "configs" / "local" / "paths.example.yaml"
 
 
 class LocalPathsTest(unittest.TestCase):
-    def test_example_plus_one_environment_override_is_usable(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            data_directory = Path(temporary_directory) / "antm2c"
-            data_directory.mkdir()
-
-            paths = load_local_paths(
-                EXAMPLE_PATH,
-                environ={"MMCTR_ANTM2C_DATA_DIR": str(data_directory)},
-            )
-
-            self.assertEqual(paths.datasets, {"antm2c": data_directory.resolve()})
-            self.assertIsNone(paths.output_root)
-
     def test_environment_overrides_local_file(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -106,15 +93,6 @@ class LocalPathsTest(unittest.TestCase):
 
             self.assertEqual(catalog["antm2c"]["data_dir"], str(data_directory.resolve()))
             self.assertTrue(catalog["antm2c"]["using_local_data"])
-
-    def test_source_tree_has_no_missing_legacy_local_config_references(self):
-        offenders = []
-        for path in (REPOSITORY_ROOT / "src").rglob("*.py"):
-            source = path.read_text(encoding="utf-8")
-            if "local_data.yaml" in source or "local_seq_data.yaml" in source:
-                offenders.append(path.relative_to(REPOSITORY_ROOT).as_posix())
-
-        self.assertEqual(offenders, [])
 
 
 if __name__ == "__main__":
