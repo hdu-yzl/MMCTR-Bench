@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Dict, Mapping, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
 from mmctr.core import ContractError, RunResult
 
@@ -14,6 +14,22 @@ from .runner import ExperimentTask
 
 
 TUNING_SCHEMA_VERSION = 1
+
+
+def load_tuning_candidates(path) -> List[Dict[str, Any]]:
+    """Read an ordered, nonempty list of model/training overrides."""
+    from mmctr.config import load_yaml_mapping
+
+    payload = load_yaml_mapping(path)
+    candidates = payload.get("candidates")
+    if set(payload) != {"candidates"} or not isinstance(candidates, list) or not candidates:
+        raise ValueError("candidate YAML requires a nonempty candidates list")
+    for candidate in candidates:
+        if not isinstance(candidate, dict) or set(candidate) - {"model", "training"}:
+            raise ValueError("each candidate accepts only model and training override mappings")
+        if any(not isinstance(value, dict) for value in candidate.values()):
+            raise ValueError("model/training overrides must be mappings")
+    return candidates
 
 
 def _freeze(value: Any) -> Any:
@@ -295,17 +311,20 @@ class ValidationOnlyTuner:
                 "run_id": result.run_id,
                 "data_fingerprint": selection.data_fingerprint,
                 "metrics": dict(result.metrics),
+                **({"metadata": _plain(result.metadata)} if result.metadata else {}),
             },
         )
         return path
 
 
-def run_validation_search(tuner, candidates, trainer_factory):
+def run_validation_search(tuner, candidates, trainer_factory, *, final_evaluator=None):
     """Execute candidates without test access, freeze a winner, then test its weights once.
 
     ``trainer_factory(candidate)`` constructs the normal Trainer. Only the best model
     state is retained on CPU; the final Trainer loads it without retraining. A study
     lock and immutable selection prevent accidental reruns under the same identity.
+    An optional ``final_evaluator(trainer, best_epoch)`` can compare predefined
+    test populations after selection and restoration.
     """
     import fcntl
     import gc
@@ -369,7 +388,11 @@ def run_validation_search(tuner, candidates, trainer_factory):
                 }
             )
             with torch.no_grad():
-                result = final.evaluate_final(best_epoch)
+                result = (
+                    final.evaluate_final(best_epoch)
+                    if final_evaluator is None
+                    else final_evaluator(final, best_epoch)
+                )
             tuner.record_final_test_result(selection, result)
             final.run_context.finalize("completed", summary=dict(result.metrics))
             return result
@@ -383,5 +406,6 @@ __all__ = [
     "TUNING_SCHEMA_VERSION",
     "TuningTrial",
     "ValidationOnlyTuner",
+    "load_tuning_candidates",
     "run_validation_search",
 ]

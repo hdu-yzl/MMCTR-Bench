@@ -76,7 +76,9 @@ def training_exposure(root):
     return counts, seen, offset
 
 
-def build_cold_populations(root, target: str, regime: str, exposure=None) -> Tuple[Dict, Dict]:
+def build_cold_populations(
+    root, target: str, regime: str, exposure=None, *, splits=("val", "test")
+) -> Tuple[Dict, Dict]:
     """Return selection masks and auditable populations without changing data."""
     root = Path(root)
     supports, seen, _ = training_exposure(root) if exposure is None else exposure
@@ -86,7 +88,7 @@ def build_cold_populations(root, target: str, regime: str, exposure=None) -> Tup
     if regime == "zero":
         supports = seen
     masks, summaries = {}, {}
-    for split in ("val", "test"):
+    for split in splits:
         counts = {}
         labels = _load_field(root, split, "labels").reshape(-1)
         for field, support in supports.items():
@@ -101,78 +103,3 @@ def build_cold_populations(root, target: str, regime: str, exposure=None) -> Tup
         masks[split] = cold_selection(counts["user_ids"], counts["item_ids"], target, regime)
         summaries[split] = population_summary(labels[masks[split]])
     return masks, summaries
-
-
-def main():
-    """Create a fresh mixed cold matrix and baseline provenance; never edit old queues."""
-    import argparse
-    import copy
-    import hashlib
-    from .diagnostic_execution import write_json
-
-    parser = argparse.ArgumentParser(description=COLD_PROTOCOL)
-    parser.add_argument("--baseline", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--datasets", nargs="+", default=["antm2c", "microlens", "tiktok"])
-    parser.add_argument("--models", nargs="+", default=None)
-    args = parser.parse_args()
-    baseline_output = args.output.with_name(args.output.stem + "-baseline.json")
-    if args.output.exists() or baseline_output.exists():
-        raise ContractError("new paper cold matrix requires fresh output paths")
-    baseline = copy.deepcopy(json.loads(args.baseline.read_text()))
-    baseline["parent_baseline"] = {
-        "path": str(args.baseline.resolve()),
-        "sha256": hashlib.sha256(args.baseline.read_bytes()).hexdigest(),
-    }
-    baseline["cold_protocol"] = COLD_PROTOCOL
-    baseline["model_catalog"]["dmf"]["similarity_source"] = "frozen_features"
-    tasks = []
-    for dataset in args.datasets:
-        root = baseline["data"][dataset]["data_dir"]
-        exposure = training_exposure(root)
-        populations = {
-            regime: build_cold_populations(root, "union", regime, exposure)[1]
-            for regime in ("zero", "low_lt5")
-        }
-        jobs = [
-            job
-            for job in baseline["jobs"]
-            if job["dataset"] == dataset
-            and job["seed"] == 2025
-            and (args.models is None or job["model"] in args.models)
-        ]
-        if not jobs or any(job["status"] != "completed" for job in jobs):
-            raise ContractError("cold planning requires completed seed-2025 references")
-        if args.models is not None and {j["model"] for j in jobs} != set(args.models):
-            raise ContractError("requested models are missing from the seed-2025 references")
-        for job in jobs:
-            for regime, population in populations.items():
-                tasks.append(
-                    {
-                        "task_id": "{}-{}-cold-{}-union-v2-seed2025".format(
-                            dataset, job["model"], regime
-                        ),
-                        "family": "cold-start",
-                        "dataset": dataset,
-                        "model": job["model"],
-                        "seed": 2025,
-                        "cold_protocol": COLD_PROTOCOL,
-                        "intervention": {"target": "union", "regime": regime},
-                        "population": population,
-                        "baseline_test_auc": job["metrics"]["test_auc"],
-                    }
-                )
-    write_json(baseline_output, baseline)
-    write_json(
-        args.output,
-        {"cold_protocol": COLD_PROTOCOL, "baseline": str(baseline_output), "tasks": tasks},
-    )
-    print(
-        json.dumps(
-            {"tasks": len(tasks), "matrix": str(args.output), "baseline": str(baseline_output)}
-        )
-    )
-
-
-if __name__ == "__main__":
-    main()

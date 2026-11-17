@@ -1,4 +1,4 @@
-"""Explicit legacy diagnostic semantics and same-seed main-table comparisons."""
+"""Diagnostic data transforms and AUC comparisons."""
 
 import math
 from dataclasses import replace
@@ -12,8 +12,8 @@ from mmctr.core import Batch, ContractError
 
 def compare_auc(test_auc: Optional[float], baseline_auc: float) -> Dict[str, Any]:
     """Positive signed deltas mean improvement; relative values are percentages."""
-    if not math.isfinite(baseline_auc) or not 0.0 < baseline_auc <= 1.0:
-        raise ContractError("baseline AUC must be finite and in (0, 1]")
+    if not math.isfinite(baseline_auc) or not 0.0 <= baseline_auc <= 1.0:
+        raise ContractError("baseline AUC must be finite and in [0, 1]")
     if test_auc is None:
         return dict(
             test_auc=None,
@@ -31,7 +31,7 @@ def compare_auc(test_auc: Optional[float], baseline_auc: float) -> Dict[str, Any
         baseline_test_auc=baseline_auc,
         auc_delta=delta,
         auc_absolute_difference=abs(delta),
-        relative_change_percent=100.0 * delta / baseline_auc,
+        relative_change_percent=100.0 * delta / baseline_auc if baseline_auc else None,
         direction="increase" if delta > 0 else ("decrease" if delta < 0 else "equal"),
     )
 

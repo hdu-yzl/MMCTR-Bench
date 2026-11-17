@@ -383,8 +383,9 @@ The scripts are convenience wrappers around the public CLI:
 "$MMCTR_PYTHON" -m mmctr.cli train --dataset-name antm2c --model-name dnn --cuda 0
 ```
 
-Analysis matrix and plotting commands are documented in [docs/cli.md](docs/cli.md) and
-[docs/experiments.md](docs/experiments.md).
+See the [analysis experiment guide](docs/analysis/cross-dataset-diagnostics.md) for
+single-setting diagnostics and how to tune their controls. Matrix planning and plotting
+commands are documented in [docs/cli.md](docs/cli.md) and [docs/experiments.md](docs/experiments.md).
 
 ## Repository layout
 

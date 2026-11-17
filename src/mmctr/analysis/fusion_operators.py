@@ -90,7 +90,7 @@ class DiagnosticLocalFusion(torch.nn.Module):
 
 
 class DiagnosticSequenceFusion(torch.nn.Module):
-    """DTA or DMF fusion with the main-table padding-mask semantics."""
+    """DTA or DMF fusion with explicit padding masks."""
 
     def __init__(self, method: str, dimension: int, names: Sequence[str], config: Mapping) -> None:
         super().__init__()

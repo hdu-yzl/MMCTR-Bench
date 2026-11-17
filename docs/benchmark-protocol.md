@@ -77,24 +77,20 @@ The canonical-v1 population audit gives:
 TikTok's two subsets coincide and contain five positives and 25 negatives. Their size limits
 the strength of cold-start conclusions. These are population counts, not model scores.
 
-Starting from a frozen diagnostic baseline manifest containing the main-table configurations,
-generate a versioned matrix and companion baseline, then execute a task:
+Run one cold-start setting with a predeclared candidate list. Set `MMCTR_PYTHON` to the
+absolute interpreter path in your experiment environment:
 
 ```bash
-<BM_PYTHON> -m mmctr.analysis.cold_populations \
-  --baseline outputs/analysis/main-table-baseline.json \
-  --datasets tiktok microlens --output outputs/analysis/paper-cold-v2/tasks.json
-<BM_PYTHON> -m mmctr.analysis.diagnostic_execution \
-  --matrix outputs/analysis/paper-cold-v2/tasks.json \
-  --baseline outputs/analysis/paper-cold-v2/tasks-baseline.json \
-  --task-id tiktok-dmf-cold-zero-union-v2-seed2025 \
-  --output-root outputs/analysis/paper-cold-v2/results --cuda 0
+"$MMCTR_PYTHON" -m mmctr.analysis.diagnostic_execution cold-start \
+  --dataset-name tiktok --model-name dmf --regime zero --seed 2025 \
+  --candidates configs/experiments/diagnostic-tuning.example.yaml \
+  --study-id tiktok-dmf-cold-zero-s2025 --output-root outputs/analysis --cuda 0
 ```
 
-`<BM_PYTHON>` denotes the absolute interpreter returned by `command -v python` after activating
-the experiment environment. The generator preserves the parent baseline path/hash and selects
-`frozen_features` for DMF in the companion baseline. The executor requires the versioned mixed
-user/item protocol and matching task/baseline fingerprints.
+Use `--regime low_lt5` for few-shot. Both hyperparameter and checkpoint selection use full
+validation; the final result compares the selected weights on the full and subset tests.
+See the [analysis experiment guide](analysis/cross-dataset-diagnostics.md) for candidate
+files, other analysis settings, and reporting.
 
 `ColdStartProtocol` is a separate entity-support audit API. Its v2 few-shot constraint is strict
 `<N` including zero; item zero-shot audits accept training-history IDs. Its audit and matrix

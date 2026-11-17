@@ -59,19 +59,14 @@ def _validate_config(arguments) -> int:
 
 def _run_tune(arguments) -> int:
     _configure_threads(arguments.num_threads)
-    from mmctr.config import load_yaml_mapping
-    from mmctr.experiments.tuning import ValidationOnlyTuner, run_validation_search
+    from mmctr.experiments.tuning import (
+        ValidationOnlyTuner,
+        load_tuning_candidates,
+        run_validation_search,
+    )
     from mmctr.training.entrypoint import PROJECT_ROOT, Trainer
 
-    payload = load_yaml_mapping(arguments.candidates)
-    candidates = payload.get("candidates")
-    if set(payload) != {"candidates"} or not isinstance(candidates, list) or not candidates:
-        raise ValueError("candidate YAML requires a nonempty candidates list")
-    for candidate in candidates:
-        if not isinstance(candidate, dict) or set(candidate) - {"model", "training"}:
-            raise ValueError("each candidate accepts only model and training override mappings")
-        if any(not isinstance(value, dict) for value in candidate.values()):
-            raise ValueError("model/training overrides must be mappings")
+    candidates = load_tuning_candidates(arguments.candidates)
 
     def factory(candidate):
         return Trainer(

@@ -317,7 +317,7 @@ def build_fusion_study_model(
         from .fusion_quantized_backbones import LegacyQuantizedFusion
 
         if quantization_artifact_dir is None:
-            raise ContractError("quantized fusion requires frozen main-table artifacts")
+            raise ContractError("quantized fusion requires frozen dataset quantizer artifacts")
         backbone = create_model_from_artifacts(
             model_name, model_config, data_config, quantization_artifact_dir
         )

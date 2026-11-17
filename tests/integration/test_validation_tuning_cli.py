@@ -3,6 +3,7 @@
 import json
 
 import numpy as np
+import pytest
 import yaml
 
 from mmctr.cli.app import main
@@ -109,59 +110,143 @@ def test_tune_cli_uses_validation_trials_and_tests_only_frozen_winner(tmp_path):
     assert not list(output.rglob("*.pt"))
 
 
-def test_paper_cold_execution_selects_on_full_validation_then_compares_same_weights(tmp_path):
-    from mmctr.analysis.cold_populations import COLD_PROTOCOL, build_cold_populations
-    from mmctr.analysis.diagnostic_execution import prepare_trainer
-    from mmctr.config import load_training_config, resolve_dataset_config
-    import torch
-
-    torch.set_num_threads(1)
-    root, catalog, config = prepare_fixture(tmp_path)
-    _, population = build_cold_populations(root, "union", "zero")
-    baseline = {
-        "data": {"tiktok": resolve_dataset_config("tiktok", config, PROJECT_ROOT)},
-        "dataset_config_path": str(catalog),
-        "model_catalog": load_yaml_mapping(PROJECT_ROOT / "configs/models/catalog.yaml"),
-        "training_defaults": load_training_config(
-            PROJECT_ROOT / "configs/training/default.yaml"
-        ).to_dict(),
-        "jobs": [
+def diagnostic_candidates(tmp_path, model_overrides=None):
+    candidates = tmp_path / "diagnostic-candidates.yaml"
+    candidates.write_text(
+        yaml.safe_dump(
             {
-                "dataset": "tiktok",
-                "model": "dmf",
-                "seed": 2025,
-                "status": "completed",
-                "metrics": {"test_auc": 0.8},
+                "candidates": [
+                    {
+                        "model": {
+                            "latent_dim": 4,
+                            "projection_dim": 4,
+                            "mlp_dims": [8],
+                            "batch_norm": False,
+                            "attention_dim": 4,
+                            **(model_overrides or {}),
+                        },
+                        "training": {
+                            "lr": lr,
+                            "max_epochs": 1,
+                            "early_stop_patience": 1,
+                            "batch_size": 4,
+                        },
+                    }
+                    for lr in (0.01, 0.001)
+                ]
             }
-        ],
-    }
-    task = {
-        "task_id": "fixture-cold-v2",
-        "family": "cold-start",
-        "dataset": "tiktok",
-        "model": "dmf",
-        "seed": 2025,
-        "baseline_test_auc": 0.8,
-        "cold_protocol": COLD_PROTOCOL,
-        "intervention": {"target": "union", "regime": "zero"},
-        "population": population,
-    }
-    trainer, _ = prepare_trainer(task, baseline, tmp_path / "cold", -1)
-    assert trainer is not None
-    # One-epoch fixture acceptance, not a production benchmark result.
-    trainer.train_config.update(max_epochs=1, early_stop_patience=1)
-    original_rows = trainer.model.embedding.embedding.shape[0]
-    assert sum(b.batch_size for b in trainer.dataloader.iter_batches("val")) == 6
-    assert population["val"]["samples"] < 6
-    result = trainer.run()
-    assert "full_test_auc" in result.metrics
-    assert trainer.model.embedding.embedding.shape[0] == original_rows + 2
-    records = [
-        json.loads(line)
-        for line in (trainer.run_context.root_dir / "metrics.jsonl").read_text().splitlines()
-    ]
-    assert [r["samples"] for r in records if r["split"] == "val"] == [6]
-    assert [r["samples"] for r in records if r["split"] == "test"] == [
-        6,
-        population["test"]["samples"],
-    ]
+        )
+    )
+    return candidates
+
+
+def run_diagnostic(tmp_path, catalog, family, args, model_overrides=None):
+    from mmctr.analysis.diagnostic_execution import main as diagnostic_main
+
+    output = tmp_path / "analysis"
+    assert (
+        diagnostic_main(
+            [
+                family,
+                "--dataset-name",
+                "tiktok",
+                "--model-name",
+                "dmf",
+                "--dataset-config",
+                str(catalog),
+                "--candidates",
+                str(diagnostic_candidates(tmp_path, model_overrides)),
+                "--study-id",
+                family,
+                "--output-root",
+                str(output),
+                "--cuda",
+                "-1",
+                "--num-threads",
+                "1",
+            ]
+            + args
+        )
+        == 0
+    )
+    return output / family
+
+
+@pytest.mark.parametrize("evaluable", [True, False])
+def test_paper_cold_execution_selects_on_full_validation_then_compares_same_weights(
+    tmp_path, monkeypatch, evaluable
+):
+    from mmctr.analysis.benchmark_protocols import population_summary
+    from mmctr.analysis import cold_populations
+
+    root, catalog, _ = prepare_fixture(tmp_path)
+    original = cold_populations.build_cold_populations
+    _, expected = original(root, "union", "zero", splits=("test",))
+    if not evaluable:
+        expected["test"] = population_summary(np.array([], dtype=int))
+    inspected = []
+
+    def audit(*args, **kwargs):
+        assert (tmp_path / "analysis/cold-start/frozen_selection.json").is_file()
+        inspected.extend(kwargs["splits"])
+        masks, populations = original(*args, **kwargs)
+        if not evaluable:
+            masks["test"][:] = False
+            populations["test"] = expected["test"]
+        return masks, populations
+
+    monkeypatch.setattr(cold_populations, "build_cold_populations", audit)
+    study = run_diagnostic(tmp_path, catalog, "cold-start", ["--regime", "zero"])
+    frozen = json.loads((study / "frozen_selection.json").read_text())
+    final = json.loads((study / "final_test_result.json").read_text())
+    assert inspected == ["test"]
+    assert final["selected_run_id"] == frozen["selected_run_id"]
+    assert final["metadata"]["test_subset_population"] == expected["test"]
+    full = {"test_full_auc", "test_full_loss"}
+    if evaluable:
+        assert final["metrics"].keys() == full | {"test_auc", "test_loss"}
+        assert final["metadata"]["comparison"]["auc_delta"] == (
+            final["metrics"]["test_auc"] - final["metrics"]["test_full_auc"]
+        )
+    else:
+        assert final["metrics"].keys() == full
+        assert final["metadata"]["subset_status"] == "not_evaluable"
+        assert final["metadata"]["comparison"]["auc_delta"] is None
+    test_runs = []
+    for path in study.rglob("metrics.jsonl"):
+        records = [json.loads(line) for line in path.read_text().splitlines()]
+        assert all(r["samples"] == 6 for r in records if r["split"] == "val")
+        samples = [r["samples"] for r in records if r["split"] == "test"]
+        if samples:
+            test_runs.append((path.parent.name, samples))
+    expected_samples = [6, expected["test"]["samples"]] if evaluable else [6]
+    assert test_runs == [(final["run_id"], expected_samples)]
+    assert not list(study.rglob("*.pt"))
+
+
+def test_diagnostic_cli_tunes_one_setting_and_its_control_without_main_table(tmp_path):
+    _, catalog, _ = prepare_fixture(tmp_path)
+    for family, args in (
+        ("robustness", ["--probability", "0.3"]),
+        ("alignment", ["--method", "cosine", "--weight", "0.1"]),
+        ("fusion", ["--method", "cat"]),
+        ("control", []),
+    ):
+        study = run_diagnostic(
+            tmp_path, catalog, family, args, {"similarity_source": "legacy_projected"}
+        )
+        trials = json.loads((study / "trial_history.json").read_text())["trials"]
+        frozen = json.loads((study / "frozen_selection.json").read_text())
+        final = json.loads((study / "final_test_result.json").read_text())
+        assert len(trials) == 2
+        assert all(set(t["metrics"]).isdisjoint({"test_auc", "test_loss"}) for t in trials)
+        assert frozen["validation_auc"] == max(t["metrics"]["val_auc"] for t in trials)
+        assert frozen["frozen_config"]["candidate"]["diagnostic"]["family"] == family
+        assert final["selected_run_id"] == frozen["selected_run_id"]
+        metrics = [
+            json.loads(line)
+            for path in study.rglob("metrics.jsonl")
+            for line in path.read_text().splitlines()
+        ]
+        assert sum(value["split"] == "test" for value in metrics) == 1
+        assert not list(study.rglob("*.pt"))

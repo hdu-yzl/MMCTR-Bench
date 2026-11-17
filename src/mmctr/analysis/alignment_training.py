@@ -46,7 +46,7 @@ class AlignmentModel(torch.nn.Module):
 def attach_alignment(trainer, objective: LegacyAlignmentObjective, extract) -> AlignmentModel:
     """Attach before training; preserve native optimizer groups and alternating phases.
 
-    The discriminator uses the main-table learning rate and weight decay. All native
+    The discriminator uses the candidate learning rate and weight decay. All native
     groups retain their own optimizer options, including GMMF's separate rates.
     """
     engine = trainer.engine
@@ -54,7 +54,7 @@ def attach_alignment(trainer, objective: LegacyAlignmentObjective, extract) -> A
     if old.state:
         raise ContractError("alignment must be attached before any optimizer updates")
     if not isinstance(old, torch.optim.Adam):
-        raise ContractError("legacy alignment requires the main-table Adam optimizer")
+        raise ContractError("alignment requires the Adam optimizer")
     if isinstance(engine.model, AlignmentModel):
         raise ContractError("alignment is already attached")
     objective.to(next(engine.model.parameters()).device)

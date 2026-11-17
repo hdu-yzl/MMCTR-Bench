@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple
+from typing import Mapping, Optional, Sequence, Tuple
 
 from mmctr.utils import helper
 from mmctr.utils.run_context import create_run_context
@@ -27,10 +27,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Trainer(object):
-    final_test_loader: Any = None
-    final_full_test_loader: Any = None
-    prepare_final_test: Optional[Callable[[], None]] = None
-
     def __init__(
         self,
         dataset_name: str = "antm2c",
@@ -222,21 +218,10 @@ class Trainer(object):
         if getattr(self, "_test_evaluated", False):
             raise RuntimeError("final test has already been evaluated for this run")
         self._test_evaluated = True
-        prepare = getattr(self, "prepare_final_test", None)
-        if prepare is not None:
-            prepare()
-        test_loader = self.final_test_loader or self.dataloader
-        metrics: Dict[str, float] = {}
-        full_loader = getattr(self, "final_full_test_loader", None)
-        if full_loader is not None:
-            full = self.engine.evaluate(full_loader, "test", epoch)
-            if full.metrics is None:
-                raise RuntimeError("full test comparator metrics were not produced")
-            metrics.update(full_test_auc=full.metrics.auc, full_test_loss=full.metrics.log_loss)
-        evaluation = self.engine.evaluate(test_loader, "test", epoch)
+        evaluation = self.engine.evaluate(self.dataloader, "test", epoch)
         if evaluation.metrics is None:
             raise RuntimeError("test metrics were not produced")
-        metrics.update(test_auc=evaluation.metrics.auc, test_loss=evaluation.metrics.log_loss)
+        metrics = {"test_auc": evaluation.metrics.auc, "test_loss": evaluation.metrics.log_loss}
         return RunResult(
             self.run_context.run_id,
             "completed",

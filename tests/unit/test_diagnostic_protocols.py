@@ -46,6 +46,7 @@ def test_comparator_sign_units_and_unevaluable():
     assert result["relative_change_percent"] == pytest.approx(-2.5)
     assert result["direction"] == "decrease"
     assert compare_auc(None, 0.8)["auc_delta"] is None
+    assert compare_auc(0.5, 0.0)["relative_change_percent"] is None
     with pytest.raises(ContractError):
         compare_auc(float("nan"), 0.8)
 

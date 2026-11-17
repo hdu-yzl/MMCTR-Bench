@@ -95,14 +95,13 @@ mask coupling and affected splits.
 
 ## Cold-start protocol
 
-**Paper reproduction uses `paper-mixed-graph-oov-v2`**, implemented by
-`cold_populations`, `PaperColdStartLoader` and the diagnostic executor. Follow the runnable
-workflow in [benchmark protocol](benchmark-protocol.md#cold-start-evaluation).
+**Paper reproduction uses `paper-mixed-graph-oov-v2`.** Use the single-setting
+[diagnostic executor](analysis/cross-dataset-diagnostics.md) and the
+[cold-start command example](benchmark-protocol.md#cold-start-evaluation).
 It uses the user/item **union**, few-shot candidate support **<5 including zero**, zero-shot
-absence from both train targets and train histories, full train/full validation, and shared
-OOV identity indices at final evaluation only. The comparator is the full test AUC of the same
-selected weights with the same OOV policy. The executor requires matching v2 matrix and
-baseline fingerprints.
+absence from the training graph including item histories, and shared OOV identity indices
+at final evaluation only. Hyperparameters and checkpoints are selected on full validation.
+The comparator is the full test AUC of the same selected weights with the same OOV policy.
 
 The event-partition API below is an entity-support audit/planner, not the paper mixed cold-start
 execution path. Its v2 few-shot rule is also strict `<N` including zero; pass

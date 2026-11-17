@@ -1,0 +1,7 @@
+# Example ordered candidates for one diagnostic setting or its matching control.
+# Declare the search space and budget before evaluating any test scores.
+candidates:
+  - training: {lr: 0.001, l2: 0.0000001}
+  - training: {lr: 0.0003, l2: 0.0000001}
+  - training: {lr: 0.001, l2: 0.000001}
+  - training: {lr: 0.0003, l2: 0.000001}

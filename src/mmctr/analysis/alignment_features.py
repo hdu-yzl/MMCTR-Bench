@@ -14,7 +14,7 @@ from mmctr.models.mm_models.qarm import QARM
 def alignment_features(model: torch.nn.Module, batch: Batch) -> Mapping[str, torch.Tensor]:
     """Use target projections, or mean pooled codebook histories for QARM/PSRQ.
 
-    History padding follows the main-table explicit mask convention. Unlike the
+    History padding follows the backbone's explicit mask convention. Unlike the
     legacy implementation, padding positions cannot enter the history mean.
     """
     if isinstance(model, QARM):
