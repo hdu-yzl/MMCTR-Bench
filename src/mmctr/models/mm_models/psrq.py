@@ -61,7 +61,7 @@ class MCCA(_QuantizedSequenceModel):
             self.codebook_size,
             int(config.get("projection_dim", 128)),
             tuple(int(value) for value in config.get("psrq_dims", (256, 128))),
-            float(config.get("dropout", 0.0)),
+            float(config.get("quantizer_dropout", config.get("dropout", 0.0))),
             bool(config.get("batch_norm", True)),
         )
         actual_structure = (

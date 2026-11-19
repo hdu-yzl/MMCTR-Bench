@@ -1,9 +1,6 @@
-# Explicit candidates: every run uses train/full validation; only the winner sees test.
-# Expand or generate this list BEFORE running; do not use test scores to revise it.
-candidates:
-  - training: {lr: 0.001}
-    model: {dropout: 0.1}
-  - training: {lr: 0.0001}
-    model: {dropout: 0.1}
-  - training: {lr: 0.00001}
-    model: {dropout: 0.1}
+# Optional fixed model overrides; the common lr/l2/dropout space stays fixed.
+# Original model-specific ranges are added automatically for --model-name.
+# Fixed overrides cannot replace any searched parameter.
+# Omit --candidates to use the same random search without fixed overrides.
+# Each model gets 50 attempts or 50 allocated GPU-hours, whichever comes first.
+model: {}

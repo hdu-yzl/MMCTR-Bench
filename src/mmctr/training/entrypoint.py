@@ -50,10 +50,32 @@ class Trainer(object):
         if config_name not in model_catalog:
             config_name = requested_model_name
         self.model_config = dict(model_catalog[config_name])
+        if self.model_name == "psrq":
+            # A frozen pretrainer retains its own dropout configuration while the
+            # downstream CTR network searches dropout independently.
+            selected = self.model_config.get(self.dataset_name, self.model_config)
+            quantizer_dropout = selected.get("quantizer_dropout", selected.get("dropout", 0.0))
+            self.model_config.setdefault("quantizer_dropout", quantizer_dropout)
+            if self.dataset_name in self.model_config:
+                self.model_config[self.dataset_name] = dict(
+                    selected, quantizer_dropout=quantizer_dropout
+                )
         if model_overrides:
             if "model_name" in model_overrides:
                 raise ValueError("model_name cannot be a tuning override")
             self.model_config.update(model_overrides)
+            if specification.metadata.get("quantization_artifacts") and isinstance(
+                self.model_config.get(self.dataset_name), Mapping
+            ):
+                # Quantized consumers select a complete dataset-scoped mapping.
+                # Root tuning overrides must reach that effective configuration.
+                overrides = dict(model_overrides)
+                scoped = overrides.pop(self.dataset_name, {})
+                self.model_config[self.dataset_name] = {
+                    **self.model_config[self.dataset_name],
+                    **overrides,
+                    **scoped,
+                }
         self.model_config["model_name"] = self.model_name
         all_data_config = load_yaml_mapping(
             dataset_config_path or PROJECT_ROOT / "configs/datasets/catalog.yaml"
@@ -168,7 +190,9 @@ class Trainer(object):
                         "discriminator": self.model.discriminator_learning_rate,
                         "generator": self.model.generator_learning_rate,
                     },
-                    self.model.weight_decay,
+                    self.train_config["l2"]
+                    if training_overrides and "l2" in training_overrides
+                    else self.model.weight_decay,
                 )
                 alternating_phases = (
                     AlternatingPhase(

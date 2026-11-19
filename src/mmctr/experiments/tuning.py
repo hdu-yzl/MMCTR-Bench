@@ -3,6 +3,7 @@
 import json
 import math
 import os
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -11,25 +12,64 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple
 from mmctr.core import ContractError, RunResult
 
 from .runner import ExperimentTask
+from .model_search import (
+    EXCLUDED_MODEL_CHOICES,
+    MODEL_SEARCH_SPACES,
+    PRETRAINING_SEARCH_SPACES,
+)
+from .search_protocol import MODEL_SEARCH_SEED, SHARED_SEARCH_SPACE, SEARCH_SEED, shared_candidates
 
 
 TUNING_SCHEMA_VERSION = 1
 
 
-def load_tuning_candidates(path) -> List[Dict[str, Any]]:
-    """Read an ordered, nonempty list of model/training overrides."""
+def load_tuning_search(path=None, model_name=None) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """Resolve common and model-specific search, or exploratory explicit candidates.
+
+    A YAML containing only ``model`` fixes variant-specific controls while leaving
+    all searched dimensions unchanged. Legacy ``candidates`` lists keep their order.
+    """
     from mmctr.config import load_yaml_mapping
 
-    payload = load_yaml_mapping(path)
+    payload = load_yaml_mapping(path) if path is not None else {"model": {}}
+    if set(payload) == {"model"} and isinstance(payload["model"], dict):
+        if model_name is not None:
+            from mmctr.models.common.registry import model_spec
+
+            model_name = model_spec(model_name.lower()).name
+        model_space = deepcopy(MODEL_SEARCH_SPACES.get(model_name, {}))
+        draws = shared_candidates(payload["model"], model_space)
+        return draws, {
+            "mode": "shared_random",
+            "sampler": "optuna.RandomSampler",
+            "seed": SEARCH_SEED,
+            "model_seed": MODEL_SEARCH_SEED,
+            "sampling": "categorical with replacement",
+            "model_name": model_name,
+            "space": {
+                **{key: list(values) for key, values in SHARED_SEARCH_SPACE.items()},
+                **{"model." + key: values for key, values in model_space.items()},
+            },
+            "excluded_choices": deepcopy(EXCLUDED_MODEL_CHOICES.get(model_name, {})),
+            "pretraining_only_space": deepcopy(
+                PRETRAINING_SEARCH_SPACES.get("rq" if model_name == "qarm" else model_name, {})
+            ),
+            "fixed_model_overrides": payload["model"],
+        }
     candidates = payload.get("candidates")
     if set(payload) != {"candidates"} or not isinstance(candidates, list) or not candidates:
-        raise ValueError("candidate YAML requires a nonempty candidates list")
+        raise ValueError("search YAML requires model overrides or a nonempty candidates list")
     for candidate in candidates:
         if not isinstance(candidate, dict) or set(candidate) - {"model", "training"}:
             raise ValueError("each candidate accepts only model and training override mappings")
         if any(not isinstance(value, dict) for value in candidate.values()):
             raise ValueError("model/training overrides must be mappings")
-    return candidates
+    return candidates, {"mode": "explicit_candidates", "candidate_count": len(candidates)}
+
+
+def load_tuning_candidates(path, model_name=None) -> List[Dict[str, Any]]:
+    """Read common-space draws or legacy explicit model/training overrides."""
+    return load_tuning_search(path, model_name=model_name)[0]
 
 
 def _freeze(value: Any) -> Any:
@@ -131,6 +171,7 @@ class ValidationOnlyTuner:
         self.data_fingerprint = data_fingerprint
         self.seeds = normalised_seeds
         self.study_dir = self.output_root / self.study_id
+        self.search_metadata: Dict[str, Any] = {}
 
     @staticmethod
     def _validate_trial_metrics(trials: Sequence[TuningTrial]) -> None:
@@ -142,6 +183,35 @@ class ValidationOnlyTuner:
                 raise ContractError(
                     "test metrics are forbidden during tuning selection: {}".format(contaminated)
                 )
+
+    def record_trials(self, trials: Sequence[TuningTrial]) -> None:
+        """Persist partial history, including failed and budget-interrupted attempts."""
+        self._validate_trial_metrics(trials)
+        _atomic_json(
+            self.study_dir / "trial_history.json",
+            {
+                "schema_version": TUNING_SCHEMA_VERSION,
+                "study_id": self.study_id,
+                "experiment_id": self.experiment_id,
+                "data_fingerprint": self.data_fingerprint,
+                "seeds": list(self.seeds),
+                "selection_split": "val",
+                "objective": "val_auc",
+                **self.search_metadata,
+                "trials": [
+                    {
+                        "trial_id": trial.trial_id,
+                        "run_id": trial.result.run_id,
+                        "status": trial.result.status,
+                        "config": _plain(trial.config),
+                        "metrics": dict(trial.result.metrics),
+                        "error": trial.result.error,
+                        "metadata": _plain(trial.result.metadata),
+                    }
+                    for trial in trials
+                ],
+            },
+        )
 
     def freeze(self, trials: Sequence[TuningTrial]) -> FrozenSelection:
         """Write all trials and atomically freeze the best validation-only candidate.
@@ -159,18 +229,8 @@ class ValidationOnlyTuner:
             raise ContractError("tuning trial IDs must be unique")
         self._validate_trial_metrics(trial_tuple)
         candidates = []
-        history = []
+        self.record_trials(trial_tuple)
         for trial in trial_tuple:
-            history.append(
-                {
-                    "trial_id": trial.trial_id,
-                    "run_id": trial.result.run_id,
-                    "status": trial.result.status,
-                    "config": _plain(trial.config),
-                    "metrics": dict(trial.result.metrics),
-                    "error": trial.result.error,
-                }
-            )
             if trial.result.status != "completed":
                 continue
             try:
@@ -194,17 +254,6 @@ class ValidationOnlyTuner:
                     candidate_auc,
                     candidate_loss,
                 )
-        history_payload = {
-            "schema_version": TUNING_SCHEMA_VERSION,
-            "study_id": self.study_id,
-            "experiment_id": self.experiment_id,
-            "data_fingerprint": self.data_fingerprint,
-            "seeds": list(self.seeds),
-            "selection_split": "val",
-            "objective": "val_auc",
-            "trials": history,
-        }
-        _atomic_json(self.study_dir / "trial_history.json", history_payload)
         selection_payload = {
             "schema_version": TUNING_SCHEMA_VERSION,
             "study_id": self.study_id,
@@ -213,6 +262,7 @@ class ValidationOnlyTuner:
             "seeds": list(self.seeds),
             "selection_split": "val",
             "objective": "val_auc",
+            **self.search_metadata,
             "selected_trial_id": selected.trial_id,
             "selected_run_id": selected.result.run_id,
             "validation_auc": validation_auc,
@@ -317,7 +367,15 @@ class ValidationOnlyTuner:
         return path
 
 
-def run_validation_search(tuner, candidates, trainer_factory, *, final_evaluator=None):
+def run_validation_search(
+    tuner,
+    candidates,
+    trainer_factory,
+    *,
+    final_evaluator=None,
+    search_protocol=None,
+    device_type="cpu",
+):
     """Execute candidates without test access, freeze a winner, then test its weights once.
 
     ``trainer_factory(candidate)`` constructs the normal Trainer. Only the best model
@@ -329,40 +387,114 @@ def run_validation_search(tuner, candidates, trainer_factory, *, final_evaluator
     import fcntl
     import gc
     import torch
+    from .search_protocol import BudgetedLoader, TuningBudget, TuningBudgetExceeded
 
     tuner.study_dir.mkdir(parents=True, exist_ok=True)
     with (tuner.study_dir / ".search.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         if (tuner.study_dir / "frozen_selection.json").exists():
             raise ValueError("study is already frozen; use a new study ID")
+        if (tuner.study_dir / "trial_history.json").exists():
+            raise ValueError("study has prior attempts; use a new study ID")
+        budget = TuningBudget(device_type)
+        tuner.search_metadata = {
+            "search_protocol": search_protocol or {"mode": "explicit_candidates"},
+            "budget": budget.to_dict(),
+            "stop_reason": "running",
+        }
+        tuner.record_trials([])
         trials = []
         best_auc = float("-inf")
         best_state = None
         best_epoch = 0
         for index, candidate in enumerate(candidates):
-            trainer = trainer_factory(candidate)
-            if tuple([trainer.train_config["seed"]]) != tuner.seeds:
-                raise ContractError("executable search requires its declared single tuning seed")
-            fingerprints = [value.get("fingerprint") for value in trainer.data_config.values()]
-            if fingerprints != [tuner.data_fingerprint]:
-                raise ContractError("trial data fingerprint differs from the tuning study")
-            result = trainer.run(evaluate_test=False)
-            resolved = {
-                "candidate": _plain(candidate),
-                "model": _plain(trainer.model_config),
-                "training": _plain(trainer.train_config),
-                "data": _plain(trainer.data_config),
-            }
+            if budget.exhausted:
+                break
+            budget.start_trial()
+            trainer = None
+            resolved = {"candidate": _plain(candidate)}
+            interrupted = False
+            fatal_error = None
+            try:
+                trainer = trainer_factory(candidate)
+                budget.on_gpu = trainer.engine.device.type == "cuda"
+                if tuple([trainer.train_config["seed"]]) != tuner.seeds:
+                    raise ContractError(
+                        "executable search requires its declared single tuning seed"
+                    )
+                fingerprints = [v.get("fingerprint") for v in trainer.data_config.values()]
+                if fingerprints != [tuner.data_fingerprint]:
+                    raise ContractError("trial data fingerprint differs from the tuning study")
+                resolved.update(
+                    model=_plain(trainer.model_config),
+                    training=_plain(trainer.train_config),
+                    data=_plain(trainer.data_config),
+                )
+                trainer.dataloader = BudgetedLoader(trainer.dataloader, budget)
+                budget.check()
+                result = trainer.run(evaluate_test=False)
+                budget.check()
+                tuner._validate_trial_metrics([TuningTrial(str(index), resolved, result)])
+                if result.status == "completed" and "val_log_loss" not in result.metrics:
+                    raise ContractError("completed tuning trial is missing val_log_loss")
+                if result.status == "completed" and result.metrics["val_auc"] > best_auc:
+                    state = {
+                        name: value.detach().cpu().clone()
+                        for name, value in trainer.model.state_dict().items()
+                    }
+                    budget.check()
+                    best_epoch = int(result.metrics["best_epoch"])
+                    best_state = state
+                    best_auc = result.metrics["val_auc"]
+            except Exception as error:
+                import logging
+
+                logging.getLogger(__name__).exception("tuning trial %s failed", index)
+                interrupted = isinstance(error, TuningBudgetExceeded)
+                # Invalid provenance or forbidden test metrics invalidate the study.
+                fatal_error = error if isinstance(error, ContractError) else None
+                run_id = (
+                    trainer.run_context.run_id
+                    if trainer is not None
+                    else "attempt-{}".format(index)
+                )
+                result = RunResult(
+                    run_id,
+                    "failed",
+                    {},
+                    error=repr(error),
+                    artifact_dir=trainer.run_context.root_dir if trainer is not None else None,
+                )
+                if trainer is not None:
+                    trainer.run_context.finalize("failed", error=repr(error))
+            finally:
+                del trainer
+                gc.collect()
+                timing = budget.finish_trial()
+            result = RunResult(
+                result.run_id,
+                result.status,
+                result.metrics,
+                artifact_dir=result.artifact_dir,
+                error=result.error,
+                metadata={**result.metadata, **timing},
+            )
             trials.append(TuningTrial(str(index), resolved, result))
-            if result.metrics["val_auc"] > best_auc:
-                best_auc = result.metrics["val_auc"]
-                best_epoch = int(result.metrics["best_epoch"])
-                best_state = {
-                    name: value.detach().cpu().clone()
-                    for name, value in trainer.model.state_dict().items()
-                }
-            del trainer
-            gc.collect()
+            tuner.search_metadata.update(
+                budget=budget.to_dict(),
+                stop_reason="invalid_trial"
+                if fatal_error
+                else "gpu_hours"
+                if interrupted
+                else "running",
+            )
+            tuner.record_trials(trials)
+            if fatal_error is not None:
+                raise fatal_error
+            if interrupted:
+                break
+        if tuner.search_metadata["stop_reason"] == "running":
+            tuner.search_metadata["stop_reason"] = budget.stop_reason
         selection = tuner.freeze(trials)
         final = trainer_factory(_plain(selection.config["candidate"]))
         try:
@@ -407,5 +539,6 @@ __all__ = [
     "TuningTrial",
     "ValidationOnlyTuner",
     "load_tuning_candidates",
+    "load_tuning_search",
     "run_validation_search",
 ]

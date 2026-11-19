@@ -61,12 +61,12 @@ def _run_tune(arguments) -> int:
     _configure_threads(arguments.num_threads)
     from mmctr.experiments.tuning import (
         ValidationOnlyTuner,
-        load_tuning_candidates,
+        load_tuning_search,
         run_validation_search,
     )
     from mmctr.training.entrypoint import PROJECT_ROOT, Trainer
 
-    candidates = load_tuning_candidates(arguments.candidates)
+    candidates, protocol = load_tuning_search(arguments.candidates, arguments.model_name)
 
     def factory(candidate):
         return Trainer(
@@ -97,7 +97,13 @@ def _run_tune(arguments) -> int:
         data["fingerprint"],
         [arguments.seed],
     )
-    result = run_validation_search(tuner, candidates, factory)
+    result = run_validation_search(
+        tuner,
+        candidates,
+        factory,
+        search_protocol=protocol,
+        device_type="cpu" if arguments.cuda == -1 else "cuda",
+    )
     print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
     return 0
 
@@ -152,12 +158,16 @@ def build_parser() -> argparse.ArgumentParser:
     train.set_defaults(handler=_run_train)
 
     tune = subparsers.add_parser(
-        "tune", help="validation-only candidate search, then one final test"
+        "tune", help="shared random search: 50 trials or 50 GPU-hours, then one final test"
     )
     tune.add_argument("--dataset-name", required=True)
     tune.add_argument("--model-name", required=True)
     tune.add_argument("--dataset-config", default=None)
-    tune.add_argument("--candidates", type=Path, required=True)
+    tune.add_argument(
+        "--candidates",
+        type=Path,
+        help="optional fixed model overrides YAML, or exploratory explicit candidates",
+    )
     tune.add_argument("--study-id", required=True)
     tune.add_argument("--output-root", default="outputs/tuning")
     tune.add_argument("--seed", type=int, default=2025)
