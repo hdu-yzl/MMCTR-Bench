@@ -13,7 +13,7 @@ This project was refactored with the assistance of AI.
 
 - [Datasets](docs/data.md): sources, splits, and preparation.
 - [Methods](docs/models.md): what each model does and its reference.
-- [Experiments](docs/benchmark-protocol.md): tuning, evaluation, and single-setting diagnostics.
+- [Experiments](docs/benchmark-protocol.md): tuning and evaluation.
 
 ## Installation
 
@@ -176,6 +176,10 @@ AntM2C / MicroLens / TikTok use canonical-v1; EB-NeRD uses canonical-v4 (history
 
 Source: `outputs/main_table_ebnerd/main_table.json`. Regenerate the tables with `"$MMCTR_PYTHON" scripts/update_readme_main_table.py`.
 <!-- MAIN_TABLE_SNAPSHOT_END -->
+
+## Diagnostic experiments
+
+Pending organization; diagnostic experiments are not available in this release.
 
 ## Citation and contributions
 
