@@ -34,7 +34,7 @@ EXECUTABLE_PIPELINE_MODELS = frozenset(
 _MODEL_SPECIFIC_REASONS = MappingProxyType(
     {
         "dmf": "frozen raw-feature cosine precedes hard similarity buckets",
-        "din": "Dice normalization observes padded projection bias in the current model",
+        "din": "separate user/item ID projections and target-conditioned scoring are model-specific",
         "marn": "private/shared experts, gradient reversal, and gates are model-specific",
         "em3": "FQ-Former queries and CIC require registered paper components",
         "diff_msin": "SRC, expert gates, and label-aware objectives are model-specific",
@@ -436,7 +436,7 @@ def _naml_preset(
         user_names,
         user_dimensions,
     ) = _sequence_branch_dimensions(model_config, data_config)
-    fusion = ComponentConfig("maf")
+    fusion = ComponentConfig("view_attention")
     branches = {
         "target": ModalPipelineConfig(
             branch="target",

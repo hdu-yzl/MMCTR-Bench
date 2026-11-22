@@ -7,7 +7,7 @@ from typing import Dict, Mapping, Optional, Sequence, Tuple
 import torch
 
 from mmctr.core import ContractError
-from mmctr.models.common.components.masking import apply_feature_mask
+from mmctr.models.common.components.masking import apply_feature_mask, masked_softmax
 
 
 @dataclass(frozen=True)
@@ -194,6 +194,37 @@ class MAFFusion(ModalityFusion):
             for name in self.features
         ]
         return FusionOutput(torch.stack(transformed, dim=0).sum(0))
+
+
+class ViewAttentionFusion(ModalityFusion):
+    """Learned additive attention over present, equally sized item views."""
+
+    def __init__(self, features: Sequence[str], dimension: int) -> None:
+        super().__init__(features, dimension, dimension)
+        self.projection = torch.nn.Linear(dimension, dimension)
+        self.query = torch.nn.Parameter(torch.empty(dimension))
+        torch.nn.init.normal_(self.query, std=dimension**-0.5)
+
+    def forward_with_attention(
+        self,
+        values: Mapping[str, torch.Tensor],
+        presence: Optional[Mapping[str, torch.Tensor]] = None,
+    ) -> Tuple[FusionOutput, torch.Tensor]:
+        """Return the fusion and weights in ``self.features`` order."""
+        checked, masks = self._validate_inputs(values, presence)
+        views = torch.stack([checked[name] for name in self.features], dim=-2)
+        mask = torch.stack([masks[name] for name in self.features], dim=-1)
+        scores = torch.einsum("...vd,d->...v", torch.tanh(self.projection(views)), self.query)
+        weights = masked_softmax(scores, mask)
+        fused = torch.sum(weights.unsqueeze(-1) * views, dim=-2)
+        return FusionOutput(fused), weights
+
+    def forward(
+        self,
+        values: Mapping[str, torch.Tensor],
+        presence: Optional[Mapping[str, torch.Tensor]] = None,
+    ) -> FusionOutput:
+        return self.forward_with_attention(values, presence)[0]
 
 
 class LowRankFusion(ModalityFusion):

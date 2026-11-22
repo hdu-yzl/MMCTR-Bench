@@ -10,6 +10,7 @@ from mmctr.models.common.components.fusion import (
     MeanFusion,
     ModalityFusion,
     SumFusion,
+    ViewAttentionFusion,
 )
 from mmctr.models.common.components.fusion_registry import (
     FUSION_REGISTRY,
@@ -77,6 +78,7 @@ __all__ = [
     "SequencePooling",
     "SumPooling",
     "SumFusion",
+    "ViewAttentionFusion",
     "apply_feature_mask",
     "apply_sequence_mask",
     "available_pooling",

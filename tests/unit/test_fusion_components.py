@@ -34,7 +34,7 @@ class FusionComponentTests(unittest.TestCase):
     def test_registry_is_lazy_and_aliases_are_stable(self):
         before = set(sys.modules)
         self.assertEqual(
-            ("concatenate", "lmf", "maf", "mean", "mtfn", "sum"),
+            ("concatenate", "lmf", "maf", "mean", "mtfn", "sum", "view_attention"),
             FUSION_REGISTRY.names(),
         )
         self.assertEqual("concatenate", FUSION_REGISTRY.canonical_name("cat"))
@@ -51,6 +51,7 @@ class FusionComponentTests(unittest.TestCase):
             "maf": 4,
             "lmf": 5,
             "mtfn": 4,
+            "view_attention": 4,
         }
         for name, output_dim in expected_dimensions.items():
             for rank in (2, 3):
@@ -78,6 +79,36 @@ class FusionComponentTests(unittest.TestCase):
         result = fusion(values, presence)
         self.assertTrue(torch.equal(result.fused[0], torch.zeros(4)))
         self.assertTrue(torch.isfinite(result.fused).all())
+
+    def test_view_attention_responds_to_content_and_masks_missing_views(self):
+        fusion = create_fusion("view_attention", ("id", "text", "image"), 2)
+        with torch.no_grad():
+            fusion.projection.weight.copy_(torch.eye(2))
+            fusion.projection.bias.zero_()
+            fusion.query.copy_(torch.tensor([1.0, 0.0]))
+        values = {
+            "id": torch.tensor([[0.0, 1.0], [0.0, 1.0]]),
+            "text": torch.tensor([[1.0, 0.0], [1.0, 0.0]], requires_grad=True),
+            "image": torch.full((2, 2), 1000.0, requires_grad=True),
+        }
+        presence = {
+            "id": torch.tensor([True, False]),
+            "text": torch.tensor([True, False]),
+            "image": torch.tensor([False, False]),
+        }
+        output, weights = fusion.forward_with_attention(values, presence)
+        expected = torch.softmax(torch.tensor([0.0, torch.tanh(torch.tensor(1.0))]), dim=0)
+        torch.testing.assert_close(weights[0, :2], expected)
+        torch.testing.assert_close(weights.sum(-1), torch.tensor([1.0, 0.0]))
+        self.assertTrue(torch.equal(weights[:, 2], torch.zeros(2)))
+        self.assertTrue(torch.equal(output.fused[1], torch.zeros(2)))
+        torch.testing.assert_close(output.fused[0], torch.tensor([expected[1], expected[0]]))
+        changed = {**values, "text": -values["text"]}
+        _, changed_weights = fusion.forward_with_attention(changed, presence)
+        self.assertLess(changed_weights[0, 1], weights[0, 1])
+        output.fused.sum().backward()
+        self.assertTrue(torch.isfinite(values["text"].grad).all())
+        self.assertTrue(torch.equal(values["image"].grad, torch.zeros(2, 2)))
 
     def test_reduce_and_concat_have_exact_compatibility_semantics(self):
         values = self.values()

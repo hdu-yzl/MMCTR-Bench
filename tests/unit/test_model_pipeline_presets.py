@@ -628,7 +628,7 @@ class ModelPipelinePresetTests(unittest.TestCase):
                     torch.allclose(expected_history, actual_history, atol=1e-7, rtol=0.0)
                 )
 
-    def test_naml_preset_preserves_shared_maf_and_attention_pooling(self):
+    def test_naml_preset_shares_view_attention_and_retains_history_attention(self):
         model_config = {"latent_dim": 4, "projection_dim": 4}
         data_config = {
             "use_mm_features": ["id", "text", "image"],
@@ -641,6 +641,7 @@ class ModelPipelinePresetTests(unittest.TestCase):
 
         self.assertIs(pipelines["target"].projector, pipelines["history"].projector)
         self.assertIs(pipelines["target"].fusion, pipelines["history"].fusion)
+        self.assertEqual("ViewAttentionFusion", pipelines["target"].fusion.__class__.__name__)
         self.assertEqual("fuse_then_pool", pipelines["history"].config.topology)
         self.assertEqual(
             "AttentionPooling", pipelines["history"].sequence_pooling.__class__.__name__
@@ -668,6 +669,10 @@ class ModelPipelinePresetTests(unittest.TestCase):
         pipelines["target"].fusion.load_state_dict(model.modal_fusion.state_dict())
         pipelines["history"].sequence_pooling.load_state_dict(model.user_encoder.state_dict())
         batch = make_batch()
+        # Exercise missing views and nonzero content at a padded history position.
+        batch.item_features["image"][0].zero_()
+        batch.history_features["text"][0, 1].fill_(1000.0)
+        batch.history_features["image"][1, 0].zero_()
         (
             target_values,
             target_presence,
@@ -677,9 +682,9 @@ class ModelPipelinePresetTests(unittest.TestCase):
             user_presence,
         ) = sequence_raw_values(model, batch)
 
-        expected_target = model.modal_fusion(model.project_target(batch)).fused
+        expected_target = model.modal_fusion(model.project_target(batch), target_presence).fused
         expected_history = model.user_encoder(
-            model.modal_fusion(model.project_history(batch)).fused,
+            model.modal_fusion(model.project_history(batch), history_presence).fused,
             batch.history_mask,
         )
         expected_user = model.project_user(batch)
@@ -694,6 +699,9 @@ class ModelPipelinePresetTests(unittest.TestCase):
         self.assertTrue(torch.allclose(expected_target, actual_target, atol=1e-7, rtol=0.0))
         self.assertTrue(torch.allclose(expected_history, actual_history, atol=1e-7, rtol=0.0))
         self.assertTrue(torch.allclose(expected_user, actual_user, atol=1e-7, rtol=0.0))
+        model_output = model(batch)
+        torch.testing.assert_close(model_output.representations["target"], actual_target)
+        torch.testing.assert_close(model_output.representations["user_interest"], actual_history)
 
     def test_make_preset_fuses_shared_target_for_din_history_pooling(self):
         model_config = {

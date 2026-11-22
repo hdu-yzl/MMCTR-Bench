@@ -150,14 +150,30 @@ class AttentionPooling(SequencePooling):
 
 
 class _Dice(torch.nn.Module):
-    def __init__(self) -> None:
+    """Data-adaptive activation with per-channel training statistics for inference."""
+
+    def __init__(self, dimension: int) -> None:
         super().__init__()
         self.alpha = torch.nn.Parameter(torch.zeros(1))
         self.epsilon = 1e-9
+        self.momentum = 0.1
+        self.register_buffer("running_mean", torch.zeros(dimension))
+        self.register_buffer("running_var", torch.ones(dimension))
+        self.register_buffer("num_batches_tracked", torch.tensor(0, dtype=torch.long))
 
     def forward(self, values: torch.Tensor) -> torch.Tensor:
-        mean = values.mean(dim=0)
-        variance = values.var(dim=0, unbiased=False)
+        if self.training:
+            # DinPooling supplies only valid tokens, flattened to [N, D]. Population
+            # variance also defines finite statistics for a single valid token.
+            mean = values.mean(dim=0)
+            variance = values.var(dim=0, unbiased=False)
+            with torch.no_grad():
+                self.running_mean.lerp_(mean.detach(), self.momentum)
+                self.running_var.lerp_(variance.detach(), self.momentum)
+                self.num_batches_tracked.add_(1)
+        else:
+            # Inference must not depend on other examples or evaluation batch size.
+            mean, variance = self.running_mean, self.running_var
         probability = torch.sigmoid((values - mean) / torch.sqrt(variance + self.epsilon))
         return self.alpha * values * (1 - probability) + values * probability
 
@@ -183,7 +199,11 @@ class DinPooling(SequencePooling):
         input_dim = dimension * 4
         for hidden_dim in dimensions:
             layers.extend(
-                [torch.nn.Linear(input_dim, hidden_dim), _Dice(), torch.nn.Dropout(dropout)]
+                [
+                    torch.nn.Linear(input_dim, hidden_dim),
+                    _Dice(hidden_dim),
+                    torch.nn.Dropout(dropout),
+                ]
             )
             input_dim = hidden_dim
         layers.append(torch.nn.Linear(input_dim, 1))
@@ -200,7 +220,11 @@ class DinPooling(SequencePooling):
             raise ContractError("DIN pooling requires target")
         targets = target.unsqueeze(1).expand(-1, sequence.shape[1], -1)
         inputs = torch.cat([targets, sequence, targets - sequence, targets * sequence], dim=-1)
-        scores = self.network(inputs).squeeze(-1)
+        # Exclude padded tokens before every Dice layer so padding length and
+        # projection biases cannot contaminate the running normalization statistics.
+        scores = sequence.new_zeros(mask.shape)
+        if mask.any():
+            scores = scores.masked_scatter(mask, self.network(inputs[mask]).squeeze(-1))
         weights = masked_softmax(scores, mask)
         return torch.sum(weights.unsqueeze(-1) * sequence, dim=1)
 

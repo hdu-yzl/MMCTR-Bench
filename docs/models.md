@@ -35,7 +35,7 @@ variants are available for comparison. Use the table names as `--model` values i
 
 | Registry name | Method in this benchmark | Reference |
 |---|---|---|
-| `naml` | Fuses content views and uses learned attention to pool user history before scoring the target. | Chuhan Wu et al., [*Neural News Recommendation with Attentive Multi-View Learning*](https://doi.org/10.24963/ijcai.2019/536), 2019. |
+| `naml` | A benchmark adaptation with masked view-level attention followed by history-level attention. Projected frozen content features and an ID view replace the original news view encoders. | Chuhan Wu et al., [*Neural News Recommendation with Attentive Multi-View Learning*](https://doi.org/10.24963/ijcai.2019/536), 2019. |
 | `mb` | Learns modality weights and uses an auxiliary objective to balance modalities. | Yu Shang et al., *Enhancing Adversarial Robustness of Multi-Modal Recommendation via Modality Balancing*, 2023. |
 | `lmf` | Uses low-rank tensor fusion on target and history modalities. | Zhun Liu et al., *Efficient Low-Rank Multimodal Fusion with Modality-Specific Factors*, 2018. |
 | `simcen` | Uses segmented feature experts and a contrastive objective across two views. | Honghao Li et al., *SimCEN: Simple Contrast-Enhanced Network for CTR Prediction*, 2024. |
@@ -57,6 +57,35 @@ These two software baselines are outside the paper's 21-model evaluation set.
 |---|---|---|
 | `dnn_mm` | An MLP reference that combines ID and multimodal target and pooled-history features. | — |
 | `dnn_mm_seq` | A multimodal DNN reference with separate user, target, and history branches. | — |
+
+## Normalization and NAML adaptation
+
+DIN-style pooling (used by DIN, MAKE, EM3, Diff-MSIN, and MARN) computes Dice
+statistics per hidden channel over valid history tokens during training. It stores
+exponential moving averages of the population mean and variance (momentum 0.1) and
+uses these fixed buffers during evaluation. Padded positions never enter the Dice
+network; an all-padding batch leaves the buffers unchanged. A single valid token
+uses zero population variance and remains finite.
+
+NAML uses shared additive view-level attention for targets and history items, then
+learned attention over valid history items. View weights are normalized over present
+views only; missing content and padded items receive zero weight. Presence comes from
+raw input vectors before projection. The ID view is present for every target and
+valid history item. `target_view_weights` and `history_view_weights` in model output
+representations follow the configured `use_mm_features` order.
+
+This NAML implementation adapts the original news model to the common CTR protocol:
+projected frozen text/image/audio features and item IDs replace its raw
+title/abstract/category encoders, and the user context branch remains in place.
+English comments in `naml.py` mark this adaptation explicitly. The executable NAML
+pipeline preset uses the same view-attention fusion and history attention.
+
+These fixes change learned behavior. Retrain the affected models and regenerate
+benchmark metrics; historical result tables have not been recomputed. Old Dice
+checkpoints lack running-statistic buffers, and old NAML checkpoints contain sum
+fusion parameters instead of attention parameters. They cannot be loaded strictly
+as checkpoints of the corrected models; using `strict=False` does not recover the
+missing learned state.
 
 ## Quantizer requirements
 

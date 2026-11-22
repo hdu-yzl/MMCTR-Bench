@@ -69,6 +69,44 @@ class CanonicalBaselineTests(unittest.TestCase):
         )
         self.assertEqual((1,), tuple(model(batch).logits.shape))
 
+    def test_din_logits_do_not_depend_on_evaluation_batch_or_padding_length(self):
+        torch.manual_seed(13)
+        model_config, data_config = self.configs("din")
+        model = create_model("din", model_config, data_config)
+        batch = make_batch()
+        model(batch).logits.sum().backward()
+        model.eval()
+        with torch.no_grad():
+            whole = model(batch).logits
+            parts = []
+            for index in range(batch.batch_size):
+                row = slice(index, index + 1)
+                single = Batch(
+                    user_features={name: value[row] for name, value in batch.user_features.items()},
+                    item_features={name: value[row] for name, value in batch.item_features.items()},
+                    history_features={
+                        name: value[row] for name, value in batch.history_features.items()
+                    },
+                    history_mask=batch.history_mask[row],
+                    labels=batch.labels[row],
+                )
+                parts.append(model(single).logits)
+            torch.testing.assert_close(whole, torch.cat(parts))
+            padded = Batch(
+                user_features=batch.user_features,
+                item_features=batch.item_features,
+                history_features={
+                    "id": torch.cat(
+                        [batch.history_features["id"], torch.zeros(4, 3, dtype=torch.long)], dim=1
+                    )
+                },
+                history_mask=torch.cat(
+                    [batch.history_mask, torch.zeros(4, 3, dtype=torch.bool)], dim=1
+                ),
+                labels=batch.labels,
+            )
+            torch.testing.assert_close(whole, model(padded).logits)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -47,6 +47,12 @@ FUSION_REGISTRY.register_many(
             metadata=_metadata("preserves"),
         ),
         ComponentSpec(
+            "view_attention",
+            "mmctr.models.common.components.fusion",
+            "ViewAttentionFusion",
+            metadata=_metadata("preserves"),
+        ),
+        ComponentSpec(
             "lmf",
             "mmctr.models.common.components.fusion",
             "LowRankFusion",

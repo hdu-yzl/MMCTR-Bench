@@ -85,6 +85,51 @@ class CanonicalSequenceTests(unittest.TestCase):
                 model = create_model(name, model_config, data_config)
                 self.assertEqual((1,), tuple(model(make_batch(batch_size=1)).logits.shape))
 
+    def test_naml_masks_missing_views_using_raw_presence_not_projection_values(self):
+        model_config, data_config = configs()
+        model = create_model("naml", model_config, data_config)
+        batch = make_batch()
+        # A present text view projects to zero; a missing image would gain bias
+        # without masking. Both cases must retain their raw presence semantics.
+        with torch.no_grad():
+            model.projectors["text"].weight.zero_()
+            model.projectors["text"].bias.zero_()
+            model.projectors["image"].bias.fill_(10.0)
+        batch = Batch(
+            user_features=batch.user_features,
+            item_features={**batch.item_features, "image": torch.zeros(2, 2)},
+            history_features={
+                **batch.history_features,
+                "image": torch.zeros_like(batch.history_features["image"]),
+            },
+            history_mask=batch.history_mask,
+            labels=batch.labels,
+        )
+        output = model(batch)
+        target_weights = output.representations["target_view_weights"]
+        history_weights = output.representations["history_view_weights"]
+        self.assertTrue((target_weights[:, 1] > 0).all())
+        self.assertTrue(torch.equal(target_weights[:, 2], torch.zeros(2)))
+        torch.testing.assert_close(target_weights.sum(-1), torch.ones(2))
+        self.assertTrue(torch.equal(history_weights[..., 2], torch.zeros(2, 2)))
+        torch.testing.assert_close(history_weights.sum(-1), batch.history_mask.float())
+        output.logits.sum().backward()
+        for parameter in model.modal_fusion.parameters():
+            self.assertIsNotNone(parameter.grad)
+            self.assertTrue(torch.isfinite(parameter.grad).all())
+
+    def test_naml_id_only_and_all_padding_attention(self):
+        model_config, data_config = configs()
+        data_config["use_mm_features"] = ["id"]
+        model = create_model("naml", model_config, data_config)
+        output = model(make_batch(all_padding=True))
+        torch.testing.assert_close(output.representations["target_view_weights"], torch.ones(2, 1))
+        self.assertTrue(
+            torch.equal(output.representations["history_view_weights"], torch.zeros(2, 2, 1))
+        )
+        self.assertTrue(torch.equal(output.representations["user_interest"], torch.zeros(2, 4)))
+        self.assertTrue(torch.isfinite(output.logits).all())
+
     def test_target_context_fallback_does_not_mutate_batch(self):
         batch = make_batch()
         original_ids = batch.item_features["id"].clone()

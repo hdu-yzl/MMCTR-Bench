@@ -10,7 +10,7 @@ from mmctr.quantization.registry import QUANTIZER_REGISTRY
 class RegistryTests(unittest.TestCase):
     def test_component_registries_expose_expected_catalog_sizes(self):
         self.assertEqual(2, len(QUANTIZER_REGISTRY.names()))
-        self.assertEqual(6, len(FUSION_REGISTRY.names()))
+        self.assertEqual(7, len(FUSION_REGISTRY.names()))
         self.assertEqual(6, len(POOLING_REGISTRY.names()))
 
     def test_model_aliases_resolve_to_one_canonical_name(self):
