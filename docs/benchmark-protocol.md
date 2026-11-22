@@ -26,6 +26,26 @@ root:
   --output-root outputs/tuning --cuda 0
 ```
 
+After the frozen validation winner completes its final evaluation successfully, `tune`
+automatically writes its settings to `configs/tuned/<dataset>/<model>.yaml`. This is a
+dataset/model-specific configuration layer over the base catalogs. It includes the
+resolved model parameters, training hyperparameters, data fingerprint, and validation
+selection provenance; final-test metrics do not affect the selection or write-back.
+Subsequent ordinary training and main-table jobs automatically load that file. Their
+run seed, device, and output directory remain controlled by the new run's arguments.
+The main-table source hashes also include these YAML files.
+
+The most recent successful search replaces the same pair's saved configuration;
+failed searches do not change it. New searches use the base catalogs and their search
+overrides, independently of earlier saved configurations. Explicit Trainer overrides
+take priority over saved defaults. A different data fingerprint is rejected to prevent
+accidental reuse across data versions.
+
+Pass `tune --no-write-back` to keep an exploratory search from updating defaults, or
+`train --ignore-tuned-config` to train from the base catalogs. Both commands accept
+`--tuned-config-dir` for an alternate saved-defaults directory. The main-table launcher
+uses the default `configs/tuned/` directory. See the [configuration guide](../configs/tuned/README.md).
+
 All models use this fixed public search space:
 
 | Hyperparameter | Values |

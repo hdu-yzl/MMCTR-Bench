@@ -63,6 +63,11 @@ with the same settings to reuse completed runs. Reports go under `outputs/main_t
 training creates isolated runs under `outputs/training/`. See the
 [experiment guide](docs/benchmark-protocol.md) for manual tuning and test evaluation.
 
+Successful `mmctr tune` searches automatically write the validation winner to
+`configs/tuned/<dataset>/<model>.yaml`. Ordinary training and the main-table launcher
+then use those saved defaults for that dataset/model pair. See the
+[saved-defaults guide](configs/tuned/README.md) for provenance and opt-out options.
+
 <!-- MAIN_TABLE_SNAPSHOT_START -->
 ## Reference results
 

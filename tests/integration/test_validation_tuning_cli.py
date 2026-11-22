@@ -1,6 +1,7 @@
 """Real canonical preprocessing -> CLI search -> frozen final evaluation."""
 
 import json
+import shutil
 
 import numpy as np
 import pytest
@@ -10,6 +11,17 @@ from mmctr.cli.app import main
 from mmctr.config import load_yaml_mapping
 from mmctr.data.datasets.tiktok import prepare_tiktok
 from mmctr.training.entrypoint import PROJECT_ROOT
+
+
+@pytest.fixture(autouse=True)
+def isolated_project_config(tmp_path, monkeypatch):
+    """Exercise default write-back without changing the real repository configs."""
+    from mmctr.training import entrypoint
+
+    root = tmp_path / "project"
+    shutil.copytree(PROJECT_ROOT / "configs", root / "configs")
+    monkeypatch.setattr(entrypoint, "PROJECT_ROOT", root)
+    return root
 
 
 def prepare_fixture(tmp_path):
@@ -172,6 +184,46 @@ def test_quantized_tuning_overrides_reach_dataset_config_and_keep_artifacts_froz
         )
     assert trainer.run(evaluate_test=False).status == "completed"
 
+    from mmctr.config import write_tuned_config
+
+    selection_path = tmp_path / "frozen_selection.json"
+    selection_path.write_text(
+        json.dumps(
+            {
+                "selection_split": "val",
+                "objective": "val_auc",
+                "data_fingerprint": data["fingerprint"],
+                "study_id": "quantized",
+                "selected_trial_id": "0",
+                "selected_run_id": trainer.run_context.run_id,
+                "seeds": [2025],
+                "validation_auc": 0.8,
+                "validation_log_loss": 0.4,
+                "frozen_config": {
+                    "model": trainer.model_config,
+                    "training": trainer.train_config,
+                    "data": trainer.data_config,
+                },
+            }
+        )
+    )
+    write_tuned_config(selection_path, entrypoint.PROJECT_ROOT / "configs/tuned")
+    restored = entrypoint.Trainer(
+        dataset_name="tiktok",
+        model_name="mcca" if model_name == "psrq" else model_name,
+        dataset_config_path=str(catalog),
+        cuda=-1,
+        seed=2029,
+        output_root=str(tmp_path / "restored"),
+        save_checkpoints=False,
+    )
+    assert restored.model_config == trainer.model_config
+    assert restored.train_config["seed"] == 2029
+    assert restored.model.dropout == 0.3
+    if model_name == "psrq":
+        assert restored.model.quantizer.dropout == 0.0
+    assert restored.run(evaluate_test=False).status == "completed"
+
 
 def test_default_cli_search_records_model_space_and_tests_one_frozen_winner(tmp_path, monkeypatch):
     from mmctr.training import entrypoint
@@ -234,7 +286,9 @@ def test_default_cli_search_records_model_space_and_tests_one_frozen_winner(tmp_
     assert sum(metric["split"] == "test" for metric in metrics) == 1
 
 
-def test_tune_cli_uses_validation_trials_and_tests_only_frozen_winner(tmp_path):
+def test_tune_cli_uses_validation_trials_and_tests_only_frozen_winner(
+    tmp_path, isolated_project_config
+):
     _, catalog, _ = prepare_fixture(tmp_path)
     candidates = tmp_path / "candidates.yaml"
     candidates.write_text(
@@ -301,6 +355,36 @@ def test_tune_cli_uses_validation_trials_and_tests_only_frozen_winner(tmp_path):
     assert sum(value["split"] == "test" for value in metrics) == 1
     assert not list(output.rglob("*.pt"))
 
+    saved_path = isolated_project_config / "configs/tuned/tiktok/dmf.yaml"
+    saved = load_yaml_mapping(saved_path)
+    assert saved["model"] == {
+        k: v for k, v in selected["frozen_config"]["model"].items() if k != "model_name"
+    }
+    assert saved["training"]["lr"] == selected["frozen_config"]["training"]["lr"]
+    assert saved["selection"]["run_id"] == selected["selected_run_id"]
+    assert "test_auc" not in saved_path.read_text()
+    assert "seed" not in saved["training"]
+    assert "output_root" not in saved["training"]
+
+    # The exact command shape used by the main table consumes the new defaults.
+    from mmctr.experiments.main_table import command_for
+
+    command = command_for(
+        {"dataset": "tiktok", "model": "dmf", "seed": 2029},
+        {"num_threads": 1, "use_local_data": False, "no_checkpoints": True},
+        tmp_path / "main-table-job",
+    )
+    command[command.index("--cuda") + 1] = "-1"
+    assert main(command[3:] + ["--dataset-config", str(catalog)]) == 0
+    run = next((tmp_path / "main-table-job").rglob("resolved_config.yaml"))
+    resolved = load_yaml_mapping(run)
+    assert resolved["model"] == selected["frozen_config"]["model"]
+    for key, value in saved["training"].items():
+        assert resolved["train"][key] == value
+    assert resolved["train"]["seed"] == 2029
+    metadata = json.loads((run.parent / "run_metadata.json").read_text())
+    assert metadata["tuned_selection"]["run_id"] == selected["selected_run_id"]
+
 
 def test_shared_cli_runs_fifty_public_trials_then_tests_one_winner(tmp_path):
     pytest.importorskip("optuna")
@@ -362,3 +446,96 @@ def test_shared_cli_runs_fifty_public_trials_then_tests_one_winner(tmp_path):
     ]
     assert sum(value["split"] == "test" for value in metrics) == 1
     assert not list(output.rglob("*.pt"))
+
+
+def test_write_back_opt_out_failed_search_and_retuning(tmp_path, isolated_project_config):
+    _, catalog, config = prepare_fixture(tmp_path)
+    candidates = tmp_path / "candidates.yaml"
+    candidate = {
+        "model": {
+            "latent_dim": 4,
+            "projection_dim": 4,
+            "mlp_dims": [8],
+            "dropout": 0.3,
+            "batch_norm": False,
+        },
+        "training": {"lr": 0.001, "max_epochs": 1, "early_stop_patience": 1, "batch_size": 4},
+    }
+    candidates.write_text(yaml.safe_dump({"candidates": [candidate]}))
+    base = [
+        "tune",
+        "--dataset-name",
+        "tiktok",
+        "--model-name",
+        "dnn",
+        "--dataset-config",
+        str(catalog),
+        "--candidates",
+        str(candidates),
+        "--output-root",
+        str(tmp_path / "outputs"),
+        "--cuda",
+        "-1",
+        "--num-threads",
+        "1",
+    ]
+    saved_path = isolated_project_config / "configs/tuned/tiktok/dnn.yaml"
+    assert main(base + ["--study-id", "skip", "--no-write-back"]) == 0
+    assert not saved_path.exists()
+    assert main(base + ["--study-id", "publish"]) == 0
+    before = saved_path.read_bytes()
+    assert main(base + ["--study-id", "skip-existing", "--no-write-back"]) == 0
+    assert saved_path.read_bytes() == before
+
+    candidate["training"]["lr"] = -1
+    candidates.write_text(yaml.safe_dump({"candidates": [candidate]}))
+    with pytest.raises(SystemExit):
+        main(base + ["--study-id", "failed"])
+    assert saved_path.read_bytes() == before
+
+    # A new search must not inherit saved dropout or reject an old saved fingerprint.
+    saved = load_yaml_mapping(saved_path)
+    saved["data_fingerprint"] = "obsolete-data"
+    saved_path.write_text(yaml.safe_dump(saved))
+    candidate["training"]["lr"] = 0.0001
+    del candidate["model"]["dropout"]
+    candidates.write_text(yaml.safe_dump({"candidates": [candidate]}))
+    assert main(base + ["--study-id", "retune"]) == 0
+    updated = load_yaml_mapping(saved_path)
+    assert updated["data_fingerprint"] == config["fingerprint"]
+    assert updated["model"]["dropout"] == 0.0
+    assert updated["training"]["lr"] == 0.0001
+
+    from mmctr.training.entrypoint import Trainer
+
+    # Saved defaults can be bypassed, and explicit caller overrides still take priority.
+    normal = Trainer(
+        dataset_name="tiktok",
+        model_name="dnn",
+        dataset_config_path=str(catalog),
+        cuda=-1,
+        output_root=str(tmp_path / "ordinary"),
+        save_checkpoints=False,
+        model_overrides={"dropout": 0.1},
+        training_overrides={"lr": 0.002},
+    )
+    assert normal.model_config["dropout"] == 0.1
+    assert normal.train_config["lr"] == 0.002
+    assert normal.run(evaluate_test=False).status == "completed"
+    saved_path.write_text(yaml.safe_dump(saved))
+    with pytest.raises(ValueError, match="data_fingerprint mismatch"):
+        Trainer(dataset_name="tiktok", model_name="dnn", dataset_config_path=str(catalog))
+    normal = Trainer(
+        dataset_name="tiktok",
+        model_name="dnn",
+        dataset_config_path=str(catalog),
+        cuda=-1,
+        output_root=str(tmp_path / "bypass"),
+        save_checkpoints=False,
+        use_tuned_config=False,
+        model_overrides=candidate["model"],
+        training_overrides=candidate["training"],
+    )
+    assert normal.model_config["dropout"] == 0.0
+    assert normal.train_config["lr"] == 0.0001
+    assert normal.run(evaluate_test=False).status == "completed"

@@ -1,4 +1,4 @@
-# 模型配置
+# Model configuration
 dnn:
     latent_dim: 128  # embedding dimension
     projection_dim: 128
@@ -68,7 +68,7 @@ din:
     projection_dim: 128
 
     mlp_dims: [1024, 512, 256]
-    attention_mlp_dims: [64, 32]  # DIN 注意力激活单元维度
+    attention_mlp_dims: [64, 32]  # DIN attention activation unit dimensions
     dropout: 0.0
     batch_norm: true
 
@@ -90,8 +90,8 @@ autoint:
     seq_modeling: false
 
     attn_layers: 3        # interaction layers
-    attn_heads: 2         # 注意力头数
-    attn_size: 64         # 每个头的维度
+    attn_heads: 2         # Number of attention heads
+    attn_size: 64         # Dimension of each attention head
     attn_use_residual: true
 
 lmf:
@@ -331,7 +331,7 @@ rq:
     max_iter: 20
     tol: 1e-4
 
-    # 数据集特定参数（需与对应 qarm 的 codebook_size / n_levels 保持一致）
+    # Dataset-specific parameters (must match QARM's codebook_size / n_levels)
     antm2c:
         n_levels: 3
         codebook_size: 1024

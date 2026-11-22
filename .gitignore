@@ -79,6 +79,7 @@ ray_results/
 /local/archive/
 /scripts/run_ebnerd_id16*_once.py
 /docs/legacy_tuning_history.yaml
+/docs/paper_consistency_review.md
 /docs/data/antm2c-format-benchmark.json
 # EB-NeRD manifests include fitted vocabularies; regenerate them with the data.
 /data/processed/ebnerd/**/manifest.json

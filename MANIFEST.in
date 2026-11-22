@@ -10,6 +10,7 @@ include docs/data.md
 include docs/models.md
 include docs/benchmark-protocol.md
 recursive-include configs *.yaml
+include configs/tuned/README.md
 recursive-include scripts *.sh *.py
 recursive-include tests *.py *.json
 prune configs/local

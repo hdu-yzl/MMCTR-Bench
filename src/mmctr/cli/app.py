@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -41,6 +42,8 @@ def _run_train(arguments) -> int:
         seed=arguments.seed,
         save_checkpoints=not arguments.no_checkpoints,
         dataset_config_path=arguments.dataset_config,
+        tuned_config_dir=arguments.tuned_config_dir,
+        use_tuned_config=not arguments.ignore_tuned_config,
     )
     if arguments.validation_only:
         trainer.run(evaluate_test=False)
@@ -79,6 +82,7 @@ def _run_tune(arguments) -> int:
             save_checkpoints=False,
             model_overrides=candidate.get("model"),
             training_overrides=candidate.get("training"),
+            use_tuned_config=False,
         )
 
     # Resolve provenance without fitting or reading the test split.
@@ -104,6 +108,14 @@ def _run_tune(arguments) -> int:
         search_protocol=protocol,
         device_type="cpu" if arguments.cuda == -1 else "cuda",
     )
+    if not arguments.no_write_back:
+        from mmctr.config import write_tuned_config
+
+        saved = write_tuned_config(
+            tuner.study_dir / "frozen_selection.json",
+            arguments.tuned_config_dir or PROJECT_ROOT / "configs/tuned",
+        )
+        print("Saved tuned defaults to {}".format(saved), file=sys.stderr)
     print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
     return 0
 
@@ -145,6 +157,14 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--output-root", default=None)
     train.add_argument("--seed", type=int, default=None)
     train.add_argument(
+        "--tuned-config-dir", type=Path, help="saved defaults directory (default: configs/tuned)"
+    )
+    train.add_argument(
+        "--ignore-tuned-config",
+        action="store_true",
+        help="use catalog defaults without saved tuning",
+    )
+    train.add_argument(
         "--validation-only",
         action="store_true",
         help="fit/select on validation without evaluating test",
@@ -173,6 +193,12 @@ def build_parser() -> argparse.ArgumentParser:
     tune.add_argument("--seed", type=int, default=2025)
     tune.add_argument("--cuda", type=int, default=None)
     tune.add_argument("--num-threads", type=int, default=8)
+    tune.add_argument(
+        "--tuned-config-dir", type=Path, help="write-back directory (default: configs/tuned)"
+    )
+    tune.add_argument(
+        "--no-write-back", action="store_true", help="keep search results without updating defaults"
+    )
     tune.set_defaults(handler=_run_tune)
 
     validate = subparsers.add_parser(

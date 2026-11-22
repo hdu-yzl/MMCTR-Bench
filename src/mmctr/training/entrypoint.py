@@ -8,8 +8,10 @@ from mmctr.config import (
     TrainingConfig,
     load_local_paths,
     load_training_config,
+    load_tuned_config,
     load_yaml_mapping,
     resolve_dataset_config,
+    TUNED_TRAINING_KEYS,
 )
 from mmctr.data import HistoryMode, ensure_canonical_loader, get_data_loader
 from mmctr.core import RunResult
@@ -39,17 +41,50 @@ class Trainer(object):
         dataset_config_path: Optional[str] = None,
         model_overrides: Optional[Mapping] = None,
         training_overrides: Optional[Mapping] = None,
+        tuned_config_dir: Optional[Path] = None,
+        use_tuned_config: bool = True,
     ):
         requested_model_name = str(model_name).lower()
         specification = model_spec(requested_model_name)
         self.model_name = specification.name
         self.dataset_name = str(dataset_name).lower()
 
+        all_data_config = load_yaml_mapping(
+            dataset_config_path or PROJECT_ROOT / "configs/datasets/catalog.yaml"
+        )
+        local_paths = None
+        if use_local_data:
+            local_paths = load_local_paths(PROJECT_ROOT / "configs/local/paths.yaml")
+            if self.dataset_name not in local_paths.datasets:
+                raise ConfigValidationError(
+                    ["local path for dataset {!r} is missing".format(self.dataset_name)]
+                )
+        dataset_config = resolve_dataset_config(
+            self.dataset_name,
+            all_data_config[self.dataset_name],
+            project_root=PROJECT_ROOT,
+            local_paths=local_paths,
+        )
+        tuned = (
+            load_tuned_config(
+                tuned_config_dir or PROJECT_ROOT / "configs/tuned",
+                self.dataset_name,
+                self.model_name,
+                dataset_config["fingerprint"],
+            )
+            if use_tuned_config
+            else None
+        )
+        if tuned is not None:
+            training_overrides = {**tuned["training"], **(training_overrides or {})}
+
         model_catalog = load_yaml_mapping(PROJECT_ROOT / "configs/models/catalog.yaml")
         config_name = self.model_name
         if config_name not in model_catalog:
             config_name = requested_model_name
-        self.model_config = dict(model_catalog[config_name])
+        self.model_config = dict(
+            tuned["model"] if tuned is not None else model_catalog[config_name]
+        )
         if self.model_name == "psrq":
             # A frozen pretrainer retains its own dropout configuration while the
             # downstream CTR network searches dropout independently.
@@ -77,22 +112,6 @@ class Trainer(object):
                     **scoped,
                 }
         self.model_config["model_name"] = self.model_name
-        all_data_config = load_yaml_mapping(
-            dataset_config_path or PROJECT_ROOT / "configs/datasets/catalog.yaml"
-        )
-        local_paths = None
-        if use_local_data:
-            local_paths = load_local_paths(PROJECT_ROOT / "configs/local/paths.yaml")
-            if self.dataset_name not in local_paths.datasets:
-                raise ConfigValidationError(
-                    ["local path for dataset {!r} is missing".format(self.dataset_name)]
-                )
-        dataset_config = resolve_dataset_config(
-            self.dataset_name,
-            all_data_config[self.dataset_name],
-            project_root=PROJECT_ROOT,
-            local_paths=local_paths,
-        )
         from mmctr.models.common.registry import resolve_model_config
 
         self.model_config = resolve_model_config(self.model_config, dataset_config)
@@ -101,8 +120,7 @@ class Trainer(object):
             PROJECT_ROOT / "configs/training/default.yaml"
         ).to_dict()
         if training_overrides:
-            allowed = {"lr", "l2", "batch_size", "optim", "max_epochs", "early_stop_patience"}
-            if set(training_overrides) - allowed:
+            if set(training_overrides) - TUNED_TRAINING_KEYS:
                 raise ValueError("unsupported training tuning override")
             self.train_config.update(training_overrides)
             self.train_config = TrainingConfig.from_mapping(
@@ -132,6 +150,7 @@ class Trainer(object):
             metadata={
                 "checkpoint_policy": "disk" if save_checkpoints else "memory_best_only",
                 "seed": self.train_config.get("seed"),
+                "tuned_selection": tuned["selection"] if tuned is not None else None,
                 "requested_cuda": self.train_config.get("cuda"),
                 "data_version": self.data_config[self.dataset_name].get("version", "unknown"),
                 "data_fingerprint": self.data_config[self.dataset_name].get(

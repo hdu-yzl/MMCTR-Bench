@@ -7,6 +7,7 @@ from .loading import (
     merge_config_layers,
 )
 from .schema import ConfigValidationError, TrainingConfig
+from .tuned import TUNED_TRAINING_KEYS, load_tuned_config, write_tuned_config
 from .paths import (
     LocalPaths,
     load_dataset_catalog,
@@ -26,4 +27,7 @@ __all__ = [
     "load_dataset_catalog",
     "load_local_paths",
     "resolve_dataset_config",
+    "TUNED_TRAINING_KEYS",
+    "load_tuned_config",
+    "write_tuned_config",
 ]
