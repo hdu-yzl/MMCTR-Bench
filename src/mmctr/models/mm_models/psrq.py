@@ -93,8 +93,12 @@ class MCCA(_QuantizedSequenceModel):
                 for name in self.feature_names
             }
         )
+        self.target_id_to_head = bool(config.get("target_id_to_head", True))
+        self.algorithm_version = (
+            "psrq-target-id-v2" if self.target_id_to_head else "psrq-legacy-head-v1"
+        )
         predictor_dim = self.projection_dim * (
-            len(self.feature_names) + len(self.user_feature_names) + 1
+            len(self.feature_names) + len(self.user_feature_names) + 1 + int(self.target_id_to_head)
         )
         self.dnn = MultiLayerPerceptron(
             predictor_dim,
@@ -165,7 +169,11 @@ class MCCA(_QuantizedSequenceModel):
             pooled[name] = self.history_attention[name](query, history[name], batch.history_mask)
         history_vector = torch.cat([pooled[name] for name in self.feature_names], dim=-1)
         user = self.project_user(batch)
-        hidden = self.dnn(torch.cat([user, history_vector, joint], dim=-1))
+        head_inputs = [user, history_vector, joint]
+        if self.target_id_to_head:
+            # Preserve candidate identity even when frozen joint codes collide.
+            head_inputs.append(target["id"])
+        hidden = self.dnn(torch.cat(head_inputs, dim=-1))
         return ModelOutput(
             self.output(hidden),
             representations={

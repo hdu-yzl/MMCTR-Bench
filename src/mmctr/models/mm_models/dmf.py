@@ -97,6 +97,9 @@ class DMF(_SequenceMultimodalModel):
             id_projector = self.projectors["id"]
             self.projectors = NamedFeatureProjector({"id": self.latent_dim}, self.projection_dim)
             self.projectors["id"] = id_projector
+        self.target_id_to_head = bool(model_config.get("target_id_to_head", True))
+        if self.target_id_to_head:
+            self.algorithm_version += "-target-id-v3"
         self.tier_count = int(model_config.get("tier_num", 10))
         self.attention_dim = int(model_config.get("attention_dim", 128))
         self.bucket_count = int(model_config.get("num_buckets", 35))
@@ -127,7 +130,10 @@ class DMF(_SequenceMultimodalModel):
             self.dropout,
             batch_norm=self.batch_norm,
         )
-        predictor_dim = self.projection_dim * len(self.user_feature_names) + self.mlp_dims[-1]
+        predictor_dim = (
+            self.projection_dim * (len(self.user_feature_names) + int(self.target_id_to_head))
+            + self.mlp_dims[-1]
+        )
         self.dnn = MultiLayerPerceptron(
             predictor_dim,
             self.mlp_dims,
@@ -189,7 +195,11 @@ class DMF(_SequenceMultimodalModel):
         center_interest = self.center_mlp(tiers)
         interest = self.alpha * enhanced_interest + (1.0 - self.alpha) * center_interest
         user = self.project_user(batch)
-        logits = self.output(self.dnn(torch.cat([user, interest], dim=-1)))
+        head_inputs = [user, interest]
+        if self.target_id_to_head:
+            # Attention loses its query when history is empty or has one token.
+            head_inputs.append(target_features["id"])
+        logits = self.output(self.dnn(torch.cat(head_inputs, dim=-1)))
         return ModelOutput(
             logits,
             representations={

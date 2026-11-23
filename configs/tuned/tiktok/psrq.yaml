@@ -1,0 +1,98 @@
+schema_version: 1
+dataset: tiktok
+model_name: psrq
+data_fingerprint: a908bb25f28f899bf2cf21f81483ae67d2106adea582e0e5576a2e9cb1ff05bc
+model:
+  latent_dim: 128
+  projection_dim: 128
+  mlp_dims:
+  - 1024
+  - 512
+  - 256
+  psrq_dims:
+  - 256
+  - 128
+  codebook_size: 256
+  n_levels: 3
+  dropout: 0.1
+  batch_norm: true
+  seq_modeling: true
+  mu: 0.25
+  quant_loss_weight: 1
+  antm2c:
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    psrq_dims:
+    - 256
+    - 128
+    codebook_size: 256
+    n_levels: 3
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    mu: 0.25
+    quant_loss_weight: 1
+  microlens:
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    psrq_dims:
+    - 256
+    - 128
+    codebook_size: 256
+    n_levels: 3
+    dropout: 0.0
+    batch_norm: true
+    seq_modeling: true
+    mu: 0.25
+    quant_loss_weight: 1
+  tiktok:
+    latent_dim: 128
+    projection_dim: 128
+    mlp_dims:
+    - 1024
+    - 512
+    - 256
+    psrq_dims:
+    - 256
+    - 128
+    codebook_size: 256
+    n_levels: 3
+    dropout: 0.1
+    batch_norm: true
+    seq_modeling: true
+    mu: 0.25
+    quant_loss_weight: 1
+    quantizer_dropout: 0.0
+    target_id_to_head: true
+  quantizer_dropout: 0.0
+  target_id_to_head: true
+training:
+  batch_size: 512
+  early_stop_patience: 5
+  l2: 1.0e-05
+  lr: 0.0001
+  max_epochs: 20
+  optim: adam
+selection:
+  study_id: model-anomaly-audit-tiktok-psrq
+  trial_id: tiktok-psrq-target-id-low-lr
+  run_id: 20261122T170038175862Z-8c4b98c22f-5c5c2be7
+  seeds:
+  - 2025
+  validation_auc: 0.7816880861044533
+  validation_log_loss: 0.5404251632264437
+  search_protocol:
+    mode: explicit_diagnostic_candidates
+    selection: validation_auc
+    candidate_results: outputs/model-anomaly-audit
+    no_test_access_during_selection: true
+  source: outputs/model-anomaly-audit/selection-tiktok-psrq.json
+  sha256: 00be1a7d34cd55f140a7811dd549e3a1392ab2cd2f3a2fc6a7192ad6b9510b27

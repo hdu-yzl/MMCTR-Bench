@@ -95,10 +95,11 @@ def main():
     if START in text:
         before, rest = text.split(START, 1)
         _, after = rest.split(END, 1)
-        text = before.rstrip() + "\n\n" + after.lstrip()
-    if text.count(ANCHOR) != 1:
-        raise ValueError("README must contain exactly one Runs and results section")
-    text = text.replace(ANCHOR, snapshot + "\n\n" + ANCHOR, 1)
+        text = before + snapshot + after
+    else:
+        if text.count(ANCHOR) != 1:
+            raise ValueError("README must contain exactly one Runs and results section")
+        text = text.replace(ANCHOR, snapshot + "\n\n" + ANCHOR, 1)
     args.readme.write_text(text, encoding="utf-8")
 
 

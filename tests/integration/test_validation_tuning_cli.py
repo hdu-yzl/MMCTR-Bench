@@ -19,7 +19,10 @@ def isolated_project_config(tmp_path, monkeypatch):
     from mmctr.training import entrypoint
 
     root = tmp_path / "project"
-    shutil.copytree(PROJECT_ROOT / "configs", root / "configs")
+    # Real-data winners carry fingerprints incompatible with this synthetic dataset.
+    shutil.copytree(
+        PROJECT_ROOT / "configs", root / "configs", ignore=shutil.ignore_patterns("tuned")
+    )
     monkeypatch.setattr(entrypoint, "PROJECT_ROOT", root)
     return root
 
