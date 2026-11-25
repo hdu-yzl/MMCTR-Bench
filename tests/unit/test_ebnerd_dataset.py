@@ -325,9 +325,9 @@ def test_bucketed_fields_share_embedding_and_change_original_prediction(raw, tmp
         assert nonzero.min() >= field["start"]
         assert nonzero.max() <= field["end"]
     catalog = yaml.safe_load(
-        (Path(__file__).parents[2] / "configs/models/catalog.yaml").read_text()
+        (Path(__file__).parents[2] / "configs/models/ebnerd/dnn.yaml").read_text()
     )
-    model = create_model("dnn", catalog["dnn"], config)
+    model = create_model("dnn", catalog["model"], config)
     assert not hasattr(model, "structured_head")
     model.eval()
     values = model.embed_user_fields(batch)
@@ -418,3 +418,59 @@ def test_history_variant_preserves_parent_and_all_non_history_arrays(raw, tmp_pa
     assert batch.history_mask.shape == (3, 5)
     with pytest.raises(ContractError, match="different inputs"):
         resize_history(parent_path, raw, target, 4)
+
+
+def test_prepare_cli_matches_stages_and_resumes_after_failure(raw, tmp_path, monkeypatch):
+    from mmctr.config import load_yaml_mapping
+    from mmctr.data.datasets.ebnerd import id_features
+    from mmctr.data.datasets.ebnerd.__main__ import main
+    from mmctr.data.datasets.ebnerd.enrichment import enrich_ebnerd
+    from mmctr.data.datasets.ebnerd.sampling import sample_ebnerd_test
+
+    manual = tmp_path / "manual"
+    prepare_ebnerd(raw, manual / "impressions", 2)
+    sample_ebnerd_test(manual / "impressions", manual / "sampled", 0.5, 42)
+    enrich_ebnerd(manual / "sampled", raw, manual / "attributes")
+    expected = id_features.prepare_id_features(manual / "attributes", raw, manual / "ids")
+    work, output, config = tmp_path / "work", tmp_path / "ids", tmp_path / "catalog.yaml"
+    args = [
+        "--prepare",
+        "--raw-dir",
+        str(raw),
+        "--output-dir",
+        str(output),
+        "--work-dir",
+        str(work),
+        "--sequence-length",
+        "2",
+        "--test-fraction",
+        "0.5",
+        "--sampling-seed",
+        "42",
+        "--config-output",
+        str(config),
+    ]
+    fit = id_features.prepare_id_features
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("interrupted before ID materialization")
+
+    monkeypatch.setattr(id_features, "prepare_id_features", fail)
+    with pytest.raises(RuntimeError, match="interrupted"):
+        main(args)
+    assert not output.exists() and not config.exists()
+    before = {p: p.stat().st_mtime_ns for p in work.rglob("*.npy")}
+    monkeypatch.setattr(id_features, "prepare_id_features", fit)
+    assert main(args) == 0
+    assert all(p.stat().st_mtime_ns == value for p, value in before.items())
+    actual = validate_ebnerd(output)
+    assert actual.fingerprint == expected.fingerprint
+    for relative in actual.metadata["output_sha256"]:
+        np.testing.assert_array_equal(
+            np.load(output / relative), np.load(manual / "ids" / relative)
+        )
+    assert load_yaml_mapping(config)["ebnerd"] == dataset_config(actual, output)
+    assert main(args) == 0
+    assert main(["--verify-only", "--output-dir", str(output)]) == 0
+    with pytest.raises(SystemExit):
+        main([*args, "--verify-only"])

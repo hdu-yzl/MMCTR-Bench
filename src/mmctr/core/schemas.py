@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Dict, Mapping, Optional, Sequence, Union
+from typing import Any, Dict, Mapping, Optional, Union
 
 import torch
 
@@ -64,15 +64,6 @@ def _normalise_labels(labels: torch.Tensor) -> torch.Tensor:
     if not labels.is_floating_point():
         raise ContractError("labels must use a floating dtype")
     return labels
-
-
-def _history_mask_from_ids(history_ids: torch.Tensor, padding_id: int) -> torch.Tensor:
-    if history_ids.ndim < 2:
-        raise ContractError("history id tensor must have shape [B, L, ...]")
-    mask = history_ids.ne(padding_id)
-    while mask.ndim > 2:
-        mask = mask.any(dim=-1)
-    return mask
 
 
 @dataclass(frozen=True)
@@ -157,42 +148,6 @@ class Batch:
             metadata=self.metadata,
         )
 
-    @classmethod
-    def from_legacy(
-        cls,
-        values: Sequence[Any],
-        history_mask: Optional[torch.Tensor] = None,
-        padding_id: int = 0,
-        metadata: Optional[MetadataMap] = None,
-    ) -> "Batch":
-        """Adapt the legacy 3-tuple or 4-tuple loader result explicitly."""
-
-        if len(values) == 3:
-            user_features: TensorMap = {}
-            item_features, history_features, labels = values
-        elif len(values) == 4:
-            user_features, item_features, history_features, labels = values
-        else:
-            raise ContractError("legacy batch must contain 3 or 4 elements")
-        if not isinstance(history_features, Mapping):
-            raise ContractError("legacy history features must be a mapping")
-        if history_mask is None:
-            try:
-                history_ids = history_features["id"]
-            except KeyError as error:
-                raise ContractError(
-                    "history_mask is required when legacy history has no 'id' feature"
-                ) from error
-            history_mask = _history_mask_from_ids(history_ids, padding_id)
-        return cls(
-            user_features=user_features,
-            item_features=item_features,
-            history_features=history_features,
-            history_mask=history_mask,
-            labels=labels,
-            metadata=metadata or {},
-        )
-
 
 @dataclass(frozen=True)
 class ModelOutput:
@@ -244,39 +199,6 @@ class ModelOutput:
         for name, loss in self.auxiliary_losses.items():
             total = total + loss * float(configured.get(name, 1.0))
         return total
-
-    def as_legacy(self) -> Dict[str, torch.Tensor]:
-        """Return the temporary legacy ``pred``/``au_loss`` mapping."""
-
-        result = {"pred": self.logits}
-        if self.auxiliary_losses:
-            result["au_loss"] = self.auxiliary_loss()
-        return result
-
-    @classmethod
-    def from_legacy(cls, value: Any) -> "ModelOutput":
-        """Adapt a legacy output tensor or result mapping."""
-
-        if isinstance(value, torch.Tensor):
-            return cls(logits=value)
-        if not isinstance(value, Mapping):
-            raise ContractError("model output must be a tensor or mapping")
-        logits = value.get("logits", value.get("pred"))
-        if logits is None:
-            raise ContractError("legacy model output must contain 'pred' or 'logits'")
-        losses: Dict[str, torch.Tensor] = {}
-        legacy_loss = value.get("au_loss")
-        if legacy_loss is not None:
-            if not isinstance(legacy_loss, torch.Tensor):
-                legacy_loss = logits.new_tensor(float(legacy_loss))
-            losses["legacy_auxiliary"] = legacy_loss
-        configured_losses = value.get("auxiliary_losses")
-        if configured_losses is not None:
-            if not isinstance(configured_losses, Mapping):
-                raise ContractError("auxiliary_losses must be a mapping")
-            losses.update(configured_losses)
-        representations = value.get("representations")
-        return cls(logits=logits, auxiliary_losses=losses, representations=representations)
 
 
 def _tensor_map_allow_scalars(values: TensorMap, field_name: str) -> TensorMap:
@@ -348,11 +270,13 @@ class RunResult:
 
 
 def ensure_model_output(value: Any) -> ModelOutput:
-    """Return ``value`` as a validated :class:`ModelOutput`."""
+    """Require the explicit model contract at training and evaluation entry points."""
 
-    if isinstance(value, ModelOutput):
-        return value
-    return ModelOutput.from_legacy(value)
+    if not isinstance(value, ModelOutput):
+        raise ContractError(
+            "model.forward must return ModelOutput; wrap logits and named auxiliary losses explicitly"
+        )
+    return value
 
 
 __all__ = [

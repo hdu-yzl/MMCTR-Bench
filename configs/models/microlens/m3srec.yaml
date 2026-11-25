@@ -1,0 +1,28 @@
+schema_version: 1
+dataset: microlens
+model_name: m3srec
+model:
+  latent_dim: 128
+  projection_dim: 128
+  mlp_dims:
+  - 1024
+  - 512
+  - 256
+  dropout: 0.0
+  batch_norm: true
+  seq_modeling: true
+  num_heads: 4
+  num_experts: 4
+  moe_hidden_dim: 512
+  attn_ffn_dim: 512
+  num_specific_layers: 1
+  num_cross_layers: 1
+  fusion_hidden_dim: 128
+training:
+  lr: 0.001
+  l2: 1.0e-07
+  batch_size: 512
+  optim: adam
+  max_epochs: 20
+  early_stop_patience: 5
+selection: {}

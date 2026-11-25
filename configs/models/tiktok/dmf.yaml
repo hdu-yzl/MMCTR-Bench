@@ -1,0 +1,43 @@
+schema_version: 1
+dataset: tiktok
+model_name: dmf
+model:
+  similarity_source: frozen_features
+  latent_dim: 128
+  projection_dim: 128
+  mlp_dims:
+  - 1024
+  - 512
+  - 256
+  dropout: 0.0
+  batch_norm: true
+  modal_fusion_method: cat
+  seq_modeling: true
+  tier_num: 10
+  attention_dim: 128
+  num_buckets: 35
+  alpha: 0.5
+  target_id_to_head: true
+training:
+  lr: 0.001
+  l2: 1.0e-07
+  batch_size: 512
+  optim: adam
+  max_epochs: 20
+  early_stop_patience: 5
+selection:
+  study_id: model-anomaly-audit-tiktok-dmf
+  trial_id: tiktok-dmf-target-id-default
+  run_id: 20261122T165511283439Z-0ccbba4088-297a5eb8
+  seeds:
+  - 2025
+  validation_auc: 0.771986413425605
+  validation_log_loss: 0.45774225025828386
+  search_protocol:
+    mode: explicit_diagnostic_candidates
+    selection: validation_auc
+    candidate_results: outputs/model-anomaly-audit
+    no_test_access_during_selection: true
+  source: outputs/model-anomaly-audit/selection-tiktok-dmf.json
+  sha256: 52efafd11048fc14c9dc36f144ab40878eb164d9bdefa10bfd3339e65ba0080b
+data_fingerprint: a908bb25f28f899bf2cf21f81483ae67d2106adea582e0e5576a2e9cb1ff05bc

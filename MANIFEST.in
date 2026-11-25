@@ -3,14 +3,13 @@ include LICENSE
 include CITATION.cff
 include CONTRIBUTING.md
 include environment.yml
-include bm_env.yml
 include data/README.md
 recursive-include data *.md
 include docs/data.md
 include docs/models.md
 include docs/benchmark-protocol.md
 recursive-include configs *.yaml
-include configs/tuned/README.md
+include configs/models/README.md
 recursive-include scripts *.sh *.py
 recursive-include tests *.py *.json
 prune configs/local
@@ -19,3 +18,13 @@ exclude scripts/run_ebnerd_id16*_once.py
 global-exclude MMCTR_Benchmark*.pdf
 global-exclude *.py[cod]
 global-exclude __pycache__
+
+# Local diagnostic work is retained on disk but is not part of the public package.
+prune src/mmctr/analysis
+exclude configs/experiments/diagnostic-tuning.example.yaml
+exclude tests/integration/test_diagnostic_cli_local.py
+exclude tests/unit/test_diagnostic_*.py
+exclude tests/unit/test_antm2c_cold_diagnostics.py
+exclude tests/unit/test_paper_cold.py
+exclude tests/unit/test_efficiency_protocol.py
+exclude tests/unit/test_analysis_experiments.py

@@ -145,29 +145,5 @@ class DatasetManifest:
             result["fingerprint"] = self.fingerprint
         return result
 
-    @classmethod
-    def from_config(cls, name: str, config: Mapping[str, Any]) -> "DatasetManifest":
-        """Build the minimum manifest available from a legacy data config."""
-
-        multimodal_dimensions = dict(config.get("mm_seq_dims", config.get("mm_dims", {})))
-        feature_dimensions = {
-            feature_name: int(dimension)
-            for feature_name, dimension in multimodal_dimensions.items()
-            if int(dimension) > 0
-        }
-        feature_dimensions.setdefault("id", 1)
-        return cls(
-            name=name.lower(),
-            version=str(config.get("version", "legacy-unversioned")),
-            storage_format=str(config.get("storage_format", "tfrecord")),
-            sequence_length=int(config["seq_len"]),
-            padding_id=int(config.get("padding_id", 0)),
-            oov_id=config.get("oov_id"),
-            id_offsets=dict(config.get("id_offsets", {})),
-            feature_dimensions=feature_dimensions,
-            source_fingerprint=config.get("fingerprint"),
-            metadata={"manifest_completeness": "legacy-config-only"},
-        )
-
 
 __all__ = ["DatasetManifest", "KNOWN_SPLITS", "SplitStatistics"]

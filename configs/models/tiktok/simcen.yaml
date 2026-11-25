@@ -1,0 +1,50 @@
+schema_version: 1
+dataset: tiktok
+model_name: simcen
+model:
+  latent_dim: 128
+  projection_dim: 128
+  mlp_dims:
+  - 1024
+  - 512
+  - 256
+  hidden_unit:
+  - 480
+  - 480
+  - 480
+  dropout: 0.0
+  batch_norm: true
+  modal_fusion_method: cat
+  seq_pooling_method: mean
+  seq_modeling: false
+  cl_temperature: 0.1
+  alpha: 0.05
+  ego_dropout: 0.0
+  v1_dropout: 0.0
+  v2_dropout: 0.0
+  ego_batch_norm: true
+  v1_batch_norm: true
+  v2_batch_norm: true
+training:
+  lr: 0.001
+  l2: 1.0e-05
+  batch_size: 512
+  optim: adam
+  max_epochs: 20
+  early_stop_patience: 5
+selection:
+  study_id: model-anomaly-audit-tiktok-simcen
+  trial_id: tiktok-simcen-search-0
+  run_id: 20261122T164805062053Z-cd285072e6-63cbefe0
+  seeds:
+  - 2025
+  validation_auc: 0.7591776895368059
+  validation_log_loss: 0.3913451083603663
+  search_protocol:
+    mode: explicit_diagnostic_candidates
+    selection: validation_auc
+    candidate_results: outputs/model-anomaly-audit
+    no_test_access_during_selection: true
+  source: outputs/model-anomaly-audit/selection-tiktok-simcen.json
+  sha256: 897fce2f0f9ccdde2a453213d1c0d7219e8369e74c9e14738eaa4ad475efb31a
+data_fingerprint: a908bb25f28f899bf2cf21f81483ae67d2106adea582e0e5576a2e9cb1ff05bc

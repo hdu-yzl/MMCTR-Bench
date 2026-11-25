@@ -5,15 +5,14 @@ from mmctr.utils import helper
 from mmctr.utils.run_context import create_run_context
 from mmctr.config import (
     ConfigValidationError,
-    TrainingConfig,
     load_local_paths,
-    load_training_config,
-    load_tuned_config,
+    resolve_training_config,
+    load_model_config,
     load_yaml_mapping,
     resolve_dataset_config,
-    TUNED_TRAINING_KEYS,
+    MODEL_TRAINING_KEYS,
 )
-from mmctr.data import HistoryMode, ensure_canonical_loader, get_data_loader
+from mmctr.data import ensure_canonical_loader, get_data_loader
 from mmctr.core import RunResult
 from mmctr.models.common.registry import create_model, create_model_from_artifacts, model_spec
 from mmctr.training import (
@@ -41,8 +40,8 @@ class Trainer(object):
         dataset_config_path: Optional[str] = None,
         model_overrides: Optional[Mapping] = None,
         training_overrides: Optional[Mapping] = None,
-        tuned_config_dir: Optional[Path] = None,
-        use_tuned_config: bool = True,
+        model_config_dir: Optional[Path] = None,
+        validate_model_data: bool = True,
     ):
         requested_model_name = str(model_name).lower()
         specification = model_spec(requested_model_name)
@@ -65,26 +64,14 @@ class Trainer(object):
             project_root=PROJECT_ROOT,
             local_paths=local_paths,
         )
-        tuned = (
-            load_tuned_config(
-                tuned_config_dir or PROJECT_ROOT / "configs/tuned",
-                self.dataset_name,
-                self.model_name,
-                dataset_config["fingerprint"],
-            )
-            if use_tuned_config
-            else None
+        parameters = load_model_config(
+            model_config_dir or PROJECT_ROOT / "configs/models",
+            self.dataset_name,
+            self.model_name,
+            dataset_config["fingerprint"] if validate_model_data else None,
         )
-        if tuned is not None:
-            training_overrides = {**tuned["training"], **(training_overrides or {})}
-
-        model_catalog = load_yaml_mapping(PROJECT_ROOT / "configs/models/catalog.yaml")
-        config_name = self.model_name
-        if config_name not in model_catalog:
-            config_name = requested_model_name
-        self.model_config = dict(
-            tuned["model"] if tuned is not None else model_catalog[config_name]
-        )
+        training_overrides = {**parameters["training"], **(training_overrides or {})}
+        self.model_config = dict(parameters["model"])
         if self.model_name == "psrq":
             # A frozen pretrainer retains its own dropout configuration while the
             # downstream CTR network searches dropout independently.
@@ -116,16 +103,9 @@ class Trainer(object):
 
         self.model_config = resolve_model_config(self.model_config, dataset_config)
         self.data_config = {self.dataset_name: dataset_config}
-        self.train_config = load_training_config(
-            PROJECT_ROOT / "configs/training/default.yaml"
-        ).to_dict()
-        if training_overrides:
-            if set(training_overrides) - TUNED_TRAINING_KEYS:
-                raise ValueError("unsupported training tuning override")
-            self.train_config.update(training_overrides)
-            self.train_config = TrainingConfig.from_mapping(
-                self.train_config, PROJECT_ROOT
-            ).to_dict()
+        if set(training_overrides) - MODEL_TRAINING_KEYS:
+            raise ValueError("unsupported training tuning override")
+        self.train_config = resolve_training_config(training_overrides, PROJECT_ROOT).to_dict()
         if seed is not None:
             if isinstance(seed, bool) or not isinstance(seed, int) or not 0 <= seed < 2**32:
                 raise ValueError("seed must be an integer in [0, 2**32)")
@@ -150,7 +130,7 @@ class Trainer(object):
             metadata={
                 "checkpoint_policy": "disk" if save_checkpoints else "memory_best_only",
                 "seed": self.train_config.get("seed"),
-                "tuned_selection": tuned["selection"] if tuned is not None else None,
+                "parameter_selection": parameters["selection"],
                 "requested_cuda": self.train_config.get("cuda"),
                 "data_version": self.data_config[self.dataset_name].get("version", "unknown"),
                 "data_fingerprint": self.data_config[self.dataset_name].get(
@@ -175,17 +155,7 @@ class Trainer(object):
             )
             self.runtime_kind = "canonical"
             helper.setup_seed(self.train_config["seed"])
-            history_mode = (
-                HistoryMode.POOLED_COMPAT
-                if specification.metadata.get("history") == "pooled"
-                else HistoryMode.SEQUENCE_TOKENS
-            )
-            self.dataloader = ensure_canonical_loader(
-                self.dataset_name,
-                source_loader,
-                self.data_config[self.dataset_name],
-                history_mode=history_mode,
-            )
+            self.dataloader = ensure_canonical_loader(self.dataset_name, source_loader)
             if specification.metadata.get("quantization_artifacts"):
                 self.model = create_model_from_artifacts(
                     self.model_name,

@@ -66,6 +66,8 @@ package-dir = { "" = "src" }
 [tool.setuptools.packages.find]
 where = ["src"]
 namespaces = true
+include = ["mmctr", "mmctr.*"]
+exclude = ["mmctr.analysis", "mmctr.analysis.*"]
 
 [tool.ruff]
 line-length = 100

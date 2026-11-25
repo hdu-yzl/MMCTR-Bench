@@ -2,5 +2,6 @@
 # Original model-specific ranges are added automatically for --model-name.
 # Fixed overrides cannot replace any searched parameter.
 # Omit --candidates to use the same random search without fixed overrides.
-# Each model gets 50 attempts or 50 allocated GPU-hours, whichever comes first.
+# Default per-pair budget: 50 attempts or 50 allocated GPU-hours.
+# Change it with --max-trials / --max-gpu-hours / --max-hours.
 model: {}

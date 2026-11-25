@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
 from mmctr.core import ContractError, RunResult
 
-from .runner import ExperimentTask
 from .model_search import (
     EXCLUDED_MODEL_CHOICES,
     MODEL_SEARCH_SPACES,
@@ -23,7 +22,9 @@ from .search_protocol import MODEL_SEARCH_SEED, SHARED_SEARCH_SPACE, SEARCH_SEED
 TUNING_SCHEMA_VERSION = 1
 
 
-def load_tuning_search(path=None, model_name=None) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+def load_tuning_search(
+    path=None, model_name=None, *, max_trials=50
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """Resolve common and model-specific search, or exploratory explicit candidates.
 
     A YAML containing only ``model`` fixes variant-specific controls while leaving
@@ -38,7 +39,7 @@ def load_tuning_search(path=None, model_name=None) -> Tuple[List[Dict[str, Any]]
 
             model_name = model_spec(model_name.lower()).name
         model_space = deepcopy(MODEL_SEARCH_SPACES.get(model_name, {}))
-        draws = shared_candidates(payload["model"], model_space)
+        draws = shared_candidates(payload["model"], model_space, max_trials=max_trials)
         return draws, {
             "mode": "shared_random",
             "sampler": "optuna.RandomSampler",
@@ -65,11 +66,6 @@ def load_tuning_search(path=None, model_name=None) -> Tuple[List[Dict[str, Any]]
         if any(not isinstance(value, dict) for value in candidate.values()):
             raise ValueError("model/training overrides must be mappings")
     return candidates, {"mode": "explicit_candidates", "candidate_count": len(candidates)}
-
-
-def load_tuning_candidates(path, model_name=None) -> List[Dict[str, Any]]:
-    """Read common-space draws or legacy explicit model/training overrides."""
-    return load_tuning_search(path, model_name=model_name)[0]
 
 
 def _freeze(value: Any) -> Any:
@@ -310,34 +306,6 @@ class ValidationOnlyTuner:
         if any(payload.get(name) != value for name, value in expected.items()):
             raise ContractError("persisted frozen selection differs from selection provenance")
 
-    def final_test_task(
-        self,
-        selection: FrozenSelection,
-        task_id: str,
-        dataset: str,
-        model: str,
-        seed: int,
-    ) -> ExperimentTask:
-        """Construct the final-test task only after a persisted selection exists."""
-
-        self._require_selection(selection)
-        config: Dict[str, Any] = dict(_plain(selection.config))
-        config.update(
-            {
-                "stage": "final_test",
-                "data_fingerprint": selection.data_fingerprint,
-                "selection": {
-                    "study_id": selection.study_id,
-                    "experiment_id": selection.experiment_id,
-                    "trial_id": selection.trial_id,
-                    "run_id": selection.run_id,
-                    "validation_auc": selection.validation_auc,
-                    "seeds": list(selection.seeds),
-                },
-            }
-        )
-        return ExperimentTask(task_id, dataset, model, seed, config)
-
     def record_final_test_result(self, selection: FrozenSelection, result: RunResult) -> Path:
         """Persist test metrics separately so they cannot feed the selection artifact."""
 
@@ -375,6 +343,9 @@ def run_validation_search(
     final_evaluator=None,
     search_protocol=None,
     device_type="cpu",
+    max_trials=50,
+    max_gpu_hours=50,
+    max_hours=None,
 ):
     """Execute candidates without test access, freeze a winner, then test its weights once.
 
@@ -396,7 +367,7 @@ def run_validation_search(
             raise ValueError("study is already frozen; use a new study ID")
         if (tuner.study_dir / "trial_history.json").exists():
             raise ValueError("study has prior attempts; use a new study ID")
-        budget = TuningBudget(device_type)
+        budget = TuningBudget(device_type, max_trials, max_gpu_hours, max_hours)
         tuner.search_metadata = {
             "search_protocol": search_protocol or {"mode": "explicit_candidates"},
             "budget": budget.to_dict(),
@@ -484,7 +455,7 @@ def run_validation_search(
                 budget=budget.to_dict(),
                 stop_reason="invalid_trial"
                 if fatal_error
-                else "gpu_hours"
+                else budget.stop_reason
                 if interrupted
                 else "running",
             )
@@ -538,7 +509,6 @@ __all__ = [
     "TUNING_SCHEMA_VERSION",
     "TuningTrial",
     "ValidationOnlyTuner",
-    "load_tuning_candidates",
     "load_tuning_search",
     "run_validation_search",
 ]

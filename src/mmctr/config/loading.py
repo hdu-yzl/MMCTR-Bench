@@ -7,6 +7,7 @@ from typing import Any, Dict, Mapping, Optional, Union
 import yaml
 
 from .schema import ConfigValidationError, TrainingConfig
+from .runtime import resolve_training_config
 
 
 PathLike = Union[str, Path]
@@ -83,7 +84,10 @@ def load_training_config(
         if project_root
         else find_project_root(config_path)
     )
-    return TrainingConfig.from_mapping(load_yaml_mapping(config_path), root)
+    payload = load_yaml_mapping(config_path)
+    if "training" in payload:
+        return resolve_training_config(payload["training"], root)
+    return TrainingConfig.from_mapping(payload, root)
 
 
 def _deep_merge(base: Mapping[str, Any], override: Mapping[str, Any]) -> Dict[str, Any]:

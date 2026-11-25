@@ -5,7 +5,7 @@ from enum import Enum
 
 import torch
 
-from mmctr.core import Batch, ContractError, ModelOutput, ensure_model_output
+from mmctr.core import Batch, ContractError, ModelOutput
 from mmctr.models.common.components.masking import (
     masked_softmax as component_masked_softmax,
     validate_sequence_mask,
@@ -30,7 +30,7 @@ class BaseSeqModel(torch.nn.Module, ABC):
     def forward(self, batch: Batch) -> ModelOutput:
         if not isinstance(batch, Batch):
             raise ContractError("models require a canonical Batch")
-        return ensure_model_output(self.forward_batch(batch))
+        return self.forward_batch(batch)
 
     def embed_user_fields(self, batch: Batch) -> torch.Tensor:
         """Lookup every field in the same table; pool only tokens within each field."""

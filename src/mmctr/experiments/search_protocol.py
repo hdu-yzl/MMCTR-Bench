@@ -1,5 +1,6 @@
 """Shared categorical random search and allocated single-GPU tuning budget."""
 
+import math
 import time
 from copy import deepcopy
 from typing import Any, Dict, List, Mapping, Optional
@@ -19,8 +20,10 @@ SHARED_SEARCH_SPACE = {
 def shared_candidates(
     model_overrides: Optional[Mapping[str, Any]] = None,
     model_space: Optional[Mapping[str, Any]] = None,
+    max_trials: int = MAX_TRIALS,
 ) -> List[Dict[str, Any]]:
-    """Draw 50 trials with replacement, independently of model and training RNGs."""
+    """Draw the requested trials, independently of model and training RNGs."""
+    TuningBudget(max_trials=max_trials)
     try:
         import optuna
     except ImportError as error:
@@ -41,7 +44,7 @@ def shared_candidates(
     # The sampler needs no objective feedback for independent random draws.
     study = optuna.create_study(direction="maximize", sampler=sampler)
     candidates = []
-    for _ in range(MAX_TRIALS):
+    for _ in range(max_trials):
         trial = study.ask()
         values = {
             key: trial.suggest_categorical(key, choices)
@@ -86,7 +89,23 @@ class TuningBudget:
     is outside the search budget. Time checks are cooperative at batch boundaries.
     """
 
-    def __init__(self, device_type: str = "cpu") -> None:
+    def __init__(
+        self,
+        device_type: str = "cpu",
+        max_trials: int = MAX_TRIALS,
+        max_gpu_hours: float = MAX_GPU_HOURS,
+        max_hours: Optional[float] = None,
+    ) -> None:
+        if isinstance(max_trials, bool) or not isinstance(max_trials, int) or max_trials < 1:
+            raise ValueError("max_trials must be a positive integer")
+        for name, value in (("max_gpu_hours", max_gpu_hours), ("max_hours", max_hours)):
+            if value is not None and (
+                isinstance(value, bool) or not math.isfinite(value) or value <= 0
+            ):
+                raise ValueError("{} must be positive and finite".format(name))
+        self.max_trials = max_trials
+        self.max_gpu_hours = max_gpu_hours
+        self.max_hours = max_hours
         self.attempts = 0
         self.gpu_seconds = 0.0
         self.cpu_seconds = 0.0
@@ -95,16 +114,19 @@ class TuningBudget:
 
     @property
     def exhausted(self) -> bool:
-        return self.attempts >= MAX_TRIALS or self.gpu_seconds >= MAX_GPU_HOURS * 3600
+        return self.stop_reason != "candidates_exhausted"
 
     def start_trial(self) -> None:
         self.attempts += 1
         self.started_at = time.monotonic()
 
     def check(self) -> None:
-        if self.on_gpu and self.started_at is not None:
-            if self.gpu_seconds + time.monotonic() - self.started_at >= MAX_GPU_HOURS * 3600:
-                raise TuningBudgetExceeded("50 GPU-hour tuning budget exhausted")
+        elapsed = time.monotonic() - self.started_at if self.started_at is not None else 0.0
+        if self.on_gpu and self.gpu_seconds + elapsed >= self.max_gpu_hours * 3600:
+            raise TuningBudgetExceeded("GPU-hour tuning budget exhausted")
+        if self.max_hours is not None:
+            if self.gpu_seconds + self.cpu_seconds + elapsed >= self.max_hours * 3600:
+                raise TuningBudgetExceeded("trial-hour tuning budget exhausted")
 
     def finish_trial(self) -> Dict[str, Any]:
         elapsed = time.monotonic() - self.started_at if self.started_at is not None else 0.0
@@ -117,8 +139,9 @@ class TuningBudget:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "max_trials": MAX_TRIALS,
-            "max_gpu_hours": MAX_GPU_HOURS,
+            "max_trials": self.max_trials,
+            "max_gpu_hours": self.max_gpu_hours,
+            "max_hours": self.max_hours,
             "attempted_trials": self.attempts,
             "gpu_hours": self.gpu_seconds / 3600,
             "cpu_hours": self.cpu_seconds / 3600,
@@ -128,9 +151,12 @@ class TuningBudget:
 
     @property
     def stop_reason(self) -> str:
-        if self.gpu_seconds >= MAX_GPU_HOURS * 3600:
+        if self.gpu_seconds >= self.max_gpu_hours * 3600:
             return "gpu_hours"
-        if self.attempts >= MAX_TRIALS:
+        if self.max_hours is not None:
+            if self.gpu_seconds + self.cpu_seconds >= self.max_hours * 3600:
+                return "trial_hours"
+        if self.attempts >= self.max_trials:
             return "max_trials"
         return "candidates_exhausted"
 

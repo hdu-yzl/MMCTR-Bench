@@ -1,0 +1,28 @@
+schema_version: 1
+dataset: ebnerd
+model_name: diff_msin
+model:
+  latent_dim: 16
+  projection_dim: 128
+  mlp_dims:
+  - 1024
+  - 512
+  - 256
+  dropout: 0.0
+  batch_norm: true
+  seq_pooling_method: mean
+  modal_fusion_method: cat
+  seq_modeling: true
+  lambda1: 0.01
+  lambda2: 0.01
+  T: 5
+  num_cross_layers: 3
+  heads: 1
+training:
+  lr: 0.001
+  l2: 1.0e-07
+  batch_size: 512
+  optim: adam
+  max_epochs: 20
+  early_stop_patience: 5
+selection: {}

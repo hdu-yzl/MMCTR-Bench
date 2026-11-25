@@ -62,7 +62,7 @@ class CliIntegrationTest(unittest.TestCase):
         result = self._run(
             "validate-config",
             "--config",
-            str(REPOSITORY_ROOT / "configs/training/default.yaml"),
+            str(REPOSITORY_ROOT / "configs/models/antm2c/dnn.yaml"),
         )
 
         self.assertEqual(result.returncode, 0, msg=result.stderr)
@@ -120,3 +120,16 @@ class CliIntegrationTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_public_train_cli_forwards_seed():
+    from unittest.mock import patch
+
+    from mmctr.cli.app import main
+
+    with patch("mmctr.training.entrypoint.Trainer") as trainer, patch(
+        "mmctr.cli.app._configure_threads"
+    ):
+        assert main(["train", "--seed", "2029"]) == 0
+    assert trainer.call_args.kwargs["seed"] == 2029
+    trainer.return_value.run.assert_called_once()

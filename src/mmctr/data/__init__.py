@@ -14,10 +14,7 @@ _LOADER_EXPORTS = {
     "TiktokLoader": "tiktok",
 }
 _PUBLIC_EXPORTS = {
-    "CanonicalDataLoader": ("mmctr.data.loader", "CanonicalDataLoader"),
     "DataLoaderProtocol": ("mmctr.data.loader", "DataLoaderProtocol"),
-    "HistoryMode": ("mmctr.data.loader", "HistoryMode"),
-    "adapt_legacy_loader": ("mmctr.data.loader", "adapt_legacy_loader"),
     "ensure_canonical_loader": ("mmctr.data.loader", "ensure_canonical_loader"),
     "DatasetManifest": ("mmctr.data.manifest", "DatasetManifest"),
     "SplitStatistics": ("mmctr.data.manifest", "SplitStatistics"),

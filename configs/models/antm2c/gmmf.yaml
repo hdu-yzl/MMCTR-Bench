@@ -1,0 +1,30 @@
+schema_version: 1
+dataset: antm2c
+model_name: gmmf
+model:
+  latent_dim: 128
+  projection_dim: 128
+  mlp_dims:
+  - 1024
+  - 512
+  - 256
+  dropout: 0.0
+  batch_norm: true
+  seq_modeling: true
+  lambdas:
+    image: 0.1
+    text: 0.1
+    audio: 0.1
+  N: 2
+  lr_main: 1e-4
+  lr_disc: 1e-5
+  lr_gen: 1e-5
+  l2: 1e-7
+training:
+  lr: 0.001
+  l2: 1.0e-07
+  batch_size: 512
+  optim: adam
+  max_epochs: 20
+  early_stop_patience: 5
+selection: {}

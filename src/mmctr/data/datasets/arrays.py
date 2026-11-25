@@ -169,27 +169,6 @@ class NamedArrayDatasetLoader:
                 },
             )
 
-    def get_data_seq(self, split: str):
-        """Compatibility iterator for callers not yet migrated to `iter_batches`."""
-
-        for batch in self.iter_batches(split):
-            yield (
-                dict(batch.user_features),
-                dict(batch.item_features),
-                dict(batch.history_features),
-                batch.labels.reshape(-1, 1),
-            )
-
-    def get_data(self, split: str):
-        """Compatibility iterator retaining the old combined ID field."""
-
-        for batch in self.iter_batches(split):
-            features = dict(batch.item_features)
-            features["id"] = torch.cat(
-                [batch.user_features["id"], batch.item_features["id"]], dim=1
-            )
-            yield features, dict(batch.history_features), batch.labels.reshape(-1, 1)
-
     def get_multi_modal(self) -> Mapping[str, np.ndarray]:
         return {name: values for name, values in self._modalities.items()}
 

@@ -377,7 +377,10 @@ class PSRQPretrainer(torch.nn.Module):
             for name, value in arrays.items()
             if name.startswith("state.")
         }
-        incompatible = model.load_state_dict(state, strict=True)
+        try:
+            incompatible = model.load_state_dict(state, strict=True)
+        except RuntimeError as error:
+            raise QuantizationArtifactError("PSRQ artifact state is incompatible") from error
         if incompatible.missing_keys or incompatible.unexpected_keys:
             raise QuantizationArtifactError("PSRQ artifact state is incompatible")
         if not model.is_initialized:

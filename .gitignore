@@ -91,3 +91,8 @@ downloads/
 *.tmp
 *.temp
 ~$*
+
+# Local manuscript audits and development conclusions
+/docs/paper-final-consistency-audit.md
+/docs/project-simplification-audit.md
+/docs/cold-start-positive-support.md

@@ -45,28 +45,36 @@ Run from the repository root. Add `--dry-run` to preview model commands and prer
 ```bash
 scripts/train_model.sh --dataset tiktok --model dmf --gpu 0
 scripts/train_all_models.sh --dataset tiktok --gpus 0,1
-scripts/pretrain_quantizers.sh --dataset tiktok --gpu 0
-scripts/train_all_models.sh --dataset tiktok --gpus 0,1 --include-quantized
 ```
 
-QARM and PSRQ require their dataset's pretrained quantizer artifacts. The standard batch skips
-them unless you pass `--include-quantized`. Dataset and model settings come from the catalogs
-under `configs/`; shared run settings come from `configs/training/default.yaml`.
+The batch script includes all 23 registered models, including QARM and PSRQ. Before CTR
+training, it checks their quantizer artifacts and automatically pretrains missing or
+incompatible ones using the dataset's configuration. Valid artifacts are reused; QARM
+only refits the affected modalities. RQ runs on CPU and PSRQ pretraining uses the first
+GPU in `--gpus`. Pretraining must finish successfully before the CTR workers start.
+Use `--models dmf,qarm,psrq` to select a subset.
+
+Dataset settings come from `configs/datasets/`; model/training parameters are stored in
+`configs/models/<dataset>/<model>.yaml`. RQ defaults live in `rq.yaml`; PSRQ optimization
+settings live in `psrq.yaml` under `pretraining`. Quantizer artifacts are shared under
+`outputs/quantization/artifacts/`, independently of the CTR `--output-root`.
+
+Each invocation trains one dataset with one run per model (seed 2025 by default), saving
+isolated results under `outputs/training/`. The tables below are reference results;
+individual runs may vary. See the [experiment guide](docs/benchmark-protocol.md).
+The former dedicated main-table launcher has been removed; use `train_all_models.sh`.
+For explicit quantizer refitting, `scripts/pretrain_quantizers.sh` remains available.
+
+Select models and a per-dataset/model budget with the tuning script:
 
 ```bash
-bash scripts/run_main_table.sh --dry-run
-bash scripts/run_main_table.sh --gpus 0,1,2,3,4,5,6,7
+scripts/tune.sh --datasets tiktok --models dmf,simcen --max-trials 20 --max-gpu-hours 4 --cuda 0
 ```
 
-The main-table launcher runs 21 models on four datasets with seeds 2025–2029. Use `--resume`
-with the same settings to reuse completed runs. Reports go under `outputs/main_table/`; ordinary
-training creates isolated runs under `outputs/training/`. See the
-[experiment guide](docs/benchmark-protocol.md) for manual tuning and test evaluation.
-
-Successful `mmctr tune` searches automatically write the validation winner to
-`configs/tuned/<dataset>/<model>.yaml`. Ordinary training and the main-table launcher
-then use those saved defaults for that dataset/model pair. See the
-[saved-defaults guide](configs/tuned/README.md) for provenance and opt-out options.
+Successful searches write the validation winner directly to
+`configs/models/<dataset>/<model>.yaml`. Single-model and batch training
+read those same files. Use `--datasets all`, `--models paper`, or `--dry-run` as needed.
+See the [model parameter guide](configs/models/README.md) for budgets and configuration.
 
 <!-- MAIN_TABLE_SNAPSHOT_START -->
 ## Reference results
@@ -179,7 +187,8 @@ AntM2C / MicroLens / TikTok use canonical-v1; EB-NeRD uses canonical-v4 (history
 | qarm | 0.770242 ± 0.000760 | 0.258044 ± 0.001552 |
 | simcen | 0.759884 ± 0.001956 | 0.260031 ± 0.001611 |
 
-Source: `outputs/main_table_ebnerd/main_table.json`. Regenerate the tables with `"$MMCTR_PYTHON" scripts/update_readme_main_table.py`.
+These tables are reference results from a completed run set. Use `scripts/train_all_models.sh`
+to train the current model configurations; results may vary with the seed and runtime environment.
 <!-- MAIN_TABLE_SNAPSHOT_END -->
 
 ## Diagnostic experiments

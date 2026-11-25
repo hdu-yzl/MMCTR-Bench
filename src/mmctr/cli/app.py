@@ -42,8 +42,7 @@ def _run_train(arguments) -> int:
         seed=arguments.seed,
         save_checkpoints=not arguments.no_checkpoints,
         dataset_config_path=arguments.dataset_config,
-        tuned_config_dir=arguments.tuned_config_dir,
-        use_tuned_config=not arguments.ignore_tuned_config,
+        model_config_dir=arguments.model_config_dir,
     )
     if arguments.validation_only:
         trainer.run(evaluate_test=False)
@@ -69,7 +68,24 @@ def _run_tune(arguments) -> int:
     )
     from mmctr.training.entrypoint import PROJECT_ROOT, Trainer
 
-    candidates, protocol = load_tuning_search(arguments.candidates, arguments.model_name)
+    from mmctr.config import load_model_config
+    from mmctr.models.common.registry import model_spec
+    from mmctr.experiments.search_protocol import TuningBudget
+
+    arguments.model_name = model_spec(arguments.model_name.lower()).name
+    arguments.dataset_name = arguments.dataset_name.lower()
+    TuningBudget(
+        max_trials=arguments.max_trials,
+        max_gpu_hours=arguments.max_gpu_hours,
+        max_hours=arguments.max_hours,
+    )
+    directory = arguments.model_config_dir or PROJECT_ROOT / "configs/models"
+    # Snapshot the current parameters. Retuning keeps unsampled settings and can
+    # establish a new selection for a changed dataset.
+    base = load_model_config(directory, arguments.dataset_name, arguments.model_name)
+    candidates, protocol = load_tuning_search(
+        arguments.candidates, arguments.model_name, max_trials=arguments.max_trials
+    )
 
     def factory(candidate):
         return Trainer(
@@ -80,9 +96,10 @@ def _run_tune(arguments) -> int:
             seed=arguments.seed,
             output_root=arguments.output_root,
             save_checkpoints=False,
-            model_overrides=candidate.get("model"),
-            training_overrides=candidate.get("training"),
-            use_tuned_config=False,
+            model_overrides={**base["model"], **candidate.get("model", {})},
+            training_overrides={**base["training"], **candidate.get("training", {})},
+            model_config_dir=directory,
+            validate_model_data=False,
         )
 
     # Resolve provenance without fitting or reading the test split.
@@ -107,15 +124,18 @@ def _run_tune(arguments) -> int:
         factory,
         search_protocol=protocol,
         device_type="cpu" if arguments.cuda == -1 else "cuda",
+        max_trials=arguments.max_trials,
+        max_gpu_hours=arguments.max_gpu_hours,
+        max_hours=arguments.max_hours,
     )
     if not arguments.no_write_back:
-        from mmctr.config import write_tuned_config
+        from mmctr.config import write_model_config
 
-        saved = write_tuned_config(
+        saved = write_model_config(
             tuner.study_dir / "frozen_selection.json",
-            arguments.tuned_config_dir or PROJECT_ROOT / "configs/tuned",
+            directory,
         )
-        print("Saved tuned defaults to {}".format(saved), file=sys.stderr)
+        print("Updated model parameters in {}".format(saved), file=sys.stderr)
     print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
     return 0
 
@@ -157,12 +177,7 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--output-root", default=None)
     train.add_argument("--seed", type=int, default=None)
     train.add_argument(
-        "--tuned-config-dir", type=Path, help="saved defaults directory (default: configs/tuned)"
-    )
-    train.add_argument(
-        "--ignore-tuned-config",
-        action="store_true",
-        help="use catalog defaults without saved tuning",
+        "--model-config-dir", type=Path, help="parameter root (default: configs/models)"
     )
     train.add_argument(
         "--validation-only",
@@ -178,7 +193,7 @@ def build_parser() -> argparse.ArgumentParser:
     train.set_defaults(handler=_run_train)
 
     tune = subparsers.add_parser(
-        "tune", help="shared random search: 50 trials or 50 GPU-hours, then one final test"
+        "tune", help="budgeted Optuna search with direct model-parameter write-back"
     )
     tune.add_argument("--dataset-name", required=True)
     tune.add_argument("--model-name", required=True)
@@ -194,11 +209,20 @@ def build_parser() -> argparse.ArgumentParser:
     tune.add_argument("--cuda", type=int, default=None)
     tune.add_argument("--num-threads", type=int, default=8)
     tune.add_argument(
-        "--tuned-config-dir", type=Path, help="write-back directory (default: configs/tuned)"
+        "--model-config-dir",
+        type=Path,
+        help="parameter root for reading and write-back (default: configs/models)",
     )
     tune.add_argument(
         "--no-write-back", action="store_true", help="keep search results without updating defaults"
     )
+    tune.add_argument(
+        "--max-trials", type=int, default=50, help="attempt limit, including failures"
+    )
+    tune.add_argument(
+        "--max-gpu-hours", type=float, default=50, help="allocated GPU trial-hour limit"
+    )
+    tune.add_argument("--max-hours", type=float, help="trial-hour limit on either CPU or GPU")
     tune.set_defaults(handler=_run_tune)
 
     validate = subparsers.add_parser(

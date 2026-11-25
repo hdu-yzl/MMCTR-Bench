@@ -19,6 +19,9 @@ mkdir -p "$TMPDIR"
 ```
 
 Keep data, checkpoints, results, credentials, and machine-specific settings out of Git.
-For a distribution change, check the sdist and wheel contents as well as the staged diff.
+For a distribution change, build from a clean source tree and check both sdist and wheel
+contents as well as the staged diff. Local analysis source, its dedicated tests/configuration,
+and maintainer archives are explicitly excluded from distributions. Git ignore rules alone
+do not define package contents.
 Contributions to the repository are covered by [Apache-2.0](LICENSE); third-party assets
 retain their own terms.

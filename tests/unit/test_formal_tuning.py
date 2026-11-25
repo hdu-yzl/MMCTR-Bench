@@ -43,13 +43,6 @@ class FormalTuningTests(unittest.TestCase):
                 ),
             )
             frozen = tuner.freeze(trials)
-            final_task = tuner.final_test_task(
-                frozen,
-                task_id="final-test",
-                dataset="antm2c",
-                model="dnn",
-                seed=1,
-            )
             final_result = self._result("final-run", test_auc=0.74, test_log_loss=0.58)
             result_path = tuner.record_final_test_result(frozen, final_result)
 
@@ -60,8 +53,6 @@ class FormalTuningTests(unittest.TestCase):
         self.assertEqual({"lr": 0.001, "dropout": 0.1}, dict(frozen.config))
         self.assertEqual((1, 2), frozen.seeds)
         self.assertEqual("dataset-sha", frozen.data_fingerprint)
-        self.assertEqual("final_test", final_task.resolved_config["stage"])
-        self.assertEqual("trial-2", final_task.resolved_config["selection"]["trial_id"])
         self.assertEqual("trial-2", selection_payload["selected_trial_id"])
         self.assertNotIn("test", json.dumps(selection_payload).lower())
         self.assertEqual("final-run", test_payload["run_id"])

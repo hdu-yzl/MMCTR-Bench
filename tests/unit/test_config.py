@@ -13,12 +13,12 @@ from mmctr.config import (
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-TRAIN_CONFIG_PATH = REPOSITORY_ROOT / "configs" / "training" / "default.yaml"
+TRAIN_CONFIG_PATH = REPOSITORY_ROOT / "configs" / "models" / "antm2c" / "dnn.yaml"
 
 
 class TrainingConfigTest(unittest.TestCase):
     def _valid_mapping(self):
-        return load_yaml_mapping(TRAIN_CONFIG_PATH)
+        return load_training_config(TRAIN_CONFIG_PATH).to_dict()
 
     def test_repository_training_config_is_typed_and_paths_are_root_relative(self):
         config = load_training_config(TRAIN_CONFIG_PATH)

@@ -53,7 +53,7 @@ jobs:
           "$MMCTR_PYTHON" -m pip install \
             --index-url https://download.pytorch.org/whl/cpu \
             "torch==1.13.1+cpu"
-          "$MMCTR_PYTHON" -m pip install --editable ".[training,ci,dev]"
+          "$MMCTR_PYTHON" -m pip install --editable ".[training,optuna,ci,dev]"
           "$MMCTR_PYTHON" -m pip check
 
       - name: Check formatting and lint
@@ -63,9 +63,6 @@ jobs:
 
       - name: Check public package types
         run: '"$MMCTR_PYTHON" -m mypy src/mmctr'
-
-      - name: Run fast unit and smoke tests
-        run: '"$MMCTR_PYTHON" -m pytest tests/unit tests/smoke'
 
       - name: Run complete tests with coverage
         run: '"$MMCTR_PYTHON" -m pytest --cov=mmctr --cov-report=term-missing'

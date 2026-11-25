@@ -35,17 +35,6 @@ class BatchContractTests(unittest.TestCase):
         moved = contextual.to("cpu")
         self.assertEqual((2, 3), tuple(moved.context_features["query_text"].shape))
 
-    def test_legacy_adapter_derives_mask_from_padding_id(self):
-        legacy = (
-            {"id": torch.tensor([[1], [2]])},
-            {"id": torch.tensor([[1, 0], [2, 1]])},
-            torch.tensor([[0.0], [1.0]]),
-        )
-        batch = Batch.from_legacy(legacy, padding_id=0)
-        self.assertTrue(
-            torch.equal(batch.history_mask, torch.tensor([[True, False], [True, True]]))
-        )
-
     def test_rejects_wrong_mask_dtype(self):
         with self.assertRaisesRegex(ContractError, "torch.bool"):
             Batch(
@@ -58,9 +47,9 @@ class BatchContractTests(unittest.TestCase):
 
 
 class ModelOutputContractTests(unittest.TestCase):
-    def test_adapts_legacy_output_and_sums_auxiliary_loss(self):
+    def test_normalises_logits_and_sums_auxiliary_loss(self):
         logits = torch.tensor([[0.1], [0.2]])
-        output = ModelOutput.from_legacy({"pred": logits, "au_loss": torch.tensor(0.5)})
+        output = ModelOutput(logits, {"alignment": torch.tensor(0.5)})
         self.assertEqual((2,), tuple(output.logits.shape))
         self.assertAlmostEqual(0.5, output.auxiliary_loss().item())
 

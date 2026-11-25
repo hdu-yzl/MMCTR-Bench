@@ -231,3 +231,60 @@ class TrainingEngineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_memory_checkpoint_matches_disk_best_and_writes_nothing(tmp_path):
+    import pytest
+
+    outputs = []
+    for persist in (True, False):
+        torch.manual_seed(2025)
+        model = TinyModel()
+        manager = CheckpointManager(tmp_path / str(persist), persist=persist)
+        engine = TrainingEngine(
+            model, build_optimizer(model, "Adam", 0.1), torch.device("cpu"), manager
+        )
+        result = engine.fit(TinyLoader(), 4, 2, "fixture")
+        metric = engine.evaluate(TinyLoader(), "test", 0)
+        outputs.append((result.metrics, metric.metrics, model.linear.weight.detach().clone()))
+        if not persist:
+            assert list(manager.directory.iterdir()) == []
+            with pytest.raises(ValueError, match="cannot resume"):
+                engine.resume()
+            expected = model.linear.weight.detach().clone()
+            with torch.no_grad():
+                model.linear.weight.add_(10)
+            manager.restore("best", model)
+            assert torch.equal(expected, model.linear.weight)
+    assert outputs[0][0] == outputs[1][0]
+    assert outputs[0][1] == outputs[1][1]
+    assert torch.equal(outputs[0][2], outputs[1][2])
+
+
+def test_training_and_evaluation_reject_untyped_model_outputs(tmp_path):
+    from mmctr.core import ContractError
+    from mmctr.evaluation.evaluator import BinaryClassificationEvaluator
+    import pytest
+
+    class InvalidModel(TinyModel):
+        def forward(self, batch):
+            logits = self.linear(batch.item_features["score"])
+            return {"pred": logits} if self.mapping_output else logits
+
+    for mapping in (False, True):
+        model = InvalidModel()
+        model.mapping_output = mapping
+        before = model.linear.weight.detach().clone()
+        engine = TrainingEngine(
+            model,
+            build_optimizer(model, "adam", 0.01, 0.0),
+            torch.device("cpu"),
+            CheckpointManager(tmp_path),
+        )
+        with pytest.raises(ContractError, match="must return ModelOutput"):
+            engine.train_epoch(TinyLoader().iter_batches("train"), epoch=0)
+        assert torch.equal(before, model.linear.weight)
+        with pytest.raises(ContractError, match="must return ModelOutput"):
+            BinaryClassificationEvaluator(torch.device("cpu")).evaluate(
+                model, TinyLoader().iter_batches("test")
+            )

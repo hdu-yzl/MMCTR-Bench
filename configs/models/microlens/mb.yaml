@@ -1,0 +1,29 @@
+schema_version: 1
+dataset: microlens
+model_name: mb
+model:
+  latent_dim: 128
+  projection_dim: 128
+  mlp_dims:
+  - 1024
+  - 512
+  - 256
+  dropout: 0.0
+  batch_norm: true
+  seq_pooling_method: mean
+  seq_modeling: false
+  sensitive_modal: image
+  insensitive_modal: text
+  mb_balance_weight: 0.1
+  mb_sample_num: 30
+  mb_adv_eps: 1.0
+  mb_pgd_steps: 3
+  mb_fusion_hidden_dim: 128
+training:
+  lr: 0.001
+  l2: 1.0e-07
+  batch_size: 512
+  optim: adam
+  max_epochs: 20
+  early_stop_patience: 5
+selection: {}

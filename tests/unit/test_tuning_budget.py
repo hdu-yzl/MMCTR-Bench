@@ -238,3 +238,61 @@ def test_invalid_provenance_stops_study_even_with_an_earlier_valid_winner(tmp_pa
     assert history["stop_reason"] == "invalid_trial"
     assert len(history["trials"]) == 2
     assert not (tuner.study_dir / "frozen_selection.json").exists()
+
+
+def test_custom_trial_limit_is_recorded_and_stops_before_next_attempt(tmp_path, monkeypatch):
+    tuner, calls, factory = timed_search(tmp_path, monkeypatch)
+    run_validation_search(tuner, [{"id": i} for i in range(6)], factory, max_trials=2)
+    history = json.loads((tuner.study_dir / "trial_history.json").read_text())
+    assert calls == [0, 1, "test"]
+    assert history["budget"]["max_trials"] == 2
+    assert history["stop_reason"] == "max_trials"
+
+
+@pytest.mark.parametrize(
+    "device,limits,reason",
+    [
+        ("cuda", {"max_gpu_hours": 1.5}, "gpu_hours"),
+        ("cpu", {"max_hours": 1.5}, "trial_hours"),
+    ],
+)
+def test_custom_time_limit_discards_incomplete_trial(tmp_path, monkeypatch, device, limits, reason):
+    tuner, calls, factory = timed_search(tmp_path, monkeypatch, device=device)
+    run_validation_search(
+        tuner,
+        [{"id": 0, "hours": 1}, {"id": 1, "hours": 1}, {"id": 2}],
+        factory,
+        **limits,
+    )
+    history = json.loads((tuner.study_dir / "trial_history.json").read_text())
+    selected = json.loads((tuner.study_dir / "frozen_selection.json").read_text())
+    assert calls == [0, 1, "test"]
+    assert selected["selected_trial_id"] == "0"
+    assert history["stop_reason"] == reason
+    assert history["trials"][1]["status"] == "failed"
+
+
+@pytest.mark.parametrize(
+    "limits",
+    [
+        {"max_trials": 0},
+        {"max_trials": True},
+        {"max_trials": 1.5},
+        {"max_gpu_hours": -1},
+        {"max_gpu_hours": float("nan")},
+        {"max_hours": 0},
+        {"max_hours": float("inf")},
+    ],
+)
+def test_invalid_budgets_fail_before_starting(limits):
+    from mmctr.experiments.search_protocol import TuningBudget
+
+    with pytest.raises(ValueError):
+        TuningBudget(**limits)
+
+
+def test_short_search_is_a_reproducible_prefix_of_default_search():
+    pytest.importorskip("optuna")
+    default, _ = load_tuning_search(model_name="gmmf")
+    short, _ = load_tuning_search(model_name="gmmf", max_trials=3)
+    assert short == default[:3]

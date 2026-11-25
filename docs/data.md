@@ -92,30 +92,34 @@ history article IDs.
 
 ### Prepare EB-NeRD
 
-From the repository root, activate the project environment and set `MMCTR_PYTHON` to its absolute
-interpreter path. The first three commands prepare intermediate inputs for the final ID store:
+Activate the project environment and set `MMCTR_PYTHON` to its absolute interpreter path.
+Prepare and verify the current dataset with one command:
 
 ```bash
-(
-  set -e
-  raw=data/raw/ebnerd
-  stage=.tmp/ebnerd-prepare
-  output=data/processed/ebnerd/canonical-v4
-  mkdir -p "$stage"
-  "$MMCTR_PYTHON" -m mmctr.data.datasets.ebnerd \
-    --raw-dir "$raw" --output-dir "$stage/impressions" --sequence-length 5
-  "$MMCTR_PYTHON" -m mmctr.data.datasets.ebnerd \
-    --sample-test-from "$stage/impressions" --output-dir "$stage/sampled" \
-    --test-fraction 0.1 --sampling-seed 2025
-  "$MMCTR_PYTHON" -m mmctr.data.datasets.ebnerd \
-    --enrich-from "$stage/sampled" --raw-dir "$raw" --output-dir "$stage/attributes"
-  "$MMCTR_PYTHON" -m mmctr.data.datasets.ebnerd \
-    --ids-from "$stage/attributes" --raw-dir "$raw" --output-dir "$output" \
-    --config-output "$stage/catalog.yaml"
-  "$MMCTR_PYTHON" -m mmctr.data.datasets.ebnerd --output-dir "$output" --verify-only
-)
+"$MMCTR_PYTHON" -m mmctr.data.datasets.ebnerd --prepare \
+  --raw-dir data/raw/ebnerd \
+  --output-dir data/processed/ebnerd/canonical-v4 \
+  --work-dir .tmp/ebnerd-prepare \
+  --sequence-length 5 --test-fraction 0.1 --sampling-seed 2025 \
+  --config-output .tmp/ebnerd-prepare/catalog.yaml
 ```
+
+The command reuses the existing impression construction, test sampling, attribute preparation
+and ID encoding stages, then validates the final output. Intermediate files stay under
+`--work-dir`; rerunning with the same inputs and parameters reuses completed stages after
+validation. Use a different work/output directory when changing the preprocessing settings.
+
+For diagnosis, the individual `--sample-test-from`, `--enrich-from`, `--ids-from` and
+`--verify-only` modes remain available. These modes are mutually exclusive with `--prepare`.
 
 Use the tracked catalog for the benchmark dataset. For a custom build, pass the generated
 catalog with `--dataset-config`; it records the actual dimensions, ID ranges, and fingerprint.
 Keep generated arrays, mappings, and fitted vocabularies local.
+
+### Adding a dataset loader
+
+A loader exposes `dataset_name`, an audited `DatasetManifest`, and `iter_batches(split)`
+yielding `mmctr.core.Batch` objects with explicit history masks. Quantization also uses
+`get_multi_modal()` to read shared item features. Register the loader in the dataset registry.
+The old `get_data` / `get_data_seq`, tuple adapters and `DatasetManifest.from_config` are
+removed; construct the manifest from the processed data and return `Batch` directly.

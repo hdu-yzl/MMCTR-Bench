@@ -80,14 +80,25 @@ title/abstract/category encoders, and the user context branch remains in place.
 English comments in `naml.py` mark this adaptation explicitly. The executable NAML
 pipeline preset uses the same view-attention fusion and history attention.
 
-These fixes change learned behavior. Retrain the affected models and regenerate
-benchmark metrics; historical result tables have not been recomputed. Old Dice
-checkpoints lack running-statistic buffers, and old NAML checkpoints contain sum
-fusion parameters instead of attention parameters. They cannot be loaded strictly
-as checkpoints of the corrected models; using `strict=False` does not recover the
-missing learned state.
-
 ## Quantizer requirements
 
 QARM requires pretrained RQ artifacts; PSRQ requires pretrained PSRQ artifacts. Train them
 for the same dataset used by the CTR run. See the [training commands](../README.md#one-click-training).
+
+## Candidate identity in DMF and PSRQ
+
+DMF and PSRQ pass the projected candidate item ID directly to their prediction heads
+(`target_id_to_head: true` by default). This preserves candidate discrimination when
+history is empty, normalized attention has only one valid token, or PSRQ joint codes
+collide. Their original attention, similarity and quantization branches remain in place.
+This is an explicit benchmark adaptation. Set `target_id_to_head: false` to reproduce
+the former head; enabling it changes head dimensions and requires retraining old
+checkpoints.
+
+## Adding a model
+
+Implement `forward_batch(batch: Batch) -> ModelOutput` on `BaseSeqModel` and register the
+model. Return `ModelOutput(logits, auxiliary_losses={"name": scalar_loss})`; logits have
+shape `[B]` and each auxiliary loss has a stable name. Plain `torch.nn.Module` extensions
+must follow the same output contract. Training and evaluation reject raw tensors and the
+old `pred` / `au_loss` dictionaries. `ModelOutput.from_legacy` and `as_legacy` are removed.

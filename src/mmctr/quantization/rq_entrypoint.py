@@ -2,45 +2,34 @@
 
 import argparse
 from pathlib import Path
+from typing import Optional, Sequence
 
 import numpy as np
 
 from mmctr.data import get_data_loader
-from mmctr.config import (
-    ConfigValidationError,
-    load_local_paths,
-    load_training_config,
-    load_yaml_mapping,
-    resolve_dataset_config,
-)
+from mmctr.config import ConfigValidationError
 from mmctr.quantization import ResidualQuantizer, rq_artifact_path
-from mmctr.utils import helper
+
+from .preparation import load_pretraining_config
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
-def train(dataset_name: str, use_local_data: bool = False) -> None:
+def train(
+    dataset_name: str,
+    use_local_data: bool = False,
+    modalities: Optional[Sequence[str]] = None,
+) -> None:
     dataset = dataset_name.lower()
-    model_catalog = load_yaml_mapping(PROJECT_ROOT / "configs/models/catalog.yaml")
-    data_catalog = load_yaml_mapping(PROJECT_ROOT / "configs/datasets/catalog.yaml")
-    training = load_training_config(PROJECT_ROOT / "configs/training/default.yaml")
-    helper.setup_seed(training.seed)
-    local_paths = None
-    if use_local_data:
-        local_paths = load_local_paths(PROJECT_ROOT / "configs/local/paths.yaml")
-        if dataset not in local_paths.datasets:
-            raise ConfigValidationError(["local path for dataset {!r} is missing".format(dataset)])
-    data_config = resolve_dataset_config(
-        dataset,
-        data_catalog[dataset],
-        project_root=PROJECT_ROOT,
-        local_paths=local_paths,
+    training, data_config, config = load_pretraining_config(
+        PROJECT_ROOT, dataset, "rq", use_local_data
     )
-    config = model_catalog["rq"]
-    config = dict(config.get(dataset, config))
+    available = tuple(name for name in data_config["use_mm_features"] if name != "id")
+    modalities = available if modalities is None else tuple(modalities)
+    if not modalities or set(modalities) - set(available):
+        raise ConfigValidationError(["RQ modalities must be nonempty dataset modalities"])
     loader = get_data_loader(dataset, data_config, training.batch_size)
-    modalities = tuple(name for name in data_config["use_mm_features"] if name != "id")
     feature_table = loader.get_multi_modal()
     for modality in modalities:
         values = np.asarray(feature_table[modality], dtype=np.float32)
@@ -64,8 +53,9 @@ def main(argv=None) -> None:
     parser = argparse.ArgumentParser(description="Fit canonical MMCTR RQ artifacts")
     parser.add_argument("--dataset-name", default="antm2c")
     parser.add_argument("--use-local-data", action="store_true")
+    parser.add_argument("--modalities", nargs="+", help="Fit only these modality artifacts")
     arguments = parser.parse_args(argv)
-    train(arguments.dataset_name, arguments.use_local_data)
+    train(arguments.dataset_name, arguments.use_local_data, arguments.modalities)
 
 
 if __name__ == "__main__":

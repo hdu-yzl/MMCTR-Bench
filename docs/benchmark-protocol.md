@@ -4,8 +4,10 @@
 
 Fit parameters on training data. Use validation AUC for early stopping, checkpoint selection,
 and hyperparameter selection. Freeze the configuration and weights before computing test AUC
-and LogLoss. Install `.[optuna]` for the built-in random search. Each model gets at most
-**50 attempted trials or 50 allocated GPU-hours**, whichever comes first. Failed and
+and LogLoss. Install `.[optuna]` for the built-in random search. By default, each dataset/model pair gets at most
+**50 attempted trials or 50 allocated GPU-hours**, whichever comes first. Set
+`--max-trials` and `--max-gpu-hours` to change these limits; `--max-hours` additionally
+limits trial time on either CPU or GPU. Failed and
 budget-interrupted trials count toward the trial limit.
 
 ## Datasets and reference results
@@ -14,6 +16,29 @@ Use the dataset versions and split definitions in the [data guide](data.md). Eac
 [README reference tables](../README.md#reference-results) covers 21 models and seeds 2025–2029.
 AUC and LogLoss are reported as mean ± sample standard deviation (`ddof=1`). Keep per-seed
 scores, resolved settings, and the data fingerprint with the run records.
+
+## Batch training
+
+Run `scripts/train_all_models.sh --dataset tiktok --gpus 0,1` for all 23 models, or
+select a subset with `--models dmf,qarm,psrq`. Each model runs once using its saved
+configuration. Reference tables summarize earlier five-seed runs; individual results
+can vary with the seed and environment.
+
+Before CTR workers start, `mmctr.quantization.ensure` checks QARM's per-modality RQ
+artifacts and PSRQ's joint artifact with the production loader. Missing, corrupt or
+structurally incompatible artifacts trigger default pretraining and a second check.
+Valid artifacts are reused, and preparation is locked per dataset to prevent duplicate
+pretraining by simultaneous batch launchers. Failure stops the batch before CTR starts.
+RQ uses `configs/models/<dataset>/rq.yaml`; PSRQ uses its model configuration and
+`pretraining` settings. SID codes are computed from these frozen quantizers during model
+execution; there is no separate SID completion flag. `--dry-run` checks existing artifacts
+and prints any required pretraining commands without fitting them.
+
+Standalone training/tuning still require prepared artifacts. To prepare them separately:
+
+```bash
+"$MMCTR_PYTHON" -m mmctr.quantization.ensure --dataset-name tiktok --cuda 0
+```
 
 ## Tune one model
 
@@ -27,24 +52,28 @@ root:
 ```
 
 After the frozen validation winner completes its final evaluation successfully, `tune`
-automatically writes its settings to `configs/tuned/<dataset>/<model>.yaml`. This is a
-dataset/model-specific configuration layer over the base catalogs. It includes the
-resolved model parameters, training hyperparameters, data fingerprint, and validation
-selection provenance; final-test metrics do not affect the selection or write-back.
-Subsequent ordinary training and main-table jobs automatically load that file. Their
-run seed, device, and output directory remain controlled by the new run's arguments.
-The main-table source hashes also include these YAML files.
+atomically replaces `configs/models/<dataset>/<model>.yaml` with its model and training
+parameters plus validation provenance. Single-model and batch training read this same file.
+Run seeds, devices and output paths remain controlled by the new run's arguments.
+Test metrics never affect selection or enter the parameter file. Failed searches leave
+existing parameters unchanged.
 
-The most recent successful search replaces the same pair's saved configuration;
-failed searches do not change it. New searches use the base catalogs and their search
-overrides, independently of earlier saved configurations. Explicit Trainer overrides
-take priority over saved defaults. A different data fingerprint is rejected to prevent
-accidental reuse across data versions.
+A new search starts with the current model file and retains unsampled settings. The
+requested search overrides sampled parameters; it may establish new selection provenance
+for a changed dataset. Ordinary training checks any saved selection's data fingerprint.
+Explicit Trainer overrides take precedence over the file.
 
-Pass `tune --no-write-back` to keep an exploratory search from updating defaults, or
-`train --ignore-tuned-config` to train from the base catalogs. Both commands accept
-`--tuned-config-dir` for an alternate saved-defaults directory. The main-table launcher
-uses the default `configs/tuned/` directory. See the [configuration guide](../configs/tuned/README.md).
+Pass `--no-write-back` for exploratory searches. Both `train` and `tune` accept
+`--model-config-dir` to choose another parameter root. There is no separate tuned layer.
+To select several methods or datasets, use:
+
+```bash
+scripts/tune.sh --datasets tiktok,ebnerd --models dmf,simcen \
+  --max-trials 20 --max-gpu-hours 4 --cuda 0
+```
+
+Each pair receives the specified budget, and pairs run sequentially. Use `--dry-run`
+to inspect commands. See the [parameter guide](../configs/models/README.md).
 
 All models use this fixed public search space:
 
@@ -54,13 +83,13 @@ All models use this fixed public search space:
 | Weight decay (`training.l2`) | 0.00001, 0.000001, 0.0000001 |
 | Dropout (`model.dropout`) | 0, 0.1, 0.2, 0.3, 0.5 |
 
-Optuna's `RandomSampler` draws 50 categorical trials with replacement using search seed 2025,
+Optuna's `RandomSampler` draws the requested number of categorical trials with replacement using search seed 2025,
 independently of the training `--seed`. Repeated combinations are allowed; the space has
 45 distinct shared combinations. The original tuner configuration adds the following
 model-specific dimensions automatically; all other settings retain their configured defaults.
-The combined space shares one budget of 50 attempts / 50 GPU-hours per model, rather than
-allocating a separate budget to each dimension. Adam, batch size 512, maximum 20 epochs,
-and patience 5 remain fixed.
+The combined space shares one budget per dataset/model pair. Unsampled optimizer and
+training settings remain fixed at the values in that pair's parameter file (initially Adam,
+batch size 512, maximum 20 epochs, and patience 5).
 
 | Model | Additional parameters and values |
 |---|---|
@@ -97,7 +126,7 @@ not run. They are retained separately in `PRETRAINING_SEARCH_SPACES`:
 
 Pretraining must satisfy `batch_size >= codebook_size` and produce compatible frozen
 artifacts before CTR training. PSRQ CTR search varies downstream dropout while retaining
-the original catalog dropout as `quantizer_dropout` for the frozen artifact's compatibility
+the configured `quantizer_dropout` for the frozen artifact's compatibility
 check. An explicit `quantizer_dropout` override must match the pretraining artifact.
 
 Optionally pass `--candidates configs/experiments/tuning.example.yaml`: a YAML containing
@@ -105,15 +134,29 @@ Optionally pass `--candidates configs/experiments/tuning.example.yaml`: a YAML c
 override any searched parameter, including through a dataset-scoped mapping. Legacy YAML
 with a nonempty `candidates` list of `model` and
 `training` overrides remains available for exploratory searches and small smoke runs; it is
-labelled `explicit_candidates` in artifacts and has the same hard budget caps.
+labelled `explicit_candidates` in artifacts and uses the same configurable budget limits.
 
 GPU-hours sum each trial's wall time on its single allocated CUDA device, including
 initialization, training, validation, and cleanup. The deadline is checked between batches
 and after fitting; in-flight work may finish after the limit. A trial interrupted by the
 budget cannot win. If no trial completed, history is retained and the command fails without
-testing. CPU time (`--cuda -1`) is recorded separately and consumes no GPU-hours. The final
+testing or writing parameters. CPU time (`--cuda -1`) is recorded separately and consumes
+no GPU-hours; use `--max-hours` for a CPU time limit. The final
 test is outside the search budget. Search settings, per-trial timings, cumulative usage,
 and the stopping reason are saved with the history and frozen selection.
 
 Ties keep the first candidate; the selected weights are tested without retraining.
 Use a fresh study ID for each search, including after failed or interrupted searches.
+
+## Entry points and extensions
+
+Use `scripts/train_model.sh` for one model, `scripts/train_all_models.sh` for a model set,
+and `scripts/tune.sh` for budgeted parameter search. The batch script includes quantized
+models by default; the obsolete `--include-quantized` option is removed. Use
+`scripts/pretrain_quantizers.sh` to deliberately refit RQ and PSRQ; ordinary batch training
+reuses compatible artifacts and prepares missing ones automatically.
+
+The unused `ExperimentRunner`, `ExperimentTask`, matrix serialization functions and
+`ValidationOnlyTuner.final_test_task()` are removed. Use the current training/tuning entry
+points. Custom tuning code can use `load_tuning_search()` and `run_validation_search()`;
+selection freezing and separate final-test result recording remain available.

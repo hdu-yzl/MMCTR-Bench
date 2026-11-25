@@ -7,7 +7,7 @@ import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Set, Tuple
 
 import numpy as np
 import torch
@@ -711,25 +711,6 @@ class AntM2CCanonicalLoader:
                     },
                 )
                 batch_index += 1
-
-    def get_data_seq(self, split: str) -> Iterable[Tuple[Any, ...]]:
-        for batch in self.iter_batches(split):
-            users = dict(batch.user_features)
-            users.update(batch.context_features)
-            yield (
-                users,
-                dict(batch.item_features),
-                dict(batch.history_features),
-                batch.labels[:, None],
-            )
-
-    def get_data(self, split: str) -> Iterable[Tuple[Any, ...]]:
-        for batch in self.iter_batches(split):
-            features = dict(batch.item_features)
-            features["id"] = torch.cat(
-                [batch.user_features["id"], batch.item_features["id"]], dim=1
-            )
-            yield features, dict(batch.history_features), batch.labels[:, None]
 
     def get_multi_modal(self) -> Mapping[str, np.ndarray]:
         return dict(self._modalities)
